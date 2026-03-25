@@ -1,15 +1,19 @@
 {
   "name": "portugol-webstudio",
-  "description": "IDE online para o Portugol",
+  "description": "IDE online para o Portugol — fork UNIFEI para integração com SMA socrático (dissertação)",
   "version": "0.0.0",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dgadelha/Portugol-Webstudio.git"
+    "url": "git+https://github.com/luisricar-do/portugol-ai-tutor.git"
   },
   "keywords": [
     "portugol",
-    "webstudio"
+    "webstudio",
+    "unifei",
+    "inteligencia-artificial",
+    "metodo-socratico",
+    "design-science-research"
   ],
   "author": "Douglas Gadêlha <dgadelha@live.com>",
   "contributors": [
@@ -17,9 +21,9 @@
   ],
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/dgadelha/Portugol-Webstudio/issues"
+    "url": "https://github.com/luisricar-do/portugol-ai-tutor/issues"
   },
-  "homepage": "https://github.com/dgadelha/Portugol-Webstudio#readme",
+  "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
   "packageManager": "npm@11.11.0+sha512.f36811c4aae1fde639527368ae44c571d050006a608d67a191f195a801a52637a312d259186254aa3a3799b05335b7390539cf28656d18f0591a1125ba35f973",
   "workspaces": [
     "packages/*"

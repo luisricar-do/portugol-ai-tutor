@@ -7,6 +7,27 @@ _IDE online para o Portugol_
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-GPL-blue.svg)](https://github.com/dgadelha/Portugol-Webstudio/blob/master/LICENSE)
 [![Stars](https://img.shields.io/github/stars/dgadelha/Portugol-Webstudio)](https://github.com/dgadelha/Portugol-Webstudio/stargazers)
 
+## Dissertação (UNIFEI) — fork `portugol-ai-tutor`
+
+Este repositório é um **fork** de [Portugol-Webstudio](https://github.com/dgadelha/Portugol-Webstudio) usado no mestrado em Ciência e Tecnologia da Computação (UNIFEI — Itajubá), no projeto de dissertação *Orquestração de Agentes de IA com Método Socrático para o Ensino de Lógica de Programação: uma integração com o Portugol Webstudio baseada em Design Science Research* (orientação: Prof. Dr. Bruno Guazzelli Batista).
+
+- **Autor do fork / pesquisa:** Luis Ricardo Albano Santos  
+- **Upstream:** `https://github.com/dgadelha/Portugol-Webstudio.git` (remote sugerido: `upstream`)  
+- **Backend / SMA e benchmark de LLMs:** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica) — integração com esta IDE (plugin ou extensão de interface) será desenvolvida aqui.
+
+### Sincronizar com o upstream
+
+```sh
+git fetch upstream
+git checkout develop   # ou a branch em que você trabalha
+git merge upstream/main
+# resolva conflitos se houver, teste com npm ci && npm run build && npm start
+```
+
+O restante deste README descreve o projeto original **Portugol Webstudio**; a licença e os créditos dos autores originais permanecem inalterados abaixo.
+
+---
+
 Baseado no Portugol Studio, o **Portugol Webstudio** tenta trazer todo ambiente de desenvolvimento que é possível se encontrar no desktop, para a internet. Ele constitui-se de um ambiente de desenvolvimento construído para permitir a criação e a execução dos programas escritos em Portugol, trazendo assim uma experiência o mais próxima do que você pode encontrar da IDE do Portugol Studio. Portugol, também conhecido como Português estruturado, é um pseudocódigo escrito em português.
 
 [![Captura de Tela](.github/screenshot.png)](https://portugol.dev/)
