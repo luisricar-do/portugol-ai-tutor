@@ -33,4 +33,4 @@ jobs:
           cp -r LICENSE packages/*
           npx lerna publish 0.0.0-dev.${{ github.run_number }} --no-git-tag-version --no-push --yes
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

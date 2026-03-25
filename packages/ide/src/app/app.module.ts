@@ -1,12 +1,5 @@
 import { provideHttpClient, withInterceptorsFromDi } from "@angular/common/http";
-import {
-  ErrorHandler,
-  inject,
-  isDevMode,
-  NgModule,
-  provideAppInitializer,
-  provideZoneChangeDetection,
-} from "@angular/core";
+import { inject, isDevMode, NgModule, provideAppInitializer, provideZoneChangeDetection } from "@angular/core";
 import { initializeApp, provideFirebaseApp } from "@angular/fire/app";
 import { getStorage, provideStorage } from "@angular/fire/storage";
 import { FormsModule } from "@angular/forms";
@@ -21,10 +14,10 @@ import { MatTabsModule } from "@angular/material/tabs";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatTreeModule } from "@angular/material/tree";
 import { BrowserModule } from "@angular/platform-browser";
+import { RouterModule } from "@angular/router";
 import { ServiceWorkerModule } from "@angular/service-worker";
 import { MonacoEditorModule } from "@materia-ui/ngx-monaco-editor";
 import { provideHotToastConfig } from "@ngxpert/hot-toast";
-import * as Sentry from "@sentry/angular";
 import { AngularSplitModule } from "angular-split";
 import { AngularSvgIconModule } from "angular-svg-icon";
 import { KeyboardShortcutsModule } from "ng-keyboard-shortcuts";
@@ -46,6 +39,7 @@ import { ThemeService } from "./theme.service";
 @NgModule({
   imports: [
     BrowserModule,
+    RouterModule.forRoot([]),
     FormsModule,
     AngularSplitModule,
     MonacoEditorModule,
@@ -87,13 +81,7 @@ import { ThemeService } from "./theme.service";
     }),
     MonacoService,
     PwaService,
-    {
-      provide: ErrorHandler,
-      useValue: Sentry.createErrorHandler({
-        showDialog: false,
-      }),
-    },
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule {}
+export class AppModule { }

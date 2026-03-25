@@ -3,7 +3,6 @@ import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import type { PortugolCodeError } from "@portugol-webstudio/antlr";
 import { PortugolExecutor, PortugolMessage, PortugolWebWorkersRunner } from "@portugol-webstudio/runner";
-import { captureException, setExtra } from "@sentry/angular";
 import { saveAs } from "file-saver";
 import { encode } from "iconv-lite";
 import { ShortcutInput } from "ng-keyboard-shortcuts";
@@ -162,7 +161,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
       error: error => {
         this.gaService.event("execution_runner_error", "Execução", "Erro ao carregar o runner para rodar o código");
 
-        captureException(error, { extra: { code: this.code } });
+        console.error(error, { code: this.code });
       },
     });
 
@@ -216,7 +215,6 @@ export class TabEditorComponent implements OnInit, OnDestroy {
 
   async runCode() {
     this.gaService.event("editor_start_execution", "Editor", "Botão de Iniciar Execução");
-    setExtra("code", this.code);
 
     this.transpiling = true;
 
@@ -226,7 +224,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     try {
       result = await this.worker.transpileCode(code);
     } catch (error) {
-      captureException(error, { tags: { transpile: true }, extra: { code } });
+      console.error(error, { transpile: true, code });
 
       alert(
         "Ocorreu um erro ao transpilar o código, possivelmente o seu navegador não suporta Web Workers. Por favor, tente novamente em outro navegador. Caso o erro persista, acesse https://github.com/dgadelha/Portugol-Webstudio/issues/new/choose",

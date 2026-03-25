@@ -79,7 +79,6 @@ import {
   TamanhoArrayContext,
   ValorLogicoContext,
 } from "@portugol-webstudio/antlr";
-import { captureException } from "@sentry/core";
 import { AbstractParseTreeVisitor, ParserRuleContext } from "antlr4ng";
 
 import { StringBuilder } from "./utils/StringBuilder.js";
@@ -1051,7 +1050,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitDeclaracao) {
-      captureException("visitDeclaracao", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitDeclaracao", { text: ctx.getText() });
       PortugolJs.thrown.visitDeclaracao = true;
     }
 
@@ -1065,9 +1064,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitDeclaracaoVariavel) {
-      captureException("visitDeclaracaoVariavel", {
-        extra: { text: ctx.getText() },
-      });
+      console.warn("[PortugolJs] visitDeclaracaoVariavel", { text: ctx.getText() });
       PortugolJs.thrown.visitDeclaracaoVariavel = true;
     }
 
@@ -1082,7 +1079,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitDeclaracaoMatriz) {
-      captureException("visitDeclaracaoMatriz", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitDeclaracaoMatriz", { text: ctx.getText() });
       PortugolJs.thrown.visitDeclaracaoMatriz = true;
     }
 
@@ -1119,7 +1116,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitLinhaMatriz) {
-      captureException("visitLinhaMatriz", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitLinhaMatriz", { text: ctx.getText() });
       PortugolJs.thrown.visitLinhaMatriz = true;
     }
 
@@ -1134,7 +1131,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitColunaMatriz) {
-      captureException("visitColunaMatriz", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitColunaMatriz", { text: ctx.getText() });
       PortugolJs.thrown.visitColunaMatriz = true;
     }
 
@@ -1149,7 +1146,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitDeclaracaoArray) {
-      captureException("visitDeclaracaoArray", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitDeclaracaoArray", { text: ctx.getText() });
       PortugolJs.thrown.visitDeclaracaoArray = true;
     }
 
@@ -1181,7 +1178,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitTamanhoArray) {
-      captureException("visitTamanhoArray", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitTamanhoArray", { text: ctx.getText() });
       PortugolJs.thrown.visitTamanhoArray = true;
     }
 
@@ -1272,7 +1269,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitParametro) {
-      captureException("visitParametro", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitParametro", { text: ctx.getText() });
       PortugolJs.thrown.visitParametro = true;
     }
 
@@ -1287,7 +1284,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitParametroArray) {
-      captureException("visitParametroArray", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitParametroArray", { text: ctx.getText() });
       PortugolJs.thrown.visitParametroArray = true;
     }
 
@@ -1302,7 +1299,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitParametroMatriz) {
-      captureException("visitParametroMatriz", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitParametroMatriz", { text: ctx.getText() });
       PortugolJs.thrown.visitParametroMatriz = true;
     }
 
@@ -1670,7 +1667,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitIndiceArray) {
-      captureException("visitIndiceArray", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitIndiceArray", { text: ctx.getText() });
       PortugolJs.thrown.visitIndiceArray = true;
     }
 
@@ -1717,7 +1714,7 @@ export class PortugolJs extends AbstractParseTreeVisitor<string> implements Port
     const sb = new StringBuilder();
 
     if (!PortugolJs.thrown.visitEscopoBiblioteca) {
-      captureException("visitEscopoBiblioteca", { extra: { text: ctx.getText() } });
+      console.warn("[PortugolJs] visitEscopoBiblioteca", { text: ctx.getText() });
       PortugolJs.thrown.visitEscopoBiblioteca = true;
     }
 
