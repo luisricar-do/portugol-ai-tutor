@@ -5,7 +5,7 @@ permissions:
 on:
   push:
     branches:
-      - main
+      - develop
 jobs:
   publish:
     runs-on: ubuntu-latest
