@@ -15,6 +15,17 @@
   min-height: 0;
 }
 
+.tutor-rail-column {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 100%;
+  min-height: 0;
+  border-left: 1px solid var(--pws-border-color);
+  background: var(--pws-bg-200);
+}
+
 .tutor-panel {
   flex: 0 0 auto;
   width: 0;
@@ -42,12 +53,10 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 100%;
+  width: 100%;
   padding: 0;
   border: none;
-  border-left: 1px solid var(--pws-border-color);
-  background: var(--pws-bg-200);
+  background: transparent;
   color: var(--pws-text-200);
   cursor: pointer;
   transition: background 0.2s ease;
@@ -61,6 +70,17 @@
     width: 1.35rem;
     height: 1.35rem;
   }
+}
+
+.tutor-rail--panel {
+  flex: 1 1 0;
+  min-height: 0;
+  border-bottom: 1px solid var(--pws-border-color);
+}
+
+.tutor-rail--clear {
+  flex: 0 0 2.5rem;
+  height: 2.5rem;
 }
 
 ::ng-deep .editor-inner {

@@ -9,6 +9,11 @@ export interface TutorHelpRequest {
   code: string;
   errors: string[];
   history: TutorHistoryItem[];
+  /**
+   * Quantidade de decorações do tutor ainda visíveis no editor (destaques, variáveis, comentários inline).
+   * O agente usa para decidir se chama `clear_highlights` antes de novas ações.
+   */
+  activeTutorDecorations?: number;
 }
 
 export interface TutorDiagnosis {

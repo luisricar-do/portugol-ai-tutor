@@ -7,7 +7,7 @@ import { saveAs } from "file-saver";
 import { encode } from "iconv-lite";
 import { ShortcutInput } from "ng-keyboard-shortcuts";
 import { GoogleAnalyticsService } from "ngx-google-analytics";
-import { Subscription, combineLatest, debounceTime, fromEventPattern, mergeMap } from "rxjs";
+import { Subscription, combineLatest, debounceTime, fromEventPattern, switchMap } from "rxjs";
 import { GraphicsRenderer, IGraphicsRendererComponent } from "../../renderer";
 import { IExtendedWindowApi } from "../../types";
 import { DialogRendererComponent } from "../dialog-renderer/dialog-renderer.component";
@@ -246,11 +246,17 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   }
 
   async runCode() {
+    if (this.transpiling) {
+      return;
+    }
+
     this.gaService.event("editor_start_execution", "Editor", "Botão de Iniciar Execução");
 
     this.transpiling = true;
 
-    const code = this.code ?? "";
+    // Usa snapshot direto do Monaco para evitar depender do sincronismo do ngModel.
+    const code = this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
+    this.code = code;
     let result;
 
     try {
@@ -496,7 +502,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     this._code$ = fromEventPattern(editor.onDidChangeModelContent)
       .pipe(
         debounceTime(500),
-        mergeMap(async () => this.worker.checkCode(this.codeEditor?.getModel()?.getValue() ?? this.code ?? "")),
+        switchMap(async () => this.worker.checkCode(this.codeEditor?.getModel()?.getValue() ?? this.code ?? "")),
       )
       .subscribe({
         next: result => {
@@ -515,6 +521,12 @@ export class TabEditorComponent implements OnInit, OnDestroy {
       "Editor",
       "Painel do tutor ARIA",
     );
+  }
+
+  /** Remove destaques e comentários inline do tutor no Monaco (não limpa o chat). */
+  clearTutorEditorDecorations(): void {
+    this.editorActions.clearTutorDecorations();
+    this.gaService.event("editor_tutor_clear_decorations", "Editor", "Limpar destaques do tutor");
   }
 
   openHelp() {

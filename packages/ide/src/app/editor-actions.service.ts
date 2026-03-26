@@ -1,4 +1,4 @@
-import { Injectable, inject } from "@angular/core";
+import { Injectable, NgZone, inject } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import type { EditorAction } from "@luisricar-do/agent";
 
@@ -8,16 +8,24 @@ function escapeRegExp(s: string): string {
 
 /**
  * Aplica no Monaco as ações pedagógicas vindas do tutor (SSE `event: action`).
+ * As ações são enfileiradas e aplicadas no próximo frame para não bloquear o thread principal
+ * durante o SSE (evita competir com o worker de transpilação / Zone).
  */
 @Injectable({ providedIn: "root" })
 export class EditorActionsService {
   private readonly snack = inject(MatSnackBar);
+
+  private readonly ngZone = inject(NgZone);
 
   private editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
   private decorationIds: string[] = [];
 
   private runCodeFn: (() => void | Promise<void>) | null = null;
+
+  private pendingActions: EditorAction[] = [];
+
+  private flushRaf: number | null = null;
 
   /**
    * Chamado quando o editor de código principal é criado ou destruído.
@@ -36,7 +44,59 @@ export class EditorActionsService {
     this.runCodeFn = fn;
   }
 
+  /**
+   * Quantidade de decorações ativas do tutor (linhas, variáveis, comentários inline).
+   * Snacks e `run_code_with_watch` não entram nesta contagem.
+   */
+  get activeTutorDecorationCount(): number {
+    return this.decorationIds.length;
+  }
+
+  /** Indica se há destaques/comentários do tutor aplicados no editor. */
+  hasActiveTutorDecorations(): boolean {
+    return this.decorationIds.length > 0;
+  }
+
+  /**
+   * Remove todos os destaques e comentários inline do tutor (equivalente à tool `clear_highlights`).
+   */
+  clearTutorDecorations(): void {
+    this.cancelPendingFlush();
+    this.clearHighlightsInternal();
+  }
+
   dispatch(action: EditorAction): void {
+    this.pendingActions.push(action);
+    this.scheduleFlush();
+  }
+
+  private scheduleFlush(): void {
+    if (this.flushRaf !== null) {
+      return;
+    }
+    this.flushRaf = requestAnimationFrame(() => {
+      this.flushRaf = null;
+      const batch = this.pendingActions.splice(0);
+      if (batch.length === 0) {
+        return;
+      }
+      this.ngZone.run(() => {
+        for (const a of batch) {
+          this.applyAction(a);
+        }
+      });
+    });
+  }
+
+  private cancelPendingFlush(): void {
+    if (this.flushRaf !== null) {
+      cancelAnimationFrame(this.flushRaf);
+      this.flushRaf = null;
+    }
+    this.pendingActions = [];
+  }
+
+  private applyAction(action: EditorAction): void {
     const { type, payload } = action;
 
     switch (type) {
@@ -149,7 +209,7 @@ export class EditorActionsService {
 
     const escaped = escapeRegExp(name);
     const pattern = `\\b${escaped}\\b`;
-    const matches = model.findMatches(pattern, true, true, false, null, true, 500);
+    const matches = model.findMatches(pattern, true, true, false, null, true, 200);
     if (matches.length === 0) {
       return;
     }

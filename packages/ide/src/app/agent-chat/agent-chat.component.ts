@@ -65,6 +65,12 @@ export class AgentChatComponent {
 
   private readonly editorActionsService = inject(EditorActionsService);
 
+  /** Tokens SSE acumulados até o próximo frame (evita NgZone/CD por caractere). */
+  private streamingTokenBuffer = "";
+
+  /** `requestAnimationFrame` pendente para aplicar `streamingTokenBuffer`. */
+  private streamingTokenFlushRaf: number | null = null;
+
   draft = "";
   error: string | null = null;
   showDiagnosis = false;
@@ -82,6 +88,20 @@ export class AgentChatComponent {
 
   get hasHistory(): boolean {
     return this.history.length > 0;
+  }
+
+  /** Destaques/comentários do tutor ainda visíveis no editor (para UI ou lógica externa). */
+  get activeTutorDecorationCount(): number {
+    return this.editorActionsService.activeTutorDecorationCount;
+  }
+
+  /** Scroll leve durante streaming (um rAF; não empilha `afterNextRender`). */
+  private scrollThreadToEndFast(): void {
+    const scrollEl = this.scrollArea()?.nativeElement;
+    if (!scrollEl) {
+      return;
+    }
+    scrollEl.scrollTop = scrollEl.scrollHeight;
   }
 
   /** Após o DOM refletir novas mensagens / streaming, leva o scroll ao fundo do thread. */
@@ -105,6 +125,33 @@ export class AgentChatComponent {
       },
       { injector: this.injector },
     );
+  }
+
+  /** Agenda aplicação dos tokens do stream no próximo frame (uma entrada na NgZone por frame). */
+  private scheduleStreamingTokenFlush(): void {
+    if (this.streamingTokenFlushRaf !== null) {
+      return;
+    }
+    this.streamingTokenFlushRaf = requestAnimationFrame(() => {
+      this.streamingTokenFlushRaf = null;
+      const chunk = this.streamingTokenBuffer;
+      if (chunk.length === 0) {
+        return;
+      }
+      this.streamingTokenBuffer = "";
+      this.ngZone.run(() => {
+        this.streamingText += chunk;
+        this.scrollThreadToEndFast();
+        this.cdr.markForCheck();
+      });
+    });
+  }
+
+  private cancelStreamingTokenFlush(): void {
+    if (this.streamingTokenFlushRaf !== null) {
+      cancelAnimationFrame(this.streamingTokenFlushRaf);
+      this.streamingTokenFlushRaf = null;
+    }
   }
 
   private codeForRequest(): string {
@@ -145,11 +192,10 @@ export class AgentChatComponent {
       return;
     }
 
+    // Não passar `runInZone`: o cliente chamaria NgZone por cada token SSE e saturava o ciclo de detecção
+    // de mudanças (sintoma: UI “travada” até abrir DevTools). O batching abaixo entra na zona no máx. ~60/s.
     const client = createTutorAgentClient({
       baseUrl: environment.agentApiBaseUrl,
-      runInZone: (fn: () => void) => {
-        this.ngZone.run(fn);
-      },
     });
 
     // Atualiza o estado na zona do Angular *antes* do await do worker, para haver CD imediata
@@ -163,34 +209,41 @@ export class AgentChatComponent {
       this.scrollThreadToEnd();
     });
 
-    // Worker / Promise pode resolver fora da zona; manter o await dentro do run evita bloquear o resto do fluxo.
-    const errors = await this.ngZone.run(async () => this.errorsForRequest());
+    const errors = await this.errorsForRequest();
 
-    // O arranque do `fetch` (primeira linha de `helpStream`) tem de correr dentro da zona, senão
-    // a primeira requisição pode não sair até um gatilho externo (ex.: abrir DevTools).
-    this.ngZone.run(() => {
-      void client
-        .helpStream(
-          {
-            code: this.codeForRequest(),
-            errors,
-            history: this.history,
-          },
-          {
-            onDiagnosis: diagnosis => {
+    this.streamingTokenBuffer = "";
+
+    void client
+      .helpStream(
+        {
+          code: this.codeForRequest(),
+          errors,
+          history: this.history,
+          activeTutorDecorations: this.editorActionsService.activeTutorDecorationCount,
+        },
+        {
+          onDiagnosis: diagnosis => {
+            this.ngZone.run(() => {
               this.lastDiagnosis = diagnosis;
               this.cdr.markForCheck();
-            },
-            onToken: delta => {
-              this.streamingText += delta;
-              this.scrollThreadToEnd();
-              this.cdr.markForCheck();
-            },
-            onAction: action => {
-              this.editorActionsService.dispatch(action);
-              this.cdr.markForCheck();
-            },
-            onDone: () => {
+            });
+          },
+          onToken: delta => {
+            this.streamingTokenBuffer += delta;
+            this.scheduleStreamingTokenFlush();
+          },
+          // Ações do editor são enfileiradas no EditorActionsService (rAF + NgZone) para não bloquear
+          // o thread principal durante o SSE — evita competir com o worker de transpilação.
+          onAction: action => {
+            this.editorActionsService.dispatch(action);
+          },
+          onDone: () => {
+            this.ngZone.run(() => {
+              this.cancelStreamingTokenFlush();
+              if (this.streamingTokenBuffer.length > 0) {
+                this.streamingText += this.streamingTokenBuffer;
+                this.streamingTokenBuffer = "";
+              }
               const reply = this.streamingText;
               this.streamingAssistant = false;
               this.streamingText = "";
@@ -199,27 +252,32 @@ export class AgentChatComponent {
               }
               this.scrollThreadToEnd();
               this.cdr.markForCheck();
-            },
+            });
           },
-        )
-        .catch((error: unknown) => {
-          this.ngZone.run(() => {
-            this.streamingAssistant = false;
-            this.streamingText = "";
-            this.history.pop();
-            this.error = error instanceof TutorAgentError ? error.message : "Falha ao contactar o tutor.";
-            this.scrollThreadToEnd();
-            this.cdr.markForCheck();
-          });
+        },
+      )
+      .catch((error: unknown) => {
+        this.ngZone.run(() => {
+          this.cancelStreamingTokenFlush();
+          this.streamingTokenBuffer = "";
+          this.streamingAssistant = false;
+          this.streamingText = "";
+          this.history.pop();
+          this.error = error instanceof TutorAgentError ? error.message : "Falha ao contactar o tutor.";
+          this.scrollThreadToEnd();
+          this.cdr.markForCheck();
         });
-    });
+      });
   }
 
   clearConversation(): void {
+    this.cancelStreamingTokenFlush();
+    this.streamingTokenBuffer = "";
     this.history = [];
     this.lastDiagnosis = null;
     this.error = null;
     this.streamingAssistant = false;
     this.streamingText = "";
+    this.editorActionsService.clearTutorDecorations();
   }
 }
