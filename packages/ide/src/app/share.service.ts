@@ -13,7 +13,8 @@ export class ShareService {
         contentType: "text/plain",
       });
 
-      return `https://portugol.dev/#share=${shareId}`;
+      const base = `${window.location.origin}${window.location.pathname}`;
+      return `${base.replace(/\/$/, "")}/#share=${shareId}`;
     } catch (error) {
       console.error(error);
       return null;
