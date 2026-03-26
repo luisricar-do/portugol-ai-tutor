@@ -92,6 +92,31 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   /** Código atual do buffer do Monaco para o tutor (o ngModel pode não estar sincronizado a cada tecla). */
   readonly tutorEditorCodeSnapshot = (): string => this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
 
+  private readMonacoCompilerErrorLines(): string[] {
+    const model = this.codeEditor?.getModel();
+    if (!model) {
+      return [];
+    }
+
+    const markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: "owner" });
+    return markers
+      .filter(m => m.severity === monaco.MarkerSeverity.Error)
+      .map(m => `Linha ${m.startLineNumber}, coluna ${m.startColumn}: ${m.message}`);
+  }
+
+  /** Erros do compilador/analisador alinhados ao código atual (mesmo fluxo que o worker do editor). */
+  readonly tutorCompilerErrorsResolver = async (): Promise<string[]> => {
+    const code = this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
+    try {
+      const { errors, parseErrors } = await this.worker.checkCode(code);
+      return [...errors, ...parseErrors].map(
+        e => `Linha ${e.startLine}, coluna ${e.startCol + 1}: ${e.message}`,
+      );
+    } catch {
+      return this.readMonacoCompilerErrorLines();
+    }
+  };
+
   hasSaveFilePickerSupport = "showSaveFilePicker" in window;
 
   shortcuts: ShortcutInput[] = [
@@ -465,7 +490,9 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     this._code$ = fromEventPattern(editor.onDidChangeModelContent)
       .pipe(
         debounceTime(500),
-        mergeMap(async () => this.worker.checkCode(this.code ?? "")),
+        mergeMap(async () =>
+          this.worker.checkCode(this.codeEditor?.getModel()?.getValue() ?? this.code ?? ""),
+        ),
       )
       .subscribe({
         next: result => {

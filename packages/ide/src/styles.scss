@@ -38,6 +38,65 @@ body {
   color: var(--pws-body-color);
 }
 
+// Barras de scroll finas e coerentes com o tema (Firefox: scrollbar-*; WebKit: ::-webkit-scrollbar)
+[data-theme="dark"],
+[data-theme="dark"] * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--pws-text-300) 48%, var(--pws-bg-200)) var(--pws-bg-300);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--pws-bg-300);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--pws-text-300) 42%, var(--pws-bg-200));
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--pws-text-200) 48%, var(--pws-bg-200));
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: var(--pws-bg-300);
+  }
+}
+
+[data-theme="light"],
+[data-theme="light"] * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--pws-text-300) 35%, var(--pws-bg-200)) var(--pws-bg-100);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--pws-bg-100);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--pws-text-300) 28%, var(--pws-bg-200));
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--pws-text-200) 32%, var(--pws-bg-200));
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: var(--pws-bg-100);
+  }
+}
+
 .as-split-gutter {
   background-color: var(--pws-bg-200) !important;
 }
@@ -49,7 +108,7 @@ s {
 .mat-mdc-dialog-container {
   display: flex !important;
 
-  > * {
+  >* {
     flex-grow: 1;
   }
 }
@@ -58,7 +117,7 @@ s {
   display: flex;
 }
 
-svg-icon > svg {
+svg-icon>svg {
   fill: currentColor;
 }
 
@@ -97,7 +156,8 @@ markdown {
     border-left: 0.25rem solid var(--pws-color-secondary);
   }
 
-  a, a:visited {
+  a,
+  a:visited {
     color: var(--pws-color-secondary);
     text-decoration: none;
 

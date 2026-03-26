@@ -31,6 +31,15 @@ export class AgentChatComponent {
    */
   @Input() editorCodeSnapshot?: () => string;
 
+  /**
+   * Erros do compilador no momento do envio (ex.: `checkCode` no worker).
+   * Se não existir, usa `compilerErrorsSnapshot` quando definido.
+   */
+  @Input() compilerErrorsResolver?: () => Promise<string[]>;
+
+  /** Fallback síncrono (ex.: marcadores Monaco) quando não há resolver. */
+  @Input() compilerErrorsSnapshot?: () => string[];
+
   readonly baseUrlConfigured = Boolean(environment.agentApiBaseUrl?.trim());
 
   readonly scrollArea = viewChild<ElementRef<HTMLElement>>("scrollArea");
@@ -89,6 +98,17 @@ export class AgentChatComponent {
     return trimmed.length > 0 ? raw : TUTOR_CHAT_PLACEHOLDER_CODE;
   }
 
+  private async errorsForRequest(): Promise<string[]> {
+    if (this.compilerErrorsResolver) {
+      try {
+        return await this.compilerErrorsResolver();
+      } catch {
+        return this.compilerErrorsSnapshot?.() ?? [];
+      }
+    }
+    return this.compilerErrorsSnapshot?.() ?? [];
+  }
+
   onDraftEnter(event: Event): void {
     const ke = event as KeyboardEvent;
     if (ke.shiftKey || ke.isComposing) {
@@ -96,16 +116,17 @@ export class AgentChatComponent {
     }
 
     ke.preventDefault();
-    this.send();
+    void this.send();
   }
 
-  send(): void {
+  async send(): Promise<void> {
     const text = this.draft.trim();
     if (!text || !this.baseUrlConfigured || this.streamingAssistant) {
       return;
     }
 
     const client = createTutorAgentClient({ baseUrl: environment.agentApiBaseUrl });
+    const errors = await this.errorsForRequest();
     this.history.push({ role: "user", content: text });
     this.draft = "";
     this.error = null;
@@ -117,7 +138,7 @@ export class AgentChatComponent {
       .helpStream(
         {
           code: this.codeForRequest(),
-          errors: [],
+          errors,
           history: this.history,
         },
         {

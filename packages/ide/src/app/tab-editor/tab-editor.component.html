@@ -135,7 +135,8 @@
   </button>
 
   <aside class="tutor-panel" role="complementary" aria-label="Painel do tutor ARIA">
-    <app-agent-chat [editorCode]="code ?? ''" [editorCodeSnapshot]="tutorEditorCodeSnapshot" />
+    <app-agent-chat [editorCode]="code ?? ''" [editorCodeSnapshot]="tutorEditorCodeSnapshot"
+      [compilerErrorsResolver]="tutorCompilerErrorsResolver" />
   </aside>
 </div>
 
