@@ -58,6 +58,8 @@
     @if (error) {
     <p class="agent-chat__error" role="alert">{{ error }}</p>
     }
+
+    <div #threadEnd class="agent-chat__thread-end" aria-hidden="true"></div>
   </div>
 
   @if (showDiagnosis && lastDiagnosis) {

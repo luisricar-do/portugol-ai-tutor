@@ -22,12 +22,12 @@
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 0;
   background: var(--pws-bg-200);
-  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
 }
 
 .tutor-stack--open .tutor-panel {
   width: min(22rem, 42vw);
-  border-right-color: var(--pws-border-color);
+  border-left-color: var(--pws-border-color);
 }
 
 .tutor-panel app-agent-chat {
@@ -46,7 +46,7 @@
   height: 100%;
   padding: 0;
   border: none;
-  border-right: 1px solid var(--pws-border-color);
+  border-left: 1px solid var(--pws-border-color);
   background: var(--pws-bg-200);
   color: var(--pws-text-200);
   cursor: pointer;

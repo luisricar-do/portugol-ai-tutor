@@ -89,6 +89,9 @@ export class TabEditorComponent implements OnInit, OnDestroy {
 
   tutorPanelOpen = false;
 
+  /** Código atual do buffer do Monaco para o tutor (o ngModel pode não estar sincronizado a cada tecla). */
+  readonly tutorEditorCodeSnapshot = (): string => this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
+
   hasSaveFilePickerSupport = "showSaveFilePicker" in window;
 
   shortcuts: ShortcutInput[] = [

@@ -1,5 +1,5 @@
 import { JsonPipe } from "@angular/common";
-import { Component, ElementRef, inject, Input, NgZone, viewChild } from "@angular/core";
+import { afterNextRender, Component, ElementRef, inject, Injector, Input, NgZone, viewChild } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckboxModule } from "@angular/material/checkbox";
@@ -22,13 +22,24 @@ import { environment } from "../../environments/environment";
   styleUrl: "./agent-chat.component.scss",
 })
 export class AgentChatComponent {
+  /** Valor espelhado do editor (pode atrasar face ao Monaco). */
   @Input() editorCode = "";
+
+  /**
+   * Se definido, o texto enviado ao tutor usa o retorno desta função no momento do envio
+   * (ex.: `getModel().getValue()`), garantindo o código atualmente aberto no editor.
+   */
+  @Input() editorCodeSnapshot?: () => string;
 
   readonly baseUrlConfigured = Boolean(environment.agentApiBaseUrl?.trim());
 
   readonly scrollArea = viewChild<ElementRef<HTMLElement>>("scrollArea");
 
+  readonly threadEnd = viewChild<ElementRef<HTMLElement>>("threadEnd");
+
   private readonly ngZone = inject(NgZone);
+
+  private readonly injector = inject(Injector);
 
   draft = "";
   error: string | null = null;
@@ -49,18 +60,33 @@ export class AgentChatComponent {
     return this.history.length > 0;
   }
 
+  /** Após o DOM refletir novas mensagens / streaming, leva o scroll ao fundo do thread. */
   private scrollThreadToEnd(): void {
-    queueMicrotask(() => {
-      const el = this.scrollArea()?.nativeElement;
-      if (el) {
-        el.scrollTop = el.scrollHeight;
-      }
-    });
+    afterNextRender(
+      () => {
+        requestAnimationFrame(() => {
+          const scrollEl = this.scrollArea()?.nativeElement;
+          const anchor = this.threadEnd()?.nativeElement;
+          if (anchor && scrollEl?.contains(anchor)) {
+            anchor.scrollIntoView({ block: "end", inline: "nearest", behavior: "instant" });
+          } else if (scrollEl) {
+            scrollEl.scrollTop = scrollEl.scrollHeight;
+          }
+          requestAnimationFrame(() => {
+            if (scrollEl) {
+              scrollEl.scrollTop = scrollEl.scrollHeight;
+            }
+          });
+        });
+      },
+      { injector: this.injector },
+    );
   }
 
   private codeForRequest(): string {
-    const fromEditor = this.editorCode?.trim();
-    return fromEditor ? this.editorCode : TUTOR_CHAT_PLACEHOLDER_CODE;
+    const raw = this.editorCodeSnapshot?.() ?? this.editorCode ?? "";
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? raw : TUTOR_CHAT_PLACEHOLDER_CODE;
   }
 
   onDraftEnter(event: Event): void {
