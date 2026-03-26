@@ -1,11 +1,11 @@
 export {
-  createTutorAgentClient,
-  normalizeAgentBaseUrl,
   TUTOR_CHAT_PLACEHOLDER_CODE,
-  TutorAgentError
+  TutorAgentError, createTutorAgentClient,
+  normalizeAgentBaseUrl
 } from "./client.js";
 export type { CreateTutorAgentClientOptions, TutorAgentClient } from "./client.js";
 export type {
+  EditorAction,
   TutorDiagnosis,
   TutorHelpErrorBody,
   TutorHelpRequest,

@@ -1,4 +1,5 @@
 import type {
+  EditorAction,
   TutorDiagnosis,
   TutorHelpErrorBody,
   TutorHelpRequest,
@@ -28,7 +29,21 @@ interface SseStreamState {
   sawError: boolean;
 }
 
-function dispatchSseBlock(block: string, handlers: TutorHelpStreamHandlers, state: SseStreamState): void {
+/** Executa `fn` dentro do runner opcional (ex.: NgZone.run no Angular). */
+function runInZoneOptional(runInZone: ((fn: () => void) => void) | undefined, fn: () => void): void {
+  if (runInZone) {
+    runInZone(fn);
+  } else {
+    fn();
+  }
+}
+
+function dispatchSseBlock(
+  block: string,
+  handlers: TutorHelpStreamHandlers,
+  state: SseStreamState,
+  runInZone: ((fn: () => void) => void) | undefined,
+): void {
   let eventName = "";
   let dataLine = "";
   for (const line of block.split("\n")) {
@@ -44,49 +59,61 @@ function dispatchSseBlock(block: string, handlers: TutorHelpStreamHandlers, stat
     return;
   }
 
-  let data: unknown;
-  try {
-    data = JSON.parse(dataLine) as unknown;
-  } catch {
-    state.sawError = true;
-    handlers.onError?.(500, "Evento SSE com JSON inválido.");
-    return;
-  }
-
-  switch (eventName) {
-    case "diagnosis": {
-      handlers.onDiagnosis?.(data as TutorDiagnosis);
-      break;
-    }
-
-    case "token": {
-      const text = (data as { text?: string }).text ?? "";
-      handlers.onToken?.(text);
-      break;
-    }
-
-    case "done": {
-      state.sawDone = true;
-      handlers.onDone?.();
-      break;
-    }
-
-    case "error": {
+  runInZoneOptional(runInZone, () => {
+    let data: unknown;
+    try {
+      data = JSON.parse(dataLine) as unknown;
+    } catch {
       state.sawError = true;
-      const err = data as { status?: number; error?: string };
-      const status = err.status ?? 500;
-      const message = err.error ?? "Erro no stream.";
-      handlers.onError?.(status, message);
-      break;
+      handlers.onError?.(500, "Evento SSE com JSON inválido.");
+      return;
     }
 
-    default: {
-      break;
+    switch (eventName) {
+      case "diagnosis": {
+        handlers.onDiagnosis?.(data as TutorDiagnosis);
+        break;
+      }
+
+      case "token": {
+        const text = (data as { text?: string }).text ?? "";
+        handlers.onToken?.(text);
+        break;
+      }
+
+      case "action": {
+        const action = data as EditorAction;
+        handlers.onAction?.(action);
+        break;
+      }
+
+      case "done": {
+        state.sawDone = true;
+        handlers.onDone?.();
+        break;
+      }
+
+      case "error": {
+        state.sawError = true;
+        const err = data as { status?: number; error?: string };
+        const status = err.status ?? 500;
+        const message = err.error ?? "Erro no stream.";
+        handlers.onError?.(status, message);
+        break;
+      }
+
+      default: {
+        break;
+      }
     }
-  }
+  });
 }
 
-async function readHelpSseStream(body: ReadableStream<Uint8Array>, handlers: TutorHelpStreamHandlers): Promise<void> {
+async function readHelpSseStream(
+  body: ReadableStream<Uint8Array>,
+  handlers: TutorHelpStreamHandlers,
+  runInZone: ((fn: () => void) => void) | undefined,
+): Promise<void> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let carry = "";
@@ -110,19 +137,19 @@ async function readHelpSseStream(body: ReadableStream<Uint8Array>, handlers: Tut
           continue;
         }
 
-        dispatchSseBlock(block, handlers, streamState);
+        dispatchSseBlock(block, handlers, streamState, runInZone);
       }
     }
 
     if (carry.trim()) {
-      dispatchSseBlock(carry.trim(), handlers, streamState);
+      dispatchSseBlock(carry.trim(), handlers, streamState, runInZone);
     }
   } finally {
     reader.releaseLock();
   }
 
   if (!streamState.sawDone && !streamState.sawError) {
-    handlers.onDone?.();
+    runInZoneOptional(runInZone, () => handlers.onDone?.());
   }
 }
 
@@ -143,11 +170,17 @@ export interface CreateTutorAgentClientOptions {
   /** Ex.: `http://localhost:7071/api` (Azure Functions). */
   baseUrl: string;
   fetch?: typeof fetch;
+  /**
+   * Garante que os callbacks do SSE corram na zona do UI (ex.: `NgZone.run`).
+   * Necessário com Angular + streams: `ReadableStream` pode retomar fora da zona.
+   */
+  runInZone?: (fn: () => void) => void;
 }
 
 export function createTutorAgentClient(options: CreateTutorAgentClientOptions): TutorAgentClient {
   const base = normalizeAgentBaseUrl(options.baseUrl);
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const runInZone = options.runInZone;
 
   return {
     async help(body: TutorHelpRequest): Promise<TutorHelpResponse> {
@@ -207,20 +240,25 @@ export function createTutorAgentClient(options: CreateTutorAgentClientOptions): 
         throw new TutorAgentError(response.status, message);
       }
 
-      let errorFromEvent: TutorAgentError | null = null;
+      const streamError: { current: TutorAgentError | null } = { current: null };
 
-      await readHelpSseStream(response.body, {
-        onDiagnosis: handlers.onDiagnosis,
-        onToken: handlers.onToken,
-        onDone: handlers.onDone,
-        onError: (status, message) => {
-          handlers.onError?.(status, message);
-          errorFromEvent = new TutorAgentError(status, message);
+      await readHelpSseStream(
+        response.body,
+        {
+          onDiagnosis: handlers.onDiagnosis,
+          onToken: handlers.onToken,
+          onDone: handlers.onDone,
+          onAction: handlers.onAction,
+          onError: (status, message) => {
+            handlers.onError?.(status, message);
+            streamError.current = new TutorAgentError(status, message);
+          },
         },
-      });
+        runInZone,
+      );
 
-      if (errorFromEvent !== null) {
-        throw new TutorAgentError(errorFromEvent.status, errorFromEvent.message);
+      if (streamError.current !== null) {
+        throw streamError.current;
       }
     },
   };

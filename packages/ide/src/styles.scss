@@ -243,3 +243,30 @@ markdown {
     }
   }
 }
+
+/* Tutor ARIA — decorações Monaco (EditorActionsService) */
+.monaco-editor .tutor-line--warning {
+  background-color: rgba(255, 193, 7, 0.22);
+}
+
+.monaco-editor .tutor-line--info {
+  background-color: rgba(33, 150, 243, 0.18);
+}
+
+.monaco-editor .tutor-var-match {
+  background-color: rgba(186, 104, 200, 0.28);
+}
+
+.monaco-editor .tutor-inline-comment {
+  color: #81d4fa;
+  font-style: italic;
+  opacity: 0.95;
+}
+
+.tutor-snack--celebrate .mdc-snackbar__label {
+  font-weight: 500;
+}
+
+.tutor-snack--escalate .mdc-snackbar__label {
+  max-width: 56ch;
+}

@@ -11,6 +11,7 @@ import { Subscription, combineLatest, debounceTime, fromEventPattern, mergeMap }
 import { GraphicsRenderer, IGraphicsRendererComponent } from "../../renderer";
 import { IExtendedWindowApi } from "../../types";
 import { DialogRendererComponent } from "../dialog-renderer/dialog-renderer.component";
+import { EditorActionsService } from "../editor-actions.service";
 import { FileService } from "../file.service";
 import { SettingsService } from "../settings.service";
 import { ShareService } from "../share.service";
@@ -39,6 +40,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   private themeService = inject(ThemeService);
   private settingsService = inject(SettingsService);
   private dialog = inject(MatDialog);
+  private editorActions = inject(EditorActionsService);
 
   @Input()
   title?: string;
@@ -109,9 +111,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     const code = this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
     try {
       const { errors, parseErrors } = await this.worker.checkCode(code);
-      return [...errors, ...parseErrors].map(
-        e => `Linha ${e.startLine}, coluna ${e.startCol + 1}: ${e.message}`,
-      );
+      return [...errors, ...parseErrors].map(e => `Linha ${e.startLine}, coluna ${e.startCol + 1}: ${e.message}`);
     } catch {
       return this.readMonacoCompilerErrorLines();
     }
@@ -241,6 +241,8 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     this._stdOut$?.unsubscribe();
     this._theme$?.unsubscribe();
     this._settings$?.unsubscribe();
+    this.editorActions.setEditor(null);
+    this.editorActions.setRunCode(null);
   }
 
   async runCode() {
@@ -483,6 +485,10 @@ export class TabEditorComponent implements OnInit, OnDestroy {
 
   onEditorInit(editor: monaco.editor.IStandaloneCodeEditor) {
     this.codeEditor = editor;
+    this.editorActions.setEditor(editor);
+    this.editorActions.setRunCode(() => {
+      void this.runCode();
+    });
     this.initShortcuts(editor);
 
     this._code$?.unsubscribe();
@@ -490,9 +496,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     this._code$ = fromEventPattern(editor.onDidChangeModelContent)
       .pipe(
         debounceTime(500),
-        mergeMap(async () =>
-          this.worker.checkCode(this.codeEditor?.getModel()?.getValue() ?? this.code ?? ""),
-        ),
+        mergeMap(async () => this.worker.checkCode(this.codeEditor?.getModel()?.getValue() ?? this.code ?? "")),
       )
       .subscribe({
         next: result => {

@@ -35,9 +35,11 @@
   ],
   "scripts": {
     "build": "tsc",
-    "build:w": "tsc -w"
+    "build:w": "tsc -w",
+    "test": "node --import tsx --test test/client.test.ts"
   },
   "devDependencies": {
+    "tsx": "^4.19.0",
     "typescript": "~5.9.3"
   }
 }

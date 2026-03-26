@@ -68,6 +68,7 @@ export default defineConfig(
       "packages/**/lib/",
       "packages/**/dist/",
       "packages/**/node_modules/",
+      "packages/agent/test/**",
       // Arquivos gerados:
       "packages/antlr/src/Portugol*.ts",
       "packages/resources/assets/",
