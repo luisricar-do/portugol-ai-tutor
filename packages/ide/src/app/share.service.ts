@@ -13,8 +13,7 @@ export class ShareService {
         contentType: "text/plain",
       });
 
-      const base = `${window.location.origin}${window.location.pathname}`;
-      return `${base.replace(/\/$/, "")}/#share=${shareId}`;
+      return `${window.location.origin}${window.location.pathname}#share=${shareId}`;
     } catch (error) {
       console.error(error);
       return null;
