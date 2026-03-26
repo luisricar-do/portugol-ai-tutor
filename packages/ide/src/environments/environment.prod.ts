@@ -1,5 +1,7 @@
 export const environment = {
   production: true,
+  /** Defina no build (substituição de arquivo) ou ajuste antes do deploy. */
+  agentApiBaseUrl: "",
   firebase: {
     apiKey: "AIzaSyD_6fjI7Vsm4RQS6EJZSZ_an7Zehjz9YwQ",
     authDomain: "portugol-webstudio.firebaseapp.com",

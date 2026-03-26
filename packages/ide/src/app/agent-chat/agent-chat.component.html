@@ -1,0 +1,87 @@
+<div class="agent-chat" aria-label="Conversa com a tutora ARIA">
+  <header class="agent-chat__header">
+    <div class="agent-chat__header-text">
+      <span class="agent-chat__name">ARIA</span>
+      <span class="agent-chat__role">Tutora socrática</span>
+    </div>
+    @if (baseUrlConfigured && hasHistory) {
+    <button mat-button type="button" class="agent-chat__clear" [disabled]="streamingAssistant"
+      (click)="clearConversation()">
+      Limpar
+    </button>
+    }
+  </header>
+
+  @if (!baseUrlConfigured) {
+  <div class="agent-chat__empty agent-chat__empty--config">
+    <p>Configure a URL da API em <code>environment.agentApiBaseUrl</code> (ex.: <code>http://localhost:7071/api</code>).
+    </p>
+  </div>
+  } @else {
+  <div #scrollArea class="agent-chat__thread" role="log" aria-live="polite" aria-relevant="additions">
+    @if (thread.length === 0) {
+    <div class="agent-chat__empty">
+      <p class="agent-chat__empty-title">Conversa com o tutor</p>
+      <p class="agent-chat__empty-hint">
+        O código aberto no editor é enviado junto com a sua mensagem. Faça uma pergunta ou peça uma dica.
+      </p>
+    </div>
+    }
+
+    @for (m of thread; track $index) {
+    <div class="agent-chat__row" [class.agent-chat__row--user]="m.role === 'user'">
+      <div class="agent-chat__bubble" [class.agent-chat__bubble--user]="m.role === 'user'"
+        [class.agent-chat__bubble--assistant]="m.role === 'assistant'">
+        @if (m.role === "assistant") {
+        <span class="agent-chat__bubble-label">ARIA</span>
+        }
+        <p class="agent-chat__bubble-text">{{ m.content }}</p>
+      </div>
+    </div>
+    }
+
+    @if (streamingAssistant) {
+    <div class="agent-chat__row">
+      <div class="agent-chat__bubble agent-chat__bubble--assistant agent-chat__bubble--streaming">
+        <span class="agent-chat__bubble-label">ARIA</span>
+        <p class="agent-chat__bubble-text">
+          @if (streamingText) {
+          {{ streamingText }}@if (streamingAssistant) {<span class="agent-chat__cursor" aria-hidden="true">▍</span>}
+          } @else {
+          <span class="agent-chat__typing">Pensando…</span>
+          }
+        </p>
+      </div>
+    </div>
+    }
+
+    @if (error) {
+    <p class="agent-chat__error" role="alert">{{ error }}</p>
+    }
+  </div>
+
+  @if (showDiagnosis && lastDiagnosis) {
+  <div class="agent-chat__diagnosis-wrap">
+    <pre class="agent-chat__diagnosis">{{ lastDiagnosis | json }}</pre>
+  </div>
+  }
+
+  <footer class="agent-chat__footer">
+    <div class="agent-chat__composer">
+      <textarea class="agent-chat__input" name="agentDraft" rows="2" [(ngModel)]="draft"
+        placeholder="Mensagem… (Enter envia, Shift+Enter nova linha)" (keydown.enter)="onDraftEnter($event)"></textarea>
+      <div class="agent-chat__composer-actions">
+        <button mat-mini-fab type="button" color="primary" class="agent-chat__send"
+          [disabled]="streamingAssistant || !draft.trim()" aria-label="Enviar mensagem" (click)="send()">
+          <svg-icon src="assets/mdi/send.svg" aria-hidden="true" focusable="false" />
+        </button>
+      </div>
+    </div>
+
+    <label class="agent-chat__check">
+      <mat-checkbox [(ngModel)]="showDiagnosis" name="showDiagnosis" />
+      <span>Diagnóstico técnico</span>
+    </label>
+  </footer>
+  }
+</div>

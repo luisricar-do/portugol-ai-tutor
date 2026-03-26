@@ -13,12 +13,8 @@
   </button>
 
   <button mat-ripple type="button" aria-labelledby="button-open-example-label" (click)="openExamplesDialog()">
-    <svg-icon
-      src="assets/mdi/book-open-page-variant-outline.svg"
-      svgClass="text-primary"
-      aria-hidden="true"
-      focusable="false"
-    />
+    <svg-icon src="assets/mdi/book-open-page-variant-outline.svg" svgClass="text-primary" aria-hidden="true"
+      focusable="false" />
 
     <span id="button-open-example-label">Abrir Exemplo</span>
   </button>
@@ -28,54 +24,30 @@
     <span id="button-help-label">Ajuda</span>
   </button>
 
-  <a
-    href="https://github.com/dgadelha/Portugol-Webstudio/discussions/categories/ideias-e-sugest%C3%B5es"
-    target="_blank"
-    rel="external noreferrer noopener nofollow"
-    mat-ripple
-    aria-labelledby="button-suggestions-label"
-    (click)="gaService.event('suggest_features', 'Aba Inicial', 'Enviar sugestões')"
-  >
-    <svg-icon
-      src="assets/mdi/lightbulb-on-outline.svg"
-      svgClass="text-secondary"
-      aria-hidden="true"
-      focusable="false"
-    />
+  <a href="https://github.com/dgadelha/Portugol-Webstudio/discussions/categories/ideias-e-sugest%C3%B5es"
+    target="_blank" rel="external noreferrer noopener nofollow" mat-ripple aria-labelledby="button-suggestions-label"
+    (click)="gaService.event('suggest_features', 'Aba Inicial', 'Enviar sugestões')">
+    <svg-icon src="assets/mdi/lightbulb-on-outline.svg" svgClass="text-secondary" aria-hidden="true"
+      focusable="false" />
 
     <span id="button-suggestions-label">Sugestões</span>
   </a>
 
-  <a
-    href="https://github.com/dgadelha/Portugol-Webstudio/discussions/categories/d%C3%BAvidas-perguntas"
-    target="_blank"
-    rel="external noreferrer noopener nofollow"
-    mat-ripple
-    aria-labelledby="button-ask-questions-label"
-    (click)="gaService.event('ask_questions', 'Aba Inicial', 'Enviar dúvidas')"
-  >
+  <a href="https://github.com/dgadelha/Portugol-Webstudio/discussions/categories/d%C3%BAvidas-perguntas" target="_blank"
+    rel="external noreferrer noopener nofollow" mat-ripple aria-labelledby="button-ask-questions-label"
+    (click)="gaService.event('ask_questions', 'Aba Inicial', 'Enviar dúvidas')">
     <svg-icon src="assets/mdi/comment-question-outline.svg" svgClass="text-blue" aria-hidden="true" focusable="false" />
     <span id="button-ask-questions-label">Dúvidas e Perguntas</span>
   </a>
 
-  <button
-    mat-ripple
-    class="with-badge-new"
-    type="button"
-    aria-labelledby="button-settings-label"
-    (click)="openSettingsDialog()"
-  >
+  <button mat-ripple class="with-badge-new" type="button" aria-labelledby="button-settings-label"
+    (click)="openSettingsDialog()">
     <svg-icon src="assets/mdi/cog-outline.svg" svgClass="text-primary" aria-hidden="true" focusable="false" />
     <span id="button-settings-label">Configurações</span>
   </button>
 
-  <button
-    mat-ripple
-    class="with-badge-new"
-    type="button"
-    aria-labelledby="button-about-label"
-    (click)="openAboutDialog()"
-  >
+  <button mat-ripple class="with-badge-new" type="button" aria-labelledby="button-about-label"
+    (click)="openAboutDialog()">
     <svg-icon src="assets/mdi/information-outline.svg" svgClass="text-blue" aria-hidden="true" focusable="false" />
 
     <span id="button-about-label">Sobre</span>
@@ -86,14 +58,10 @@
   <h4><svg-icon src="assets/mdi/newspaper.svg" aria-hidden="true" focusable="false" />Novidades</h4>
   <p>
     <strong>19/03/2026:</strong> Validação de tamanho em atribuição de valores na declaração de vetores e matrizes (<a
-      href="https://github.com/dgadelha/Portugol-Webstudio/pull/369"
-      target="_blank"
-      rel="external noreferrer noopener nofollow"
-      >PR #369</a
-    >, contribuído por
-    <a href="https://github.com/maikvinicius" target="_blank" rel="external noreferrer noopener nofollow"
-      >@maikvinicius</a
-    >)
+      href="https://github.com/dgadelha/Portugol-Webstudio/pull/369" target="_blank"
+      rel="external noreferrer noopener nofollow">PR #369</a>, contribuído por
+    <a href="https://github.com/maikvinicius" target="_blank"
+      rel="external noreferrer noopener nofollow">@maikvinicius</a>)
   </p>
   <p><strong>18/02/2025:</strong> Documentação de Bibliotecas na seção Ajuda</p>
   <p><strong>09/02/2025:</strong> Refatoração/correção de variáveis por referência.</p>

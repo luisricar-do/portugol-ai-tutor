@@ -11,9 +11,9 @@ _IDE online para o Portugol_
 
 Este repositório é um **fork** de [Portugol-Webstudio](https://github.com/dgadelha/Portugol-Webstudio) usado no mestrado em Ciência e Tecnologia da Computação (UNIFEI — Itajubá), no projeto de dissertação *Orquestração de Agentes de IA com Método Socrático para o Ensino de Lógica de Programação: uma integração com o Portugol Webstudio baseada em Design Science Research* (orientação: Prof. Dr. Bruno Guazzelli Batista).
 
-- **Autor do fork / pesquisa:** Luis Ricardo Albano Santos  
-- **Upstream:** `https://github.com/dgadelha/Portugol-Webstudio.git` (remote sugerido: `upstream`)  
-- **Backend / SMA e benchmark de LLMs:** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica) — integração com esta IDE (plugin ou extensão de interface) será desenvolvida aqui.
+- **Autor do fork / pesquisa:** Luis Ricardo Albano Santos
+- **Upstream:** `https://github.com/dgadelha/Portugol-Webstudio.git` (remote sugerido: `upstream`)
+- **Backend (Azure Functions + LangGraph):** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica). Esta IDE inclui chat do tutor socrático que chama a API (`/api/help/stream` em modo streaming).
 
 ### Sincronizar com o upstream
 
@@ -42,8 +42,9 @@ Baseado no Portugol Studio, o **Portugol Webstudio** tenta trazer todo ambiente 
 
 ## Estrutura do projeto
 
-O Portugol Webstudio é um projeto que utiliza o framework [Angular](https://angular.io/), [RxJS](https://rxjs.dev/) e [antlr4ng](https://github.com/mike-lischke/antlr4ng). Ele é dividido em 7 pacotes (disponíveis na pasta `packages`):
+O Portugol Webstudio é um projeto que utiliza o framework [Angular](https://angular.io/), [RxJS](https://rxjs.dev/) e [antlr4ng](https://github.com/mike-lischke/antlr4ng). Ele é dividido em 8 pacotes (disponíveis na pasta `packages`):
 
+- `@luisricar-do/agent`: Cliente TypeScript para a API do tutor (`/api/help` e `/api/help/stream` via SSE), tipos compartilhados e normalização da URL base; usado pela IDE.
 - `@luisricar-do/antlr`: Pacote que contém a gramática do Portugol e a geração do parser, lexer e visitor
 - `@luisricar-do/ide`: Pacote que contém a interface do usuário
 - `@luisricar-do/parser`: Pacote que contém o novo parser do Portugol, que recebe uma árvore pré-processada pelo ANTLR e a transforma em uma árvore semântica
@@ -75,6 +76,13 @@ npm start
 ```
 
 Após isto, você poderá acessar a IDE em: [http://localhost:4200](http://localhost:4200)
+
+### Tutor por IA (API [maieutica](https://github.com/luisricar-do/maieutica))
+
+1. Siga o README do repositório **maieutica** para subir as Azure Functions localmente (por exemplo `http://localhost:7071`).
+2. Na IDE, a URL da API é lida de `packages/ide/src/environments/environment.ts` (desenvolvimento) e `environment.prod.ts` (produção), propriedade **`agentApiBaseUrl`**. Deve incluir o prefixo `/api` (ex.: `http://localhost:7071/api`). Em produção, defina o valor antes do build ou via substituição de arquivo do Angular.
+3. O backend deve permitir **CORS** para a origem da IDE (ver `Host.CORS` em `local.settings.json` no maieutica ou o portal Azure em produção).
+4. Para compilar só o cliente HTTP do tutor: `npm run build:agent`. O `npm run build` da raiz já inclui todos os pacotes necessários para a IDE.
 
 ## Contribuidores
 

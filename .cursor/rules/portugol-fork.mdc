@@ -1,0 +1,13 @@
+---
+description: Fork UNIFEI — monorepo Portugol Webstudio, pacote agent e integração com maieutica
+alwaysApply: true
+---
+
+# portugol-ai-tutor
+
+- **Natureza:** fork para pesquisa; respeitar **GPL-3.0** e créditos do upstream (Douglas/Danilo Gadêlha, LITE/UNIVALI).
+- **Integração IA:** `@luisricar-do/agent` chama o backend **maieutica** (streaming SSE). Alterar contratos em conjunto (tipos, eventos SSE, corpo JSON).
+- **Estrutura:** `packages/ide` (UI), `packages/agent` (cliente HTTP/SSE), demais pacotes para parser/execução — não misturar responsabilidades entre pacotes sem necessidade.
+- **Build:** `npm run build` (Lerna em todos os pacotes); desenvolvimento: `npm start` (scope IDE).
+- **Ambiente:** URLs da API em `packages/ide/src/environments/` — não hardcodar produção em código de dev.
+- **Merge upstream:** após `git merge upstream/main`, validar `npm ci && npm run build && npm start` conforme `README.md`.

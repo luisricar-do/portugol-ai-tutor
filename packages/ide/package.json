@@ -43,6 +43,7 @@
     "@angular/service-worker": "21.2.3",
     "@fontsource/lato": "^5.2.7",
     "@fontsource/pt-sans": "^5.2.8",
+    "@luisricar-do/agent": "*",
     "@luisricar-do/antlr": "*",
     "@luisricar-do/parser": "*",
     "@luisricar-do/resources": "*",

@@ -35,6 +35,7 @@
     "start": "lerna run start --scope=@luisricar-do/ide",
     "build": "lerna run build",
     "build:w": "lerna run --parallel build:w",
+    "build:agent": "lerna run build --scope=@luisricar-do/agent",
     "build:parser": "lerna run build --scope=@luisricar-do/parser",
     "build:runner": "lerna run build --scope=@luisricar-do/runner",
     "build:runtime": "lerna run build --scope=@luisricar-do/runtime",

@@ -1,0 +1,13 @@
+---
+description: Convenções Angular/TypeScript para packages/ide e packages/agent
+globs: "packages/**/*.{ts,html}"
+alwaysApply: false
+---
+
+# Angular IDE e agent
+
+- Seguir padrões **já presentes** nos componentes (estrutura `.ts` / `.html` / `.scss`, módulos, serviços).
+- **Material + tema:** reutilizar estilos e tokens existentes; manter consistência com `tab-editor` e restante shell.
+- **Agent chat:** alterações em `packages/agent` (cliente, tipos) devem refletir-se na UI que consome streams e erros de rede.
+- **RxJS:** preferir padrões do projeto (subscriptions, `takeUntilDestroyed`, etc.) em vez de introduzir estilos novos sem necessidade.
+- **Lint:** `npm run eslint:check` no root quando tocar em ficheiros cobertos pelo ESLint do monorepo.

@@ -185,6 +185,27 @@
   </button>
 </div>
 
+<div class="tutor-stack" [class.tutor-stack--open]="tutorPanelOpen">
+  <aside class="tutor-panel" role="complementary" aria-label="Painel do tutor ARIA">
+    <app-agent-chat [editorCode]="code ?? ''" />
+  </aside>
+
+  <button
+    type="button"
+    class="tutor-rail"
+    [attr.aria-expanded]="tutorPanelOpen"
+    [attr.aria-label]="tutorPanelOpen ? 'Fechar painel do tutor' : 'Abrir painel do tutor'"
+    [title]="tutorPanelOpen ? 'Fechar tutor' : 'Abrir tutor (ARIA)'"
+    (click)="toggleTutorPanel()"
+  >
+    @if (tutorPanelOpen) {
+      <svg-icon src="assets/mdi/chevron-left.svg" aria-hidden="true" focusable="false" />
+    } @else {
+      <svg-icon src="assets/mdi/message-text-outline.svg" aria-hidden="true" focusable="false" />
+    }
+  </button>
+</div>
+
 <div class="editor-inner">
   <as-split direction="vertical">
     <as-split-area [size]="80">

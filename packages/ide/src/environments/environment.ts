@@ -4,6 +4,8 @@
 
 export const environment = {
   production: false,
+  /** Base URL da API Azure Functions (inclua `/api`). Ex.: http://localhost:7071/api */
+  agentApiBaseUrl: "http://localhost:7071/api",
   firebase: {
     apiKey: "AIzaSyD_6fjI7Vsm4RQS6EJZSZ_an7Zehjz9YwQ",
     authDomain: "portugol-webstudio.firebaseapp.com",

@@ -87,6 +87,8 @@ export class TabEditorComponent implements OnInit, OnDestroy {
 
   sharing = false;
 
+  tutorPanelOpen = false;
+
   hasSaveFilePickerSupport = "showSaveFilePicker" in window;
 
   shortcuts: ShortcutInput[] = [
@@ -470,6 +472,15 @@ export class TabEditorComponent implements OnInit, OnDestroy {
           console.error(err);
         },
       });
+  }
+
+  toggleTutorPanel() {
+    this.tutorPanelOpen = !this.tutorPanelOpen;
+    this.gaService.event(
+      this.tutorPanelOpen ? "editor_tutor_panel_open" : "editor_tutor_panel_close",
+      "Editor",
+      "Painel do tutor ARIA",
+    );
   }
 
   openHelp() {

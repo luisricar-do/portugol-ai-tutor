@@ -1,0 +1,43 @@
+{
+  "name": "@luisricar-do/agent",
+  "version": "0.0.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luisricar-do/portugol-ai-tutor.git"
+  },
+  "keywords": [
+    "portugol",
+    "webstudio",
+    "tutor",
+    "agent"
+  ],
+  "author": "Douglas Gadêlha <dgadelha@live.com>",
+  "contributors": [
+    "Danilo Gadêlha <dngadelha@outlook.com>"
+  ],
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/luisricar-do/portugol-ai-tutor/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
+  },
+  "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "directories": {
+    "lib": "lib"
+  },
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:w": "tsc -w"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

@@ -27,6 +27,7 @@ import { provideNgxWebstorage, withNgxWebstorageConfig } from "ngx-webstorage";
 
 import { environment } from "../environments/environment";
 import { withNgxLocalStorageFallback } from "../helpers/local-storage";
+import { AgentChatComponent } from "./agent-chat/agent-chat.component";
 import { AppComponent } from "./app.component";
 import { DialogOpenExampleComponent } from "./dialog-open-example/dialog-open-example.component";
 import { MonacoService } from "./monaco.service";
@@ -38,6 +39,7 @@ import { ThemeService } from "./theme.service";
 
 @NgModule({
   imports: [
+    AgentChatComponent,
     BrowserModule,
     RouterModule.forRoot([]),
     FormsModule,
@@ -84,4 +86,4 @@ import { ThemeService } from "./theme.service";
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule {}
+export class AppModule { }
