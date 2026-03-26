@@ -1,4 +1,4 @@
-import { ExpressaoEntreParentesesContext } from "@portugol-webstudio/antlr";
+import { ExpressaoEntreParentesesContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { Expressão } from "./Expressão.js";

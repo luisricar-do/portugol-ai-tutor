@@ -110,6 +110,12 @@ export class DialogOpenExampleComponent implements OnInit, OnDestroy, AfterViewI
       });
   }
 
+  openCurrentExample() {
+    if (this.current) {
+      this.openExample(this.current);
+    }
+  }
+
   openExample(item: ExampleItem) {
     if (this.rawExampleCode && this.rawExampleCodeId === item.id) {
       this.exampleOpened.emit({ title: item.name, code: this.rawExampleCode });

@@ -1,4 +1,4 @@
-import { PortugolCodeError } from "@portugol-webstudio/antlr";
+import { PortugolCodeError } from "@luisricar-do/antlr";
 import { Observable, Subject } from "rxjs";
 
 export type PortugolEvent =

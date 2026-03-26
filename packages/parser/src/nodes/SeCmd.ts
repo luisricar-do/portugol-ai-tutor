@@ -1,4 +1,4 @@
-import { SeContext } from "@portugol-webstudio/antlr";
+import { SeContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { Comando } from "./Comando.js";

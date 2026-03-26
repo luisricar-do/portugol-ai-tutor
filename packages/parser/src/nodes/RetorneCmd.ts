@@ -1,4 +1,4 @@
-import { RetorneContext } from "@portugol-webstudio/antlr";
+import { RetorneContext } from "@luisricar-do/antlr";
 
 import { Comando } from "./Comando.js";
 import { Expressão } from "./Expressão.js";

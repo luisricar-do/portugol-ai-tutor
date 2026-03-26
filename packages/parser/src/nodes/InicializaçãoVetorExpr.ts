@@ -1,4 +1,4 @@
-import { InicializacaoArrayContext } from "@portugol-webstudio/antlr";
+import { InicializacaoArrayContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

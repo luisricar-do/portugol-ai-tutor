@@ -1,4 +1,4 @@
-import { OperacaoDiferencaContext } from "@portugol-webstudio/antlr";
+import { OperacaoDiferencaContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

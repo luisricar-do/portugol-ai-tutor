@@ -1,4 +1,4 @@
-import { OperacaoShiftLeftContext } from "@portugol-webstudio/antlr";
+import { OperacaoShiftLeftContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

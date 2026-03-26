@@ -1,4 +1,4 @@
-import { AdicaoContext } from "@portugol-webstudio/antlr";
+import { AdicaoContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

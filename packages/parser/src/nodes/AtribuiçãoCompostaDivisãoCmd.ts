@@ -1,4 +1,4 @@
-import { AtribuicaoCompostaDivisaoContext } from "@portugol-webstudio/antlr";
+import { AtribuicaoCompostaDivisaoContext } from "@luisricar-do/antlr";
 
 import { AtribuiçãoCmd } from "./AtribuiçãoCmd.js";
 

@@ -1,10 +1,10 @@
 {
-  "name": "@portugol-webstudio/resources",
+  "name": "@luisricar-do/resources",
   "version": "0.0.0",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dgadelha/Portugol-Webstudio.git"
+    "url": "git+https://github.com/luisricar-do/portugol-ai-tutor.git"
   },
   "keywords": [
     "portugol",
@@ -16,12 +16,13 @@
   ],
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/dgadelha/Portugol-Webstudio/issues"
+    "url": "https://github.com/luisricar-do/portugol-ai-tutor/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
   },
-  "homepage": "https://github.com/dgadelha/Portugol-Webstudio#readme",
+  "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
   "directories": {
     "lib": "assets"
   },

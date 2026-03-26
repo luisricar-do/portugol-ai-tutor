@@ -1,4 +1,4 @@
-import { PareContext } from "@portugol-webstudio/antlr";
+import { PareContext } from "@luisricar-do/antlr";
 
 import { Comando } from "./Comando.js";
 import { Node } from "./Node.js";

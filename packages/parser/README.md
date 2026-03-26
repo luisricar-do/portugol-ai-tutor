@@ -1,4 +1,4 @@
-# `@portugol-webstudio/parser`
+# `@luisricar-do/parser`
 
 Este pacote contém a implementação do parser de Portugol, que recebe uma árvore sintática gerada pelo [ANTLR](https://www.antlr.org/) e a transforma em nós de uma árvore de sintaxe abstrata (AST).
 
@@ -9,8 +9,8 @@ O parser é exposto através da classe `PortugolNode`, que recebe uma árvore pr
 ## Exemplo de uso:
 
 ```typescript
-import { PortugolLexer, PortugolParser } from "@portugol-webstudio/antlr";
-import { PortugolNode } from "@portugol-webstudio/runtime";
+import { PortugolLexer, PortugolParser } from "@luisricar-do/antlr";
+import { PortugolNode } from "@luisricar-do/runtime";
 import { CharStreams, CommonTokenStream } from "antlr4ng";
 
 const code = `programa {

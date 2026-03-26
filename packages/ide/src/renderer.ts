@@ -1,4 +1,4 @@
-import { PortugolExecutor, PortugolMessage } from "@portugol-webstudio/runner";
+import { PortugolExecutor, PortugolMessage } from "@luisricar-do/runner";
 
 export interface IGraphicsRendererComponent {
   close(): void;

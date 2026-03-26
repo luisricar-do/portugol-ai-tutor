@@ -1,4 +1,4 @@
-import { DeclaracaoFuncaoContext } from "@portugol-webstudio/antlr";
+import { DeclaracaoFuncaoContext } from "@luisricar-do/antlr";
 
 import { Comando } from "./Comando.js";
 import { Expressão } from "./Expressão.js";

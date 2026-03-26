@@ -1,4 +1,4 @@
-import { EscopoBibliotecaContext } from "@portugol-webstudio/antlr";
+import { EscopoBibliotecaContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { invariant } from "../helpers/nodes.js";

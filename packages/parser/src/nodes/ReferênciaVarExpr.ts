@@ -1,4 +1,4 @@
-import { ReferenciaParaVariavelContext } from "@portugol-webstudio/antlr";
+import { ReferenciaParaVariavelContext } from "@luisricar-do/antlr";
 
 import { EscopoBibliotecaExpr } from "./EscopoBibliotecaExpr.js";
 import { Expressão } from "./Expressão.js";

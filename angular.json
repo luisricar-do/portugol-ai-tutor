@@ -59,7 +59,7 @@
               },
               {
                 "glob": "**/*",
-                "input": "node_modules/@portugol-webstudio/resources/assets",
+                "input": "node_modules/@luisricar-do/resources/assets",
                 "output": "assets/recursos/"
               },
               {

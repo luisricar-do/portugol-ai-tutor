@@ -1,6 +1,6 @@
-import { PortugolCodeError, PortugolErrorListener } from "@portugol-webstudio/antlr";
-import { PortugolErrorChecker } from "@portugol-webstudio/parser";
-import { PortugolJs } from "@portugol-webstudio/runtime";
+import { PortugolCodeError, PortugolErrorListener } from "@luisricar-do/antlr";
+import { PortugolErrorChecker } from "@luisricar-do/parser";
+import { PortugolJs } from "@luisricar-do/runtime";
 import { Subject, Subscription } from "rxjs";
 
 import { IPortugolRunner, PortugolEvent, PortugolMessage } from "./runners/IPortugolRunner.js";

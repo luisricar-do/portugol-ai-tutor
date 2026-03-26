@@ -1,4 +1,4 @@
-import { ModuloContext } from "@portugol-webstudio/antlr";
+import { ModuloContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

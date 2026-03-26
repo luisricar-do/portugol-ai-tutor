@@ -1,4 +1,4 @@
-import { DecrementoUnarioPrefixadoContext } from "@portugol-webstudio/antlr";
+import { DecrementoUnarioPrefixadoContext } from "@luisricar-do/antlr";
 
 import { ExpressãoUnária } from "./ExpressãoUnária.js";
 

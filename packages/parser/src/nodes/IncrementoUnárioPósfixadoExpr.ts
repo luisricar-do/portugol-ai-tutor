@@ -1,4 +1,4 @@
-import { IncrementoUnarioPosfixadoContext } from "@portugol-webstudio/antlr";
+import { IncrementoUnarioPosfixadoContext } from "@luisricar-do/antlr";
 
 import { ExpressãoUnária } from "./ExpressãoUnária.js";
 

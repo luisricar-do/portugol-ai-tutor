@@ -1,5 +1,5 @@
-import { PortugolErrorChecker } from "@portugol-webstudio/parser";
-import { PortugolJs } from "@portugol-webstudio/runtime";
+import { PortugolErrorChecker } from "@luisricar-do/parser";
+import { PortugolJs } from "@luisricar-do/runtime";
 
 function mapError(error) {
   if (typeof error !== "object" || error === null) {

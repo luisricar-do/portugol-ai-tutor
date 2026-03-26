@@ -1,4 +1,4 @@
-import { CaracterContext } from "@portugol-webstudio/antlr";
+import { CaracterContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

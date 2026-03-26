@@ -1,4 +1,4 @@
-import { NegacaoBitwiseContext } from "@portugol-webstudio/antlr";
+import { NegacaoBitwiseContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { Expressão } from "./Expressão.js";

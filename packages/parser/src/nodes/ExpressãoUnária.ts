@@ -3,7 +3,7 @@ import {
   IncrementoUnarioPosfixadoContext,
   IncrementoUnarioPrefixadoContext,
   ReferenciaParaVariavelContext,
-} from "@portugol-webstudio/antlr";
+} from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { ReferênciaVarExpr } from "./ReferênciaVarExpr.js";

@@ -1,4 +1,4 @@
-import { PortugolJsRuntime } from "@portugol-webstudio/runtime";
+import { PortugolJsRuntime } from "@luisricar-do/runtime";
 import { Subject, Subscription } from "rxjs";
 
 import { IPortugolRunner, PortugolEvent, PortugolMessage } from "./IPortugolRunner.js";

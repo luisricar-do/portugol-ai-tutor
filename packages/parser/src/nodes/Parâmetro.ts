@@ -1,4 +1,4 @@
-import { ParametroContext, ParametroArrayContext, ParametroMatrizContext } from "@portugol-webstudio/antlr";
+import { ParametroContext, ParametroArrayContext, ParametroMatrizContext } from "@luisricar-do/antlr";
 
 import { Node } from "./Node.js";
 import { UnhandledNode } from "./UnhandledNode.js";

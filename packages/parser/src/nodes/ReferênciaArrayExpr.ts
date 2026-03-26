@@ -1,4 +1,4 @@
-import { ReferenciaArrayContext } from "@portugol-webstudio/antlr";
+import { ReferenciaArrayContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { Expressão } from "./Expressão.js";

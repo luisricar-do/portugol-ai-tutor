@@ -1,4 +1,4 @@
-import { OperacaoMaiorIgualContext } from "@portugol-webstudio/antlr";
+import { OperacaoMaiorIgualContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

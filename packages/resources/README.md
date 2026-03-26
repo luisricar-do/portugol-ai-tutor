@@ -1,4 +1,4 @@
-# `@portugol-webstudio/resources`
+# `@luisricar-do/resources`
 
 Este pacote contém os recursos de ajuda e exemplos originados do [Portugol Studio](https://github.com/UNIVALI-LITE/Portugol-Studio), ajustados (quando necessário) para o Portugol Webstudio.
 

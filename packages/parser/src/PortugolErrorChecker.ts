@@ -4,7 +4,7 @@ import {
   PortugolErrorListener,
   PortugolLexer,
   PortugolParser,
-} from "@portugol-webstudio/antlr";
+} from "@luisricar-do/antlr";
 import { CharStream, CommonTokenStream } from "antlr4ng";
 
 import errorCheckers from "./errors/index.js";

@@ -1,4 +1,4 @@
-import { NumeroInteiroContext } from "@portugol-webstudio/antlr";
+import { NumeroInteiroContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

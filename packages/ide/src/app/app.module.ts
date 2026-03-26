@@ -84,4 +84,4 @@ import { ThemeService } from "./theme.service";
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule { }
+export class AppModule {}

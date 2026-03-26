@@ -1,4 +1,4 @@
-import { PortugolCodeError } from "@portugol-webstudio/antlr";
+import { PortugolCodeError } from "@luisricar-do/antlr";
 
 import { getAllChildrenFromNode } from "../helpers/nodes.js";
 import { TipoPrimitivo } from "../helpers/Tipo.js";

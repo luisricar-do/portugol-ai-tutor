@@ -1,10 +1,10 @@
 {
-  "name": "@portugol-webstudio/ide",
+  "name": "@luisricar-do/ide",
   "version": "0.0.0",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dgadelha/Portugol-Webstudio.git"
+    "url": "git+https://github.com/luisricar-do/portugol-ai-tutor.git"
   },
   "keywords": [
     "portugol",
@@ -16,12 +16,13 @@
   ],
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/dgadelha/Portugol-Webstudio/issues"
+    "url": "https://github.com/luisricar-do/portugol-ai-tutor/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
   },
-  "homepage": "https://github.com/dgadelha/Portugol-Webstudio#readme",
+  "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
   "scripts": {
     "start": "ng serve",
     "release": "ng build",
@@ -46,11 +47,11 @@
     "@mdi/svg": "^7.4.47",
     "@ngxpert/hot-toast": "^6.1.0",
     "@portugol-recursos/bibliotecas": "^0.0.0-dev.6",
-    "@portugol-webstudio/antlr": "*",
-    "@portugol-webstudio/parser": "*",
-    "@portugol-webstudio/resources": "*",
-    "@portugol-webstudio/runner": "*",
-    "@portugol-webstudio/runtime": "*",
+    "@luisricar-do/antlr": "*",
+    "@luisricar-do/parser": "*",
+    "@luisricar-do/resources": "*",
+    "@luisricar-do/runner": "*",
+    "@luisricar-do/runtime": "*",
     "angular-split": "^20.0.0",
     "angular-svg-icon": "^19.1.1",
     "antlr4ng": "^3.0.16",

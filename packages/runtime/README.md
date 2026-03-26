@@ -1,4 +1,4 @@
-# `@portugol-webstudio/runtime`
+# `@luisricar-do/runtime`
 
 Este pacote contém a implementação do transpilador de Portugol para JavaScript.
 
@@ -9,8 +9,8 @@ O transpilador é exposto através da classe `PortugolJs`, e o código transpila
 ## Exemplo de uso:
 
 ```typescript
-import { PortugolLexer, PortugolParser } from "@portugol-webstudio/antlr";
-import { PortugolJs } from "@portugol-webstudio/runtime";
+import { PortugolLexer, PortugolParser } from "@luisricar-do/antlr";
+import { PortugolJs } from "@luisricar-do/runtime";
 import { CharStreams, CommonTokenStream } from "antlr4ng";
 
 const code = `programa {

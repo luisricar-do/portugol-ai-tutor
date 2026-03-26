@@ -1,4 +1,4 @@
-import { EscolhaContext } from "@portugol-webstudio/antlr";
+import { EscolhaContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { CasoCmd } from "./CasoCmd.js";

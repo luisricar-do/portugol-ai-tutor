@@ -1,4 +1,4 @@
-import { SubtracaoContext } from "@portugol-webstudio/antlr";
+import { SubtracaoContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

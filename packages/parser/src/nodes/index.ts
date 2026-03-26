@@ -73,7 +73,7 @@ import {
   SubtracaoContext,
   TamanhoArrayContext,
   ValorLogicoContext,
-} from "@portugol-webstudio/antlr";
+} from "@luisricar-do/antlr";
 import { ParserRuleContext } from "antlr4ng";
 
 import { Arquivo } from "./Arquivo.js";

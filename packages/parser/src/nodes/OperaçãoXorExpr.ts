@@ -1,4 +1,4 @@
-import { OperacaoXorContext } from "@portugol-webstudio/antlr";
+import { OperacaoXorContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

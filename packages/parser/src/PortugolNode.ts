@@ -1,4 +1,4 @@
-import { ArquivoContext, PortugolVisitor } from "@portugol-webstudio/antlr";
+import { ArquivoContext, PortugolVisitor } from "@luisricar-do/antlr";
 import { ParseTree, AbstractParseTreeVisitor } from "antlr4ng";
 
 import { Node, Arquivo, ContextNodeObj, UnhandledNode, Bypass } from "./nodes/index.js";

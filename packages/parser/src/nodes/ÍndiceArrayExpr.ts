@@ -1,4 +1,4 @@
-import { IndiceArrayContext } from "@portugol-webstudio/antlr";
+import { IndiceArrayContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { Expressão } from "./Expressão.js";

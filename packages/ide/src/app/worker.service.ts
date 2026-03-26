@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { PortugolCodeError } from "@portugol-webstudio/antlr";
+import { PortugolCodeError } from "@luisricar-do/antlr";
 
 @Injectable({ providedIn: "root" })
 export class WorkerService {

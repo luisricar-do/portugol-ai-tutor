@@ -1,4 +1,4 @@
-import { DeclaracaoContext, ListaDeclaracoesContext } from "@portugol-webstudio/antlr";
+import { DeclaracaoContext, ListaDeclaracoesContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { Tipo, parseTipoPrimitivo } from "../helpers/Tipo.js";

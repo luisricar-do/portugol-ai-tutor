@@ -1,4 +1,4 @@
-import { NumeroRealContext } from "@portugol-webstudio/antlr";
+import { NumeroRealContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

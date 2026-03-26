@@ -1,4 +1,4 @@
-# `@portugol-webstudio/runner`
+# `@luisricar-do/runner`
 
 Este pacote contém o executor de códigos Portugol utilizado pelo Portugol Webstudio.
 
@@ -44,7 +44,7 @@ A classe `PortugolExecutor` exporta uma interface com as seguintes propriedades:
 ## Exemplo de uso:
 
 ```typescript
-import { PortugolExecutor, PortugolWebWorkersRunner } from "@portugol-webstudio/runner";
+import { PortugolExecutor, PortugolWebWorkersRunner } from "@luisricar-do/runner";
 
 const executor = new PortugolExecutor(PortugolWebWorkersRunner);
 

@@ -1,4 +1,4 @@
-import { CasoContext } from "@portugol-webstudio/antlr";
+import { CasoContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { CasoContrárioExpr } from "./CasoContrárioExpr.js";

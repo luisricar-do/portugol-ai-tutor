@@ -1,4 +1,4 @@
-import { MenosUnarioContext } from "@portugol-webstudio/antlr";
+import { MenosUnarioContext } from "@luisricar-do/antlr";
 
 import { invariant } from "../helpers/nodes.js";
 import { Expressão } from "./Expressão.js";

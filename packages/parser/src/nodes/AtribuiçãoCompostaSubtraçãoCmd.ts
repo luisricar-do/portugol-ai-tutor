@@ -1,4 +1,4 @@
-import { AtribuicaoCompostaSubtracaoContext } from "@portugol-webstudio/antlr";
+import { AtribuicaoCompostaSubtracaoContext } from "@luisricar-do/antlr";
 
 import { AtribuiçãoCmd } from "./AtribuiçãoCmd.js";
 

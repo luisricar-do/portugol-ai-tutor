@@ -1,4 +1,4 @@
-import { DeclaracaoArrayContext } from "@portugol-webstudio/antlr";
+import { DeclaracaoArrayContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { InicializaçãoVetorExpr } from "./InicializaçãoVetorExpr.js";

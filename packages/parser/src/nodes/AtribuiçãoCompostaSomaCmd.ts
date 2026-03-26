@@ -1,4 +1,4 @@
-import { AtribuicaoCompostaSomaContext } from "@portugol-webstudio/antlr";
+import { AtribuicaoCompostaSomaContext } from "@luisricar-do/antlr";
 
 import { AtribuiçãoCmd } from "./AtribuiçãoCmd.js";
 

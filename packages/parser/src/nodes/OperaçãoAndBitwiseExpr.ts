@@ -1,4 +1,4 @@
-import { OperacaoAndBitwiseContext } from "@portugol-webstudio/antlr";
+import { OperacaoAndBitwiseContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

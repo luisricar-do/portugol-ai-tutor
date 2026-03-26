@@ -1,4 +1,4 @@
-import { StringContext } from "@portugol-webstudio/antlr";
+import { StringContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

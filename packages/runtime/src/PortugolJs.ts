@@ -78,7 +78,7 @@ import {
   SubtracaoContext,
   TamanhoArrayContext,
   ValorLogicoContext,
-} from "@portugol-webstudio/antlr";
+} from "@luisricar-do/antlr";
 import { AbstractParseTreeVisitor, ParserRuleContext } from "antlr4ng";
 
 import { StringBuilder } from "./utils/StringBuilder.js";

@@ -1,8 +1,8 @@
 import { Component, ElementRef, Input, OnDestroy, OnInit, TemplateRef, inject, output, viewChild } from "@angular/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import type { PortugolCodeError } from "@portugol-webstudio/antlr";
-import { PortugolExecutor, PortugolMessage, PortugolWebWorkersRunner } from "@portugol-webstudio/runner";
+import type { PortugolCodeError } from "@luisricar-do/antlr";
+import { PortugolExecutor, PortugolMessage, PortugolWebWorkersRunner } from "@luisricar-do/runner";
 import { saveAs } from "file-saver";
 import { encode } from "iconv-lite";
 import { ShortcutInput } from "ng-keyboard-shortcuts";

@@ -1,4 +1,4 @@
-import { InicializacaoMatrizContext } from "@portugol-webstudio/antlr";
+import { InicializacaoMatrizContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

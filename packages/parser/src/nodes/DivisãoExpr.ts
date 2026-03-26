@@ -1,4 +1,4 @@
-import { DivisaoContext } from "@portugol-webstudio/antlr";
+import { DivisaoContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 

@@ -1,4 +1,4 @@
-# `@portugol-webstudio/antlr`
+# `@luisricar-do/antlr`
 
 Este pacote contém os recursos gerados pelo [antlr-ng](https://github.com/antlr-ng/antlr-ng) para a [gramática do Portugol](https://github.com/UNIVALI-LITE/Portugol-Studio/blob/master/core/src/main/antlr/Portugol.g4).
 
@@ -22,7 +22,7 @@ Os arquivos gerados serão salvos na pasta `src`, dentre eles:
 ## Uso
 
 ```ts
-import { PortugolLexer, PortugolParser } from "@portugol-webstudio/antlr";
+import { PortugolLexer, PortugolParser } from "@luisricar-do/antlr";
 import { CharStream, CommonTokenStream } from "antlr4ng";
 
 const code = 'programa { funcao inicio() { escreva("Hello World!") } }';

@@ -1,4 +1,4 @@
-import { DeclaracaoVariavelContext } from "@portugol-webstudio/antlr";
+import { DeclaracaoVariavelContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

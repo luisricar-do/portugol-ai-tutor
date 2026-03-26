@@ -1,4 +1,4 @@
-import { ReferenciaMatrizContext } from "@portugol-webstudio/antlr";
+import { ReferenciaMatrizContext } from "@luisricar-do/antlr";
 
 import { Expressão } from "./Expressão.js";
 import { Node } from "./Node.js";

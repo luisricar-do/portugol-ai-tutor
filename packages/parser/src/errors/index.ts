@@ -1,4 +1,4 @@
-import { PortugolCodeError } from "@portugol-webstudio/antlr";
+import { PortugolCodeError } from "@luisricar-do/antlr";
 
 import * as ec01 from "./01-estrutura-básica.js";
 import * as ec02 from "./02-variáveis.js";

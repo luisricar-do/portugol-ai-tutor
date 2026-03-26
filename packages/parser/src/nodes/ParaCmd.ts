@@ -1,4 +1,4 @@
-import { ParaContext } from "@portugol-webstudio/antlr";
+import { ParaContext } from "@luisricar-do/antlr";
 
 import { Comando } from "./Comando.js";
 import { Expressão } from "./Expressão.js";
