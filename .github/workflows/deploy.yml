@@ -1,12 +1,21 @@
 name: Build and Deploy (Production)
+
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 on:
   push:
     branches:
       - develop
+
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
@@ -31,7 +40,18 @@ jobs:
           ./packages/ide/cleanup-icons.sh
           npm run release
 
-      - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Upload Pages artifact 📤
+        uses: actions/upload-pages-artifact@v4
         with:
-          folder: packages/ide/dist/browser
+          path: packages/ide/dist/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages 🚀
+        id: deployment
+        uses: actions/deploy-pages@v5
