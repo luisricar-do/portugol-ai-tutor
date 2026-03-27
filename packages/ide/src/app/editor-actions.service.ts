@@ -110,6 +110,16 @@ export class EditorActionsService {
         break;
       }
 
+      case "compare_lines": {
+        this.compareLines(payload);
+        break;
+      }
+
+      case "suggest_documentation": {
+        this.suggestDocumentation(payload);
+        break;
+      }
+
       case "clear_highlights": {
         this.clearHighlightsInternal();
         break;
@@ -126,6 +136,7 @@ export class EditorActionsService {
       }
 
       case "mark_bug_resolved": {
+        this.clearHighlightsInternal();
         this.snack.open("Ótimo — parece que você encontrou o caminho sozinho(a). Continue assim!", "OK", {
           duration: 6000,
           panelClass: ["tutor-snack", "tutor-snack--celebrate"],
@@ -160,6 +171,63 @@ export class EditorActionsService {
 
     ed.deltaDecorations(this.decorationIds, []);
     this.decorationIds = [];
+  }
+
+  private compareLines(payload: Record<string, unknown>): void {
+    const ed = this.editor;
+    const model = ed?.getModel();
+    if (!ed || !model) {
+      return;
+    }
+
+    const l1Raw = payload.line1;
+    const l2Raw = payload.line2;
+    const line1 = typeof l1Raw === "number" && Number.isFinite(l1Raw) ? Math.trunc(l1Raw) : undefined;
+    const line2 = typeof l2Raw === "number" && Number.isFinite(l2Raw) ? Math.trunc(l2Raw) : undefined;
+    if (line1 === undefined || line1 < 1 || line2 === undefined || line2 < 1) {
+      return;
+    }
+
+    const maxLine = model.getLineCount();
+    const ln1 = Math.min(Math.max(line1, 1), maxLine);
+    const ln2 = Math.min(Math.max(line2, 1), maxLine);
+
+    const decs = [ln1, ln2].map((ln, idx) => ({
+      range: new monaco.Range(ln, 1, ln, Math.max(model.getLineMaxColumn(ln), 1)),
+      options: {
+        isWholeLine: true,
+        className: idx === 0 ? "tutor-line--compare-a" : "tutor-line--compare-b",
+      },
+    }));
+
+    const ids = ed.deltaDecorations([], decs);
+    this.decorationIds.push(...ids);
+  }
+
+  /** Tópicos válidos alinhados à tool `suggest_documentation` no backend. */
+  private suggestDocumentation(payload: Record<string, unknown>): void {
+    const allowed = new Set([
+      "variaveis",
+      "tipos",
+      "escreva",
+      "leia",
+      "se_senao",
+      "enquanto",
+      "para",
+      "vetores",
+      "matrizes",
+    ]);
+    const topicRaw = payload.topic;
+    const topic = typeof topicRaw === "string" ? topicRaw.trim().toLowerCase() : "";
+    const label =
+      topic.length > 0 && allowed.has(topic)
+        ? `Documentação sugerida: ${topic.replaceAll("_", " ")}`
+        : "Abra o painel de ajuda da IDE para revisar a sintaxe deste trecho.";
+
+    this.snack.open(label, "OK", {
+      duration: 6000,
+      panelClass: ["tutor-snack", "tutor-snack--escalate"],
+    });
   }
 
   private highlightLine(payload: Record<string, unknown>): void {
