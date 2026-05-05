@@ -1,4 +1,5 @@
-<div class="agent-chat" aria-label="Conversa com a tutora ARIA">
+<div class="agent-chat" [class.agent-chat--immersive]="immersiveLayout" aria-label="Conversa com a tutora ARIA">
+  @if (!immersiveLayout) {
   <header class="agent-chat__header">
     <div class="agent-chat__header-text">
       <span class="agent-chat__name">ARIA</span>
@@ -11,6 +12,7 @@
     </button>
     }
   </header>
+  }
 
   @if (!baseUrlConfigured) {
   <div class="agent-chat__empty agent-chat__empty--config">
@@ -19,38 +21,52 @@
   </div>
   } @else {
   <div #scrollArea class="agent-chat__thread" role="log" aria-live="polite" aria-relevant="additions">
-    @if (thread.length === 0) {
-    <div class="agent-chat__empty">
-      <p class="agent-chat__empty-title">Conversa com o tutor</p>
-      <p class="agent-chat__empty-hint">
-        O código aberto no editor é enviado junto com a sua mensagem. Faça uma pergunta ou peça uma dica.
-      </p>
+    @if (canReopenArchived && thread.length === 0) {
+    <div class="agent-chat__banner" role="status">
+      <p class="agent-chat__banner-text">Problema resolvido — nova conversa iniciada.</p>
+      <div class="agent-chat__banner-actions">
+        <button mat-button type="button" (click)="reopenArchivedConversation()">Reabrir conversa anterior</button>
+        <button mat-button type="button" (click)="dismissArchivedHint()">Dispensar</button>
+      </div>
+    </div>
+    }
+
+    @if (thread.length === 0 && !canReopenArchived && !immersiveLayout) {
+    <div class="agent-chat__welcome">
+      <div class="agent-chat__welcome-icon" aria-hidden="true">✨</div>
+      <span class="agent-chat__welcome-text">Como posso ajudar?</span>
     </div>
     }
 
     @for (m of thread; track $index) {
     <div class="agent-chat__row" [class.agent-chat__row--user]="m.role === 'user'">
-      <div class="agent-chat__bubble" [class.agent-chat__bubble--user]="m.role === 'user'"
-        [class.agent-chat__bubble--assistant]="m.role === 'assistant'">
-        @if (m.role === "assistant") {
-        <span class="agent-chat__bubble-label">ARIA</span>
-        }
-        <p class="agent-chat__bubble-text">{{ m.content }}</p>
+      <div class="agent-chat__bubble-stack" [class.agent-chat__bubble-stack--user]="m.role === 'user'">
+        <span class="agent-chat__msg-label">{{ m.role === 'user' ? 'Você' : 'ARIA' }}</span>
+        <div class="agent-chat__bubble" [class.agent-chat__bubble--user]="m.role === 'user'"
+          [class.agent-chat__bubble--assistant]="m.role === 'assistant'">
+          <p class="agent-chat__bubble-text">{{ m.content }}</p>
+        </div>
       </div>
     </div>
     }
 
     @if (streamingAssistant) {
     <div class="agent-chat__row">
-      <div class="agent-chat__bubble agent-chat__bubble--assistant agent-chat__bubble--streaming">
-        <span class="agent-chat__bubble-label">ARIA</span>
-        <p class="agent-chat__bubble-text">
+      <div class="agent-chat__bubble-stack">
+        <span class="agent-chat__msg-label">ARIA</span>
+        <div class="agent-chat__bubble agent-chat__bubble--assistant agent-chat__bubble--streaming">
           @if (streamingText) {
-          {{ streamingText }}@if (streamingAssistant) {<span class="agent-chat__cursor" aria-hidden="true">▍</span>}
+          <p class="agent-chat__bubble-text">
+            {{ streamingText }}<span class="agent-chat__cursor" aria-hidden="true">▍</span>
+          </p>
           } @else {
-          <span class="agent-chat__typing">Pensando…</span>
+          <div class="agent-chat__typing-dots" aria-label="A responder">
+            <span class="agent-chat__typing-dot"></span>
+            <span class="agent-chat__typing-dot"></span>
+            <span class="agent-chat__typing-dot"></span>
+          </div>
           }
-        </p>
+        </div>
       </div>
     </div>
     }
@@ -62,16 +78,11 @@
     <div #threadEnd class="agent-chat__thread-end" aria-hidden="true"></div>
   </div>
 
-  @if (showDiagnosis && lastDiagnosis) {
-  <div class="agent-chat__diagnosis-wrap">
-    <pre class="agent-chat__diagnosis">{{ lastDiagnosis | json }}</pre>
-  </div>
-  }
-
-  <footer class="agent-chat__footer">
-    <div class="agent-chat__composer">
-      <textarea class="agent-chat__input" name="agentDraft" rows="2" [(ngModel)]="draft"
-        placeholder="Mensagem… (Enter envia, Shift+Enter nova linha)" (keydown.enter)="onDraftEnter($event)"></textarea>
+  <footer class="agent-chat__footer" [class.agent-chat__footer--hud]="immersiveLayout">
+    @if (!immersiveLayout) {
+    <div class="agent-chat__composer agent-chat__composer--panel">
+      <textarea #draftInput class="agent-chat__input" name="agentDraft" rows="2" [(ngModel)]="draft"
+        placeholder="Pergunte algo sobre código…" (keydown.enter)="onDraftEnter($event)"></textarea>
       <div class="agent-chat__composer-actions">
         <button mat-mini-fab type="button" color="primary" class="agent-chat__send"
           [disabled]="streamingAssistant || !draft.trim()" aria-label="Enviar mensagem" (click)="send()">
@@ -79,11 +90,32 @@
         </button>
       </div>
     </div>
-
-    <label class="agent-chat__check">
-      <mat-checkbox [(ngModel)]="showDiagnosis" name="showDiagnosis" />
-      <span>Diagnóstico técnico</span>
-    </label>
+    <p class="agent-chat__helper">Pressione Enter para enviar, Shift + Enter para nova linha</p>
+    } @else {
+    <div class="agent-chat__hud-footer">
+      <div class="agent-chat__composer agent-chat__composer--hud">
+        <div class="agent-chat__composer-hud-row">
+          <textarea #draftInput class="agent-chat__input agent-chat__input--hud" name="agentDraft" rows="1"
+            [(ngModel)]="draft" placeholder="Como posso ajudar? Pergunte sobre o seu código…" (keydown.enter)="onDraftEnter($event)"
+            (input)="onHudComposerInput($event)"></textarea>
+          <div class="agent-chat__composer-hud-actions">
+            @if (baseUrlConfigured && hasHistory) {
+            <button mat-button type="button" class="agent-chat__clear agent-chat__clear--hud"
+              [disabled]="streamingAssistant" (click)="clearConversation()">
+              Limpar conversa
+            </button>
+            }
+            <button mat-mini-fab type="button" color="primary" class="agent-chat__send agent-chat__send--hud"
+              [disabled]="streamingAssistant || !draft.trim()" aria-label="Enviar mensagem" (click)="send()">
+              <svg-icon src="assets/mdi/send.svg" aria-hidden="true" focusable="false" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <p class="agent-chat__helper agent-chat__helper--hud">Pressione Enter para enviar, Shift + Enter para nova linha
+      </p>
+    </div>
+    }
   </footer>
   }
 </div>

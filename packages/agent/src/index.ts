@@ -12,6 +12,8 @@ export type {
   TutorHelpResponse,
   TutorHelpStreamHandlers,
   TutorHistoryItem,
-  TutorHistoryRole
+  TutorHistoryRole,
+  TutorStreamDonePayload,
+  TutorTutorMeta
 } from "./types.js";
 

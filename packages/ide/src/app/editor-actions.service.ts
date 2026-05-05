@@ -2,6 +2,8 @@ import { Injectable, NgZone, inject } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import type { EditorAction } from "@luisricar-do/agent";
 
+import { TutorImmersionService, type TutorDataFlowConnection } from "./tutor-immersion.service";
+
 function escapeRegExp(s: string): string {
   return s.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`);
 }
@@ -17,11 +19,15 @@ export class EditorActionsService {
 
   private readonly ngZone = inject(NgZone);
 
+  private readonly immersion = inject(TutorImmersionService);
+
   private editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
   private decorationIds: string[] = [];
 
   private runCodeFn: (() => void | Promise<void>) | null = null;
+
+  private stopCodeFn: (() => void) | null = null;
 
   private pendingActions: EditorAction[] = [];
 
@@ -44,6 +50,11 @@ export class EditorActionsService {
     this.runCodeFn = fn;
   }
 
+  /** Para pausar execução (loops / playback didático). */
+  setStopCode(fn: (() => void) | null): void {
+    this.stopCodeFn = fn;
+  }
+
   /**
    * Quantidade de decorações ativas do tutor (linhas, variáveis, comentários inline).
    * Snacks e `run_code_with_watch` não entram nesta contagem.
@@ -63,6 +74,7 @@ export class EditorActionsService {
   clearTutorDecorations(): void {
     this.cancelPendingFlush();
     this.clearHighlightsInternal();
+    this.immersion.clearImmersion();
   }
 
   dispatch(action: EditorAction): void {
@@ -122,6 +134,7 @@ export class EditorActionsService {
 
       case "clear_highlights": {
         this.clearHighlightsInternal();
+        this.immersion.clearImmersion();
         break;
       }
 
@@ -137,6 +150,7 @@ export class EditorActionsService {
 
       case "mark_bug_resolved": {
         this.clearHighlightsInternal();
+        this.immersion.clearImmersion();
         this.snack.open("Ótimo — parece que você encontrou o caminho sozinho(a). Continue assim!", "OK", {
           duration: 6000,
           panelClass: ["tutor-snack", "tutor-snack--celebrate"],
@@ -156,6 +170,49 @@ export class EditorActionsService {
         break;
       }
 
+      case "scroll_to": {
+        this.scrollToLine(payload);
+        break;
+      }
+
+      case "spotlight_block": {
+        this.spotlightBlock(payload);
+        break;
+      }
+
+      case "draw_data_flow": {
+        this.drawDataFlow(payload);
+        break;
+      }
+
+      case "activate_focus_mode": {
+        this.immersion.setFocusMode(true);
+        const lineRaw = payload.line;
+        const lineNum = typeof lineRaw === "number" && Number.isFinite(lineRaw) ? Math.trunc(lineRaw) : undefined;
+        const line = lineNum !== undefined && lineNum >= 1 ? lineNum : null;
+        this.immersion.setPulsingLine(line);
+        if (line !== null) {
+          this.highlightLine({ line, color: "warning", pulse: true });
+        }
+        break;
+      }
+
+      case "deactivate_focus_mode": {
+        this.immersion.setFocusMode(false);
+        this.immersion.setPulsingLine(null);
+        break;
+      }
+
+      case "pause_at_iteration":
+      case "pause_execution": {
+        this.stopCodeFn?.();
+        this.snack.open("Execução pausada para você observar o fluxo do programa.", "OK", {
+          duration: 6000,
+          panelClass: ["tutor-snack", "tutor-snack--escalate"],
+        });
+        break;
+      }
+
       default: {
         break;
       }
@@ -164,13 +221,124 @@ export class EditorActionsService {
 
   private clearHighlightsInternal(): void {
     const ed = this.editor;
-    if (!ed || this.decorationIds.length === 0) {
-      this.decorationIds = [];
+    const ids = [...this.decorationIds];
+    this.decorationIds = [];
+    if (!ed || ids.length === 0) {
       return;
     }
+    ed.deltaDecorations(ids, []);
+  }
 
-    ed.deltaDecorations(this.decorationIds, []);
-    this.decorationIds = [];
+  private scrollToLine(payload: Record<string, unknown>): void {
+    const ed = this.editor;
+    const model = ed?.getModel();
+    if (!ed || !model) {
+      return;
+    }
+    const lineRaw = payload.line;
+    const line = typeof lineRaw === "number" && Number.isFinite(lineRaw) ? Math.trunc(lineRaw) : undefined;
+    if (line === undefined || line < 1) {
+      return;
+    }
+    const ln = Math.min(Math.max(line, 1), model.getLineCount());
+    ed.revealLineInCenter(ln);
+  }
+
+  private spotlightBlock(payload: Record<string, unknown>): void {
+    const ed = this.editor;
+    const model = ed?.getModel();
+    if (!ed || !model) {
+      return;
+    }
+    const sRaw = payload.start_line ?? payload.startLine;
+    const eRaw = payload.end_line ?? payload.endLine;
+    const startLine = typeof sRaw === "number" && Number.isFinite(sRaw) ? Math.trunc(sRaw) : undefined;
+    const endLine = typeof eRaw === "number" && Number.isFinite(eRaw) ? Math.trunc(eRaw) : undefined;
+    if (startLine === undefined || startLine < 1 || endLine === undefined || endLine < 1) {
+      return;
+    }
+    const maxLine = model.getLineCount();
+    const lo = Math.min(Math.max(Math.min(startLine, endLine), 1), maxLine);
+    const hi = Math.min(Math.max(Math.max(startLine, endLine), 1), maxLine);
+    const decs: monaco.editor.IModelDeltaDecoration[] = [];
+    for (let ln = lo; ln <= hi; ln++) {
+      decs.push({
+        range: new monaco.Range(ln, 1, ln, Math.max(model.getLineMaxColumn(ln), 1)),
+        options: {
+          isWholeLine: true,
+          className: "tutor-spotlight-range",
+        },
+      });
+    }
+    const ids = ed.deltaDecorations([], decs);
+    this.decorationIds.push(...ids);
+    this.immersion.setFocusMode(true);
+  }
+
+  private drawDataFlow(payload: Record<string, unknown>): void {
+    const raw = payload.connections;
+    if (!Array.isArray(raw)) {
+      return;
+    }
+    const connections: TutorDataFlowConnection[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+      const o = item as Record<string, unknown>;
+      const fromLine = this.readInt(o.from_line ?? o.fromLine);
+      const toLine = this.readInt(o.to_line ?? o.toLine);
+      const fromVar = typeof o.from_var === "string" ? o.from_var : typeof o.fromVar === "string" ? o.fromVar : "";
+      const toVar = typeof o.to_var === "string" ? o.to_var : typeof o.toVar === "string" ? o.toVar : "";
+      const status = o.status === "ok" || o.status === "broken" ? o.status : "broken";
+      if (fromLine !== undefined && toLine !== undefined && fromLine >= 1 && toLine >= 1) {
+        connections.push({
+          fromLine,
+          fromVar: fromVar || toVar,
+          toLine,
+          toVar: toVar || fromVar,
+          status,
+        });
+      }
+    }
+    this.immersion.setDataFlowConnections(connections);
+    this.applyFlowGlyphs(connections);
+  }
+
+  private readInt(v: unknown): number | undefined {
+    if (typeof v === "number" && Number.isFinite(v)) {
+      return Math.trunc(v);
+    }
+    return undefined;
+  }
+
+  private applyFlowGlyphs(connections: TutorDataFlowConnection[]): void {
+    const ed = this.editor;
+    const model = ed?.getModel();
+    if (!ed || !model) {
+      return;
+    }
+    const decs: monaco.editor.IModelDeltaDecoration[] = [];
+    for (const c of connections) {
+      const glyphOk = c.status === "ok" ? "tutor-glyph-flow-ok" : "tutor-glyph-flow-broken";
+      for (const ln of [c.fromLine, c.toLine]) {
+        if (ln < 1) {
+          continue;
+        }
+        const clamped = Math.min(Math.max(ln, 1), model.getLineCount());
+        decs.push({
+          range: new monaco.Range(clamped, 1, clamped, 1),
+          options: {
+            glyphMarginClassName: glyphOk,
+            isWholeLine: false,
+          },
+        });
+      }
+    }
+    if (decs.length > 0) {
+      const ids = ed.deltaDecorations([], decs);
+      this.decorationIds.push(...ids);
+    }
   }
 
   private compareLines(payload: Record<string, unknown>): void {
@@ -246,7 +414,9 @@ export class EditorActionsService {
     const color = payload.color === "info" ? "info" : "warning";
     const maxLine = model.getLineCount();
     const ln = Math.min(Math.max(line, 1), maxLine);
-    const className = color === "warning" ? "tutor-line--warning" : "tutor-line--info";
+    const pulse = payload.pulse === true;
+    const baseClass = color === "warning" ? "tutor-line--warning" : "tutor-line--info";
+    const className = pulse ? `${baseClass} tutor-line--pulsing` : baseClass;
 
     const ids = ed.deltaDecorations(
       [],

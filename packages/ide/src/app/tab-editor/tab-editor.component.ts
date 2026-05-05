@@ -1,4 +1,17 @@
-import { Component, ElementRef, Input, OnDestroy, OnInit, TemplateRef, inject, output, viewChild } from "@angular/core";
+import {
+  Component,
+  ElementRef,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges,
+  TemplateRef,
+  effect,
+  inject,
+  output,
+  viewChild,
+} from "@angular/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import type { PortugolCodeError } from "@luisricar-do/antlr";
@@ -7,7 +20,7 @@ import { saveAs } from "file-saver";
 import { encode } from "iconv-lite";
 import { ShortcutInput } from "ng-keyboard-shortcuts";
 import { GoogleAnalyticsService } from "ngx-google-analytics";
-import { Subscription, combineLatest, debounceTime, fromEventPattern, switchMap } from "rxjs";
+import { Subscription, combineLatest, debounceTime, fromEventPattern, switchMap, tap } from "rxjs";
 import { GraphicsRenderer, IGraphicsRendererComponent } from "../../renderer";
 import { IExtendedWindowApi } from "../../types";
 import { DialogRendererComponent } from "../dialog-renderer/dialog-renderer.component";
@@ -16,6 +29,12 @@ import { FileService } from "../file.service";
 import { SettingsService } from "../settings.service";
 import { ShareService } from "../share.service";
 import { ThemeService } from "../theme.service";
+import { TutorEditorContextService, type TutorEditorContextHandle } from "../tutor-editor-context.service";
+import { TutorImmersionService } from "../tutor-immersion.service";
+import { TutorInterceptorService } from "../tutor-interceptor.service";
+import { TutorOverlayService } from "../tutor-overlay.service";
+import { TutorProactivityService } from "../tutor-proactivity.service";
+import { TutorRealtimeValidatorService } from "../tutor-realtime-validator.service";
 import { WorkerService } from "../worker.service";
 
 @Component({
@@ -25,7 +44,7 @@ import { WorkerService } from "../worker.service";
   templateUrl: "./tab-editor.component.html",
   styleUrl: "./tab-editor.component.scss",
 })
-export class TabEditorComponent implements OnInit, OnDestroy {
+export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   private _code$?: Subscription;
   private _stdOut$?: Subscription;
   private _events$?: Subscription;
@@ -41,6 +60,12 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   private settingsService = inject(SettingsService);
   private dialog = inject(MatDialog);
   private editorActions = inject(EditorActionsService);
+  private tutorEditorContext = inject(TutorEditorContextService);
+  private readonly tutorOverlay = inject(TutorOverlayService);
+  readonly immersion = inject(TutorImmersionService);
+  private readonly tutorInterceptor = inject(TutorInterceptorService);
+  private readonly tutorProactivity = inject(TutorProactivityService);
+  private readonly tutorRealtimeValidator = inject(TutorRealtimeValidatorService);
 
   @Input()
   title?: string;
@@ -48,12 +73,18 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   @Input()
   code?: string;
 
+  /** Aba visível no grupo de separadores — regista contexto do tutor e editor ativo. */
+  @Input()
+  isActiveTab = false;
+
   readonly titleChange = output<string>();
   readonly help = output();
   readonly settings = output();
 
   readonly shareSnackTemplate = viewChild.required<TemplateRef<{ data: { url: string } }>>("shareSnackTemplate");
   readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>("fileInput");
+  readonly editorStage = viewChild<ElementRef<HTMLElement>>("editorStage");
+  readonly flowSvg = viewChild<ElementRef<SVGSVGElement>>("flowSvg");
 
   transpiling = false;
   executor = new PortugolExecutor(PortugolWebWorkersRunner);
@@ -68,6 +99,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     language: "portugol",
     tabCompletion: "on",
     tabSize: 2,
+    glyphMargin: true,
   };
 
   stdOutEditor?: monaco.editor.IStandaloneCodeEditor;
@@ -89,7 +121,35 @@ export class TabEditorComponent implements OnInit, OnDestroy {
 
   sharing = false;
 
-  tutorPanelOpen = false;
+  private lastAstSummary = "";
+
+  private readonly tutorContextHandle: TutorEditorContextHandle = {
+    getEditorCode: () => this.code ?? "",
+    getEditorCodeSnapshot: () => this.tutorEditorCodeSnapshot(),
+    getCompilerErrors: () => this.tutorCompilerErrorsResolver(),
+    getCursorLine: () => this.codeEditor?.getPosition()?.lineNumber,
+    getCursorColumn: () => this.codeEditor?.getPosition()?.column,
+    getAstSummary: () => (this.lastAstSummary.length > 0 ? this.lastAstSummary : undefined),
+    getDataFlowContext: () => {
+      const pending = this.immersion.pendingBrokenVar();
+      const conns = this.immersion.dataFlowConnections();
+      if (!pending && conns.length === 0) {
+        return undefined;
+      }
+      const parts: string[] = [];
+      if (pending) {
+        parts.push(`variável em atenção no fluxo: ${pending}`);
+      }
+      if (conns.length > 0) {
+        parts.push(
+          `ligações: ${conns
+            .map(c => `L${c.fromLine}(${c.fromVar})→L${c.toLine}(${c.toVar})[${c.status}]`)
+            .join("; ")}`,
+        );
+      }
+      return parts.join(" · ").slice(0, 2000);
+    },
+  };
 
   /** Código atual do buffer do Monaco para o tutor (o ngModel pode não estar sincronizado a cada tecla). */
   readonly tutorEditorCodeSnapshot = (): string => this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
@@ -107,7 +167,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   }
 
   /** Erros do compilador/analisador alinhados ao código atual (mesmo fluxo que o worker do editor). */
-  readonly tutorCompilerErrorsResolver = async (): Promise<string[]> => {
+  tutorCompilerErrorsResolver = async (): Promise<string[]> => {
     const code = this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
     try {
       const { errors, parseErrors } = await this.worker.checkCode(code);
@@ -146,6 +206,15 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     },
   ];
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes["isActiveTab"]) {
+      if (!this.isActiveTab) {
+        this.immersion.clearImmersion();
+      }
+      this.syncActiveEditorAndTutorContext();
+    }
+  }
+
   ngOnInit() {
     this.code ||= `programa {\n  funcao inicio() {\n    \n  }\n}\n`;
 
@@ -169,6 +238,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
 
           case "error": {
             this.gaService.event("execution_error", "Execução", "Erro em execução de código");
+            this.tutorInterceptor.onExecutionFailed(this.isActiveTab);
             break;
           }
 
@@ -233,7 +303,98 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     });
   }
 
+  constructor() {
+    effect(() => {
+      const list = this.immersion.dataFlowConnections();
+      if (list.length === 0) {
+        return;
+      }
+      this.scheduleFlowSvgLayout();
+    });
+
+    effect(() => {
+      this.immersion.setGhostLinesMuted(this.tutorOverlay.isDimmed());
+    });
+  }
+
+  private flowSvgLayoutRaf: number | null = null;
+
+  private scheduleFlowSvgLayout(): void {
+    if (this.flowSvgLayoutRaf !== null) {
+      cancelAnimationFrame(this.flowSvgLayoutRaf);
+    }
+    this.flowSvgLayoutRaf = requestAnimationFrame(() => {
+      this.flowSvgLayoutRaf = null;
+      this.updateFlowSvgPaths();
+    });
+  }
+
+  private updateFlowSvgPaths(): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+    const svg = this.flowSvg()?.nativeElement;
+    const stage = this.editorStage()?.nativeElement;
+    const ed = this.codeEditor;
+    if (!svg || !stage || !ed) {
+      return;
+    }
+    const rect = stage.getBoundingClientRect();
+    svg.setAttribute("width", String(rect.width));
+    svg.setAttribute("height", String(rect.height));
+    svg.innerHTML = "";
+    const w = rect.width;
+    const conns = this.immersion.dataFlowConnections();
+    for (const c of conns) {
+      const p1 = ed.getScrolledVisiblePosition({ lineNumber: c.fromLine, column: 1 });
+      const p2 = ed.getScrolledVisiblePosition({ lineNumber: c.toLine, column: 1 });
+      if (!p1 || !p2) {
+        continue;
+      }
+      const stageRect = stage.getBoundingClientRect();
+      const editorDom = ed.getDomNode();
+      const editorRect = editorDom?.getBoundingClientRect();
+      if (!editorRect) {
+        continue;
+      }
+      const x1 = editorRect.left - stageRect.left + p1.left + 48;
+      const y1 = editorRect.top - stageRect.top + p1.top + p1.height / 2;
+      const x2 = editorRect.left - stageRect.left + p2.left + 48;
+      const y2 = editorRect.top - stageRect.top + p2.top + p2.height / 2;
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const midX = (x1 + x2) / 2;
+      const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      path.setAttribute(
+        "stroke",
+        c.status === "ok" ? "rgb(34 197 94 / 0.85)" : "rgb(245 158 11 / 0.9)",
+      );
+      path.setAttribute("stroke-width", "2");
+      path.setAttribute("stroke-dasharray", c.status === "ok" ? "6 4" : "4 6");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute(
+        "class",
+        c.status === "ok" ? "tutor-flow-path tutor-flow-path--ok" : "tutor-flow-path tutor-flow-path--broken",
+      );
+      svg.appendChild(path);
+    }
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", String(w - 8));
+    label.setAttribute("y", "14");
+    label.setAttribute("text-anchor", "end");
+    label.setAttribute("fill", "var(--pws-text-300, #94a3b8)");
+    label.setAttribute("font-size", "10");
+    label.textContent = "Fluxo de dados (tutor)";
+    svg.appendChild(label);
+  }
+
   ngOnDestroy() {
+    if (this.flowSvgLayoutRaf !== null) {
+      cancelAnimationFrame(this.flowSvgLayoutRaf);
+      this.flowSvgLayoutRaf = null;
+    }
+    this.tutorEditorContext.unregister(this.tutorContextHandle);
     this.executor.stop();
     this.worker.abortTranspilation();
     this._code$?.unsubscribe();
@@ -243,6 +404,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     this._settings$?.unsubscribe();
     this.editorActions.setEditor(null);
     this.editorActions.setRunCode(null);
+    this.editorActions.setStopCode(null);
   }
 
   async runCode() {
@@ -487,26 +649,51 @@ export class TabEditorComponent implements OnInit, OnDestroy {
       label: "Ajuda",
       run: this.openHelp.bind(this),
     });
+
+    /** ⌘K / Ctrl+K: o Monaco captura o atalho antes do ng-keyboard-shortcuts com foco no editor. */
+    editor.addAction({
+      id: "toggleTutorAria",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+      label: "Alternar tutor ARIA",
+      run: () => {
+        this.tutorOverlay.toggle();
+      },
+    });
   }
 
   onEditorInit(editor: monaco.editor.IStandaloneCodeEditor) {
     this.codeEditor = editor;
-    this.editorActions.setEditor(editor);
-    this.editorActions.setRunCode(() => {
-      void this.runCode();
-    });
+    if (this.isActiveTab) {
+      this.editorActions.setEditor(editor);
+      this.editorActions.setRunCode(() => {
+        void this.runCode();
+      });
+    }
     this.initShortcuts(editor);
 
     this._code$?.unsubscribe();
 
     this._code$ = fromEventPattern(editor.onDidChangeModelContent)
       .pipe(
+        tap(() => {
+          if (this.tutorOverlay.isOpen()) {
+            this.tutorOverlay.dim();
+          }
+        }),
         debounceTime(500),
         switchMap(async () => this.worker.checkCode(this.codeEditor?.getModel()?.getValue() ?? this.code ?? "")),
       )
       .subscribe({
         next: result => {
-          this.setEditorErrors(result.errors.concat(result.parseErrors));
+          const merged = result.errors.concat(result.parseErrors);
+          this.setEditorErrors(merged);
+          this.lastAstSummary = `erros:${merged.length};parse_ok:${merged.length === 0}`;
+          const msgs = merged.map(
+            e => `Linha ${e.startLine}, coluna ${e.startCol + 1}: ${e.message}`,
+          );
+          this.tutorRealtimeValidator.onErrorsUpdated(msgs);
+          this.tutorProactivity.resetWatch(merged.length > 0);
+          this.scheduleFlowSvgLayout();
         },
         error(err) {
           console.error(err);
@@ -514,13 +701,22 @@ export class TabEditorComponent implements OnInit, OnDestroy {
       });
   }
 
-  toggleTutorPanel() {
-    this.tutorPanelOpen = !this.tutorPanelOpen;
-    this.gaService.event(
-      this.tutorPanelOpen ? "editor_tutor_panel_open" : "editor_tutor_panel_close",
-      "Editor",
-      "Painel do tutor ARIA",
-    );
+  private syncActiveEditorAndTutorContext(): void {
+    if (this.isActiveTab) {
+      this.tutorEditorContext.register(this.tutorContextHandle);
+      if (this.codeEditor) {
+        this.editorActions.setEditor(this.codeEditor);
+        this.editorActions.setRunCode(() => {
+          void this.runCode();
+        });
+        this.editorActions.setStopCode(() => {
+          this.stopCode();
+        });
+      }
+      this.scheduleFlowSvgLayout();
+    } else {
+      this.tutorEditorContext.unregister(this.tutorContextHandle);
+    }
   }
 
   /** Remove destaques e comentários inline do tutor no Monaco (não limpa o chat). */
@@ -588,7 +784,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
             endLineNumber: error.endLine,
             endColumn: error.endCol + 2,
             message: error.message,
-            severity: monaco.MarkerSeverity.Error,
+            severity: monaco.MarkerSeverity.Info,
           };
         }),
       );

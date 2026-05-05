@@ -13,7 +13,7 @@ Este repositório é um **fork** de [Portugol-Webstudio](https://github.com/dgad
 
 - **Autor do fork / pesquisa:** Luis Ricardo Albano Santos
 - **Upstream:** `https://github.com/dgadelha/Portugol-Webstudio.git` (remote sugerido: `upstream`)
-- **Backend (Azure Functions + LangGraph):** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica). Esta IDE inclui chat do tutor socrático que chama a API (`/api/help/stream` em modo streaming).
+- **Backend (Azure Functions + LangGraph):** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica). Esta IDE inclui o tutor socrático **ARIA** em **overlay imersivo** (atalho **⌘K** / **Ctrl+K** e botão na barra lateral), consumindo `/api/help/stream` em modo SSE. Quando a API sinaliza problema resolvido (`tutorMeta.suggestedConversationEnd`), a conversa é arquivada e inicia-se um fio novo, com opção de reabrir a anterior.
 
 ### Sincronizar com o upstream
 
@@ -83,6 +83,7 @@ Após isto, você poderá acessar a IDE em: [http://localhost:4200](http://local
 2. Na IDE, a URL da API é lida de `packages/ide/src/environments/environment.ts` (desenvolvimento) e `environment.prod.ts` (produção), propriedade **`agentApiBaseUrl`**. Deve incluir o prefixo `/api` (ex.: `http://localhost:7071/api`). Em produção, defina o valor antes do build ou via substituição de arquivo do Angular.
 3. O backend deve permitir **CORS** para a origem da IDE (ver `Host.CORS` em `local.settings.json` no maieutica ou o portal Azure em produção).
 4. Para compilar só o cliente HTTP do tutor: `npm run build:agent`. O `npm run build` da raiz já inclui todos os pacotes necessários para a IDE.
+5. **Interface do tutor:** use **⌘K** (macOS) ou **Ctrl+K** (Windows/Linux) para abrir/fechar o painel; **Esc** também fecha. O histórico mantém-se enquanto a página estiver aberta (o painel fica montado em segundo plano).
 
 ## Contribuidores
 

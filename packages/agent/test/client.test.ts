@@ -40,3 +40,36 @@ test("helpStream chama onAction ao receber evento SSE action", async () => {
     { type: "highlight_line", payload: { line: 14, color: "warning" } },
   ]);
 });
+
+test("helpStream passa tutorMeta no onDone quando o evento done inclui JSON", async () => {
+  const sse =
+    'event: diagnosis\ndata: {"errorType":"none"}\n\n' +
+    'event: done\ndata: {"tutorMeta":{"suggestedConversationEnd":true,"endReason":"bug_resolved"}}\n\n';
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(sse));
+      controller.close();
+    },
+  });
+
+  const fetchMock: typeof fetch = async () =>
+    new Response(stream, {
+      status: 200,
+      headers: { "content-type": "text/event-stream; charset=utf-8" },
+    });
+
+  let donePayload: unknown;
+  const client = createTutorAgentClient({ baseUrl: "http://localhost:7071/api", fetch: fetchMock });
+
+  await client.helpStream({ code: "programa\n{\n}", errors: [], history: [] }, {
+    onDone: payload => {
+      donePayload = payload;
+    },
+  });
+
+  assert.deepStrictEqual(donePayload, {
+    tutorMeta: { suggestedConversationEnd: true, endReason: "bug_resolved" },
+  });
+});

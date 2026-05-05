@@ -1,0 +1,28 @@
+<div class="tutor-overlay" [class.tutor-overlay--open]="shell.isOpen()"
+  [class.tutor-overlay--dimmed]="shell.isOpen() && shell.isDimmed()" role="presentation"
+  [attr.aria-hidden]="shell.isOpen() ? null : 'true'" [attr.inert]="shell.isOpen() ? null : ''"
+  (mouseenter)="shell.undim()">
+  <div class="tutor-overlay__panel" role="complementary" aria-label="Tutor socrático ARIA"
+    (click)="$event.stopPropagation()" (focusin)="shell.undim()">
+    <button mat-icon-button type="button" class="tutor-overlay__dismiss" title="Fechar (Esc)" aria-label="Fechar tutor"
+      (click)="close()">
+      <svg-icon src="assets/mdi/close.svg" aria-hidden="true" focusable="false" />
+    </button>
+
+    <div class="tutor-overlay__inner">
+      @if (activeContext(); as ctx) {
+      <div class="tutor-overlay__body">
+        <app-agent-chat [immersiveLayout]="true" [editorCode]="ctx.getEditorCode()"
+          [editorCodeSnapshot]="ctx.getEditorCodeSnapshot" [compilerErrorsResolver]="ctx.getCompilerErrors"
+          [cursorLineResolver]="cursorLineResolver" [cursorColumnResolver]="cursorColumnResolver"
+          [astSummaryResolver]="astSummaryResolver" [dataFlowContextResolver]="dataFlowContextResolver" />
+      </div>
+      } @else {
+      <div class="tutor-overlay__empty" role="status">
+        <p>Abra ou selecione uma <strong>aba de editor</strong> para conversar com a tutora.</p>
+        <button mat-stroked-button type="button" color="primary" (click)="close()">Fechar</button>
+      </div>
+      }
+    </div>
+  </div>
+</div>

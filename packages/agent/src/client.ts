@@ -5,6 +5,7 @@ import type {
   TutorHelpRequest,
   TutorHelpResponse,
   TutorHelpStreamHandlers,
+  TutorStreamDonePayload,
 } from "./types.js";
 
 /** Código mínimo quando não há fonte do editor — exige campo não vazio na API. */
@@ -89,7 +90,9 @@ function dispatchSseBlock(
 
       case "done": {
         state.sawDone = true;
-        handlers.onDone?.();
+        const payload =
+          data && typeof data === "object" ? (data as TutorStreamDonePayload) : undefined;
+        handlers.onDone?.(payload);
         break;
       }
 
@@ -149,7 +152,7 @@ async function readHelpSseStream(
   }
 
   if (!streamState.sawDone && !streamState.sawError) {
-    runInZoneOptional(runInZone, () => handlers.onDone?.());
+    runInZoneOptional(runInZone, () => handlers.onDone?.({}));
   }
 }
 

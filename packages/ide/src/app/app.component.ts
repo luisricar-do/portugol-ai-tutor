@@ -9,6 +9,7 @@ import { DialogConfirmCloseTabComponent } from "./dialog-confirm-close-tab/dialo
 import { DialogRenameTabComponent } from "./dialog-rename-tab/dialog-rename-tab.component";
 import { DialogSettingsComponent } from "./dialog-settings/dialog-settings.component";
 import { ShareService } from "./share.service";
+import { TutorOverlayService } from "./tutor-overlay.service";
 
 interface Tab {
   id: number;
@@ -29,6 +30,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private snack = inject(MatSnackBar);
   private dialog = inject(MatDialog);
   private shareService = inject(ShareService);
+  readonly tutorOverlay = inject(TutorOverlayService);
 
   renameDialogRef?: MatDialogRef<DialogRenameTabComponent>;
   renameDialogSubscription?: Subscription;
@@ -51,6 +53,21 @@ export class AppComponent implements OnInit, OnDestroy {
       preventDefault: true,
       command: () => {
         this.addTab();
+      },
+    },
+    {
+      // macOS: `cmd` é o reconhecido pelo ng-keyboard-shortcuts; `meta` pode falhar.
+      key: "cmd + k",
+      preventDefault: true,
+      command: () => {
+        this.tutorOverlay.toggle();
+      },
+    },
+    {
+      key: "ctrl + k",
+      preventDefault: true,
+      command: () => {
+        this.tutorOverlay.toggle();
       },
     },
   ];

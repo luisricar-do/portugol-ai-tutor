@@ -7,80 +7,26 @@
   min-height: 0;
 }
 
-.tutor-stack {
-  display: flex;
-  flex-direction: row;
-  flex-shrink: 0;
-  height: 100%;
+.editor-stage {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
-}
-
-.tutor-rail-column {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 100%;
-  min-height: 0;
-  border-left: 1px solid var(--pws-border-color);
-  background: var(--pws-bg-200);
 }
 
-.tutor-panel {
-  flex: 0 0 auto;
-  width: 0;
-  overflow: hidden;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 0;
-  background: var(--pws-bg-200);
-  border-left: 1px solid transparent;
+.data-flow-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+  transition: opacity 0.2s ease-out;
 }
 
-.tutor-stack--open .tutor-panel {
-  width: min(22rem, 42vw);
-  border-left-color: var(--pws-border-color);
-}
-
-.tutor-panel app-agent-chat {
-  display: block;
-  width: min(22rem, 42vw);
-  height: 100%;
-  min-height: 0;
-}
-
-.tutor-rail {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--pws-text-200);
-  cursor: pointer;
-  transition: background 0.2s ease;
-
-  &:hover {
-    background: var(--pws-bg-300);
-    color: var(--pws-text-100);
-  }
-
-  svg-icon {
-    width: 1.35rem;
-    height: 1.35rem;
-  }
-}
-
-.tutor-rail--panel {
-  flex: 1 1 0;
-  min-height: 0;
-  border-bottom: 1px solid var(--pws-border-color);
-}
-
-.tutor-rail--clear {
-  flex: 0 0 2.5rem;
-  height: 2.5rem;
+.data-flow-layer--muted {
+  opacity: 0.35;
 }
 
 ::ng-deep .editor-inner {

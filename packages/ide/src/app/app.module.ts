@@ -36,10 +36,12 @@ import { TabEditorComponent } from "./tab-editor/tab-editor.component";
 import { TabHelpComponent } from "./tab-help/tab-help.component";
 import { TabStartComponent } from "./tab-start/tab-start.component";
 import { ThemeService } from "./theme.service";
+import { TutorOverlayComponent } from "./tutor-overlay/tutor-overlay.component";
 
 @NgModule({
   imports: [
     AgentChatComponent,
+    TutorOverlayComponent,
     BrowserModule,
     RouterModule.forRoot([]),
     FormsModule,

@@ -1,0 +1,134 @@
+/* Overlay inferior: área ampla para o histórico; vidro quase invisível — o foco são as mensagens. */
+
+/* Mantido sempre no DOM (não destruir) para preservar histórico do chat ao fechar. */
+.tutor-overlay {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1100;
+  width: 100%;
+  min-height: min(52dvh, calc(100dvh - 4.5rem));
+  max-height: min(82dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  padding-inline: min(1rem, 4vw);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px);
+  transition:
+    opacity 0.24s ease-out,
+    visibility 0.24s ease-out,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tutor-overlay--open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.tutor-overlay--open.tutor-overlay--dimmed {
+  opacity: 0.38;
+  transform: scale(0.996) translateY(0);
+}
+
+.tutor-overlay--open.tutor-overlay--dimmed .tutor-overlay__panel {
+  background: color-mix(in srgb, var(--pws-bg-200) 2%, transparent);
+  backdrop-filter: blur(12px) saturate(1.02);
+  -webkit-backdrop-filter: blur(12px) saturate(1.02);
+}
+
+.tutor-overlay--open.tutor-overlay--dimmed:hover {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.tutor-overlay--open.tutor-overlay--dimmed:hover .tutor-overlay__panel {
+  background: color-mix(in srgb, var(--pws-bg-200) 5%, transparent);
+  backdrop-filter: blur(18px) saturate(1.05);
+  -webkit-backdrop-filter: blur(18px) saturate(1.05);
+}
+
+/* Largura alinhada à caixa do chat; cantos superiores arredondados. */
+.tutor-overlay__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  width: min(64rem, 100%);
+  max-height: inherit;
+  pointer-events: auto;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 1rem 1rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--pws-text-100) 4%, transparent);
+  background: color-mix(in srgb, var(--pws-bg-200) 3%, transparent);
+  backdrop-filter: blur(16px) saturate(1.04);
+  -webkit-backdrop-filter: blur(16px) saturate(1.04);
+  box-shadow: 0 -8px 40px -12px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+.tutor-overlay__dismiss {
+  position: absolute;
+  top: 0.45rem;
+  right: max(0.5rem, env(safe-area-inset-right, 0px));
+  z-index: 2;
+  color: var(--pws-text-200);
+  background: color-mix(in srgb, var(--pws-bg-300) 28%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  &:hover {
+    color: var(--pws-text-100);
+    background: color-mix(in srgb, var(--pws-bg-300) 52%, transparent);
+  }
+
+  svg-icon {
+    display: flex;
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+}
+
+.tutor-overlay__inner {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.35rem min(1.1rem, 3vw) 0.5rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.tutor-overlay__body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-inline-end: 2.5rem;
+
+  app-agent-chat {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+}
+
+.tutor-overlay__empty {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 0 1.25rem;
+  text-align: center;
+  color: var(--pws-text-200);
+  font-size: 0.92rem;
+}

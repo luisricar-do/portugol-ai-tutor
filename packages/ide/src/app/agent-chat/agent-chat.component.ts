@@ -1,8 +1,8 @@
-import { JsonPipe } from "@angular/common";
 import {
   afterNextRender,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   ElementRef,
   inject,
   Injector,
@@ -10,24 +10,27 @@ import {
   NgZone,
   viewChild,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
-import { MatCheckboxModule } from "@angular/material/checkbox";
 import {
   createTutorAgentClient,
   TUTOR_CHAT_PLACEHOLDER_CODE,
   TutorAgentError,
-  type TutorDiagnosis,
   type TutorHistoryItem,
+  type TutorStreamDonePayload,
 } from "@luisricar-do/agent";
 import { AngularSvgIconModule } from "angular-svg-icon";
 
 import { environment } from "../../environments/environment";
 import { EditorActionsService } from "../editor-actions.service";
+import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
+import { TutorOverlayService } from "../tutor-overlay.service";
+import { TutorSettingsService } from "../tutor-settings.service";
 
 @Component({
   selector: "app-agent-chat",
-  imports: [AngularSvgIconModule, FormsModule, JsonPipe, MatButtonModule, MatCheckboxModule],
+  imports: [AngularSvgIconModule, FormsModule, MatButtonModule],
   standalone: true,
   templateUrl: "./agent-chat.component.html",
   styleUrl: "./agent-chat.component.scss",
@@ -51,11 +54,24 @@ export class AgentChatComponent {
   /** Fallback síncrono (ex.: marcadores Monaco) quando não há resolver. */
   @Input() compilerErrorsSnapshot?: () => string[];
 
+  /** Layout do HUD flutuante (cartão em baixo) — compositor compacto. */
+  @Input() immersiveLayout = false;
+
+  @Input() cursorLineResolver?: () => number | undefined;
+
+  @Input() cursorColumnResolver?: () => number | undefined;
+
+  @Input() astSummaryResolver?: () => string | undefined;
+
+  @Input() dataFlowContextResolver?: () => string | undefined;
+
   readonly baseUrlConfigured = Boolean(environment.agentApiBaseUrl?.trim());
 
   readonly scrollArea = viewChild<ElementRef<HTMLElement>>("scrollArea");
 
   readonly threadEnd = viewChild<ElementRef<HTMLElement>>("threadEnd");
+
+  readonly draftInput = viewChild<ElementRef<HTMLTextAreaElement>>("draftInput");
 
   private readonly ngZone = inject(NgZone);
 
@@ -65,6 +81,14 @@ export class AgentChatComponent {
 
   private readonly editorActionsService = inject(EditorActionsService);
 
+  private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
+
+  private readonly tutorSettings = inject(TutorSettingsService);
+
+  private readonly tutorOverlay = inject(TutorOverlayService);
+
+  private readonly destroyRef = inject(DestroyRef);
+
   /** Tokens SSE acumulados até o próximo frame (evita NgZone/CD por caractere). */
   private streamingTokenBuffer = "";
 
@@ -73,8 +97,6 @@ export class AgentChatComponent {
 
   draft = "";
   error: string | null = null;
-  showDiagnosis = false;
-  lastDiagnosis: TutorDiagnosis | null = null;
 
   /** Resposta em andamento via SSE (`/help/stream`). */
   streamingAssistant = false;
@@ -82,12 +104,50 @@ export class AgentChatComponent {
 
   private history: TutorHistoryItem[] = [];
 
+  /** Conversa anterior arquivada após o tutor sinalizar problema resolvido (reabrir opcional). */
+  lastArchivedThread: TutorHistoryItem[] | null = null;
+
   get thread(): TutorHistoryItem[] {
     return this.history;
   }
 
   get hasHistory(): boolean {
     return this.history.length > 0;
+  }
+
+  get canReopenArchived(): boolean {
+    return (this.lastArchivedThread?.length ?? 0) > 0;
+  }
+
+  constructor() {
+    this.tutorAutoTrigger.events$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(msg => {
+      void this.sendWithText(msg);
+    });
+  }
+
+  /** Foco no compositor (ex.: ao abrir o overlay). */
+  focusComposer(): void {
+    queueMicrotask(() => {
+      const el = this.draftInput()?.nativeElement;
+      el?.focus();
+      el?.select();
+    });
+  }
+
+  reopenArchivedConversation(): void {
+    if (!this.lastArchivedThread?.length) {
+      return;
+    }
+    this.history = [...this.lastArchivedThread];
+    this.lastArchivedThread = null;
+    this.error = null;
+    this.scrollThreadToEnd();
+    this.cdr.markForCheck();
+  }
+
+  dismissArchivedHint(): void {
+    this.lastArchivedThread = null;
+    this.cdr.markForCheck();
   }
 
   /** Destaques/comentários do tutor ainda visíveis no editor (para UI ou lógica externa). */
@@ -186,9 +246,36 @@ export class AgentChatComponent {
     void this.send();
   }
 
+  /** Altura auto do compositor imersivo (até ~8rem). */
+  onHudComposerInput(event: Event): void {
+    const ta = event.target as HTMLTextAreaElement;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 192)}px`;
+  }
+
   async send(): Promise<void> {
     const text = this.draft.trim();
     if (!text || !this.baseUrlConfigured || this.streamingAssistant) {
+      return;
+    }
+    this.draft = "";
+    this.resetHudComposerHeight();
+    await this.sendWithText(text);
+  }
+
+  private resetHudComposerHeight(): void {
+    queueMicrotask(() => {
+      const el = this.draftInput()?.nativeElement;
+      if (!el) {
+        return;
+      }
+      el.style.height = "auto";
+    });
+  }
+
+  private async sendWithText(text: string): Promise<void> {
+    const trimmed = text.trim();
+    if (!trimmed || !this.baseUrlConfigured || this.streamingAssistant) {
       return;
     }
 
@@ -201,8 +288,8 @@ export class AgentChatComponent {
     // Atualiza o estado na zona do Angular *antes* do await do worker, para haver CD imediata
     // e evitar múltiplos envios enquanto `errorsForRequest` está pendente.
     this.ngZone.run(() => {
-      this.history.push({ role: "user", content: text });
-      this.draft = "";
+      this.tutorOverlay.undim();
+      this.history.push({ role: "user", content: trimmed });
       this.error = null;
       this.streamingAssistant = true;
       this.streamingText = "";
@@ -220,14 +307,14 @@ export class AgentChatComponent {
           errors,
           history: this.history,
           activeTutorDecorations: this.editorActionsService.activeTutorDecorationCount,
+          hintLevel: 1,
+          studentName: this.tutorSettings.studentName() ?? undefined,
+          cursorLine: this.cursorLineResolver?.(),
+          cursorColumn: this.cursorColumnResolver?.(),
+          astSummary: this.astSummaryResolver?.(),
+          dataFlowContext: this.dataFlowContextResolver?.(),
         },
         {
-          onDiagnosis: diagnosis => {
-            this.ngZone.run(() => {
-              this.lastDiagnosis = diagnosis;
-              this.cdr.markForCheck();
-            });
-          },
           onToken: delta => {
             this.streamingTokenBuffer += delta;
             this.scheduleStreamingTokenFlush();
@@ -237,7 +324,7 @@ export class AgentChatComponent {
           onAction: action => {
             this.editorActionsService.dispatch(action);
           },
-          onDone: () => {
+          onDone: (payload?: TutorStreamDonePayload) => {
             this.ngZone.run(() => {
               this.cancelStreamingTokenFlush();
               if (this.streamingTokenBuffer.length > 0) {
@@ -249,6 +336,10 @@ export class AgentChatComponent {
               this.streamingText = "";
               if (reply.length > 0) {
                 this.history.push({ role: "assistant", content: reply });
+              }
+              if (payload?.tutorMeta?.suggestedConversationEnd === true) {
+                this.lastArchivedThread = [...this.history];
+                this.history = [];
               }
               this.scrollThreadToEnd();
               this.cdr.markForCheck();
@@ -262,7 +353,9 @@ export class AgentChatComponent {
           this.streamingTokenBuffer = "";
           this.streamingAssistant = false;
           this.streamingText = "";
-          this.history.pop();
+          if (this.history.length > 0 && this.history[this.history.length - 1]?.role === "user") {
+            this.history.pop();
+          }
           this.error = error instanceof TutorAgentError ? error.message : "Falha ao contactar o tutor.";
           this.scrollThreadToEnd();
           this.cdr.markForCheck();
@@ -274,10 +367,12 @@ export class AgentChatComponent {
     this.cancelStreamingTokenFlush();
     this.streamingTokenBuffer = "";
     this.history = [];
-    this.lastDiagnosis = null;
+    this.lastArchivedThread = null;
     this.error = null;
     this.streamingAssistant = false;
     this.streamingText = "";
+    this.draft = "";
+    this.resetHudComposerHeight();
     this.editorActionsService.clearTutorDecorations();
   }
 }

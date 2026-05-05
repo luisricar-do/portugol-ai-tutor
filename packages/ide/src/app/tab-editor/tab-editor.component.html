@@ -94,7 +94,10 @@
     <svg-icon src="assets/mdi/help-circle-outline.svg" svgClass="text-blue" aria-hidden="true" focusable="false" />
   </button>
 
-  <s></s>
+  <button mat-ripple type="button" class="sidebar-button" title="Remover destaques do tutor no código"
+    (click)="clearTutorEditorDecorations()">
+    <svg-icon src="assets/mdi/eraser.svg" svgClass="text-secondary" aria-hidden="true" focusable="false" />
+  </button>
 
   <button mat-ripple type="button" class="sidebar-button" title="Configurações" gaEvent="editor_open_settings"
     gaCategory="Editor" gaLabel="Botão de Configurações" (click)="openSettings()">
@@ -102,49 +105,33 @@
   </button>
 </div>
 
-<div class="editor-inner">
-  <as-split direction="vertical">
-    <as-split-area [size]="80">
-      <as-split direction="horizontal">
-        <as-split-area [size]="100">
-          <ngx-monaco-editor [options]="codeEditorOptions" [(ngModel)]="code" (init)="onEditorInit($event)" />
-        </as-split-area>
+<div #editorStage class="editor-stage" [class.tutor-focus-mode]="immersion.focusMode()"
+  [class.tutor-ghost-soft]="immersion.ghostLinesMuted()">
+  <div class="editor-inner">
+    <as-split direction="vertical">
+      <as-split-area [size]="80">
+        <as-split direction="horizontal">
+          <as-split-area [size]="100">
+            <ngx-monaco-editor [options]="codeEditorOptions" [(ngModel)]="code" (init)="onEditorInit($event)" />
+          </as-split-area>
 
-        <as-split-area [size]="0">
-          <ngx-monaco-editor [options]="generatedCodeEditorOptions" [(ngModel)]="executor.byteCode" />
-        </as-split-area>
-      </as-split>
-    </as-split-area>
+          <as-split-area [size]="0">
+            <ngx-monaco-editor [options]="generatedCodeEditorOptions" [(ngModel)]="executor.byteCode" />
+          </as-split-area>
+        </as-split>
+      </as-split-area>
 
-    <as-split-area [size]="20">
-      <ngx-monaco-editor id="output" [options]="stdOutEditorOptions" [(ngModel)]="executor.stdOut"
-        (init)="onStdOutEditorInit($event)" />
-    </as-split-area>
-  </as-split>
-</div>
-
-<div class="tutor-stack" [class.tutor-stack--open]="tutorPanelOpen">
-  <div class="tutor-rail-column" role="toolbar" aria-label="Controlo do painel do tutor">
-    <button type="button" class="tutor-rail tutor-rail--panel" [attr.aria-expanded]="tutorPanelOpen"
-      [attr.aria-label]="tutorPanelOpen ? 'Fechar painel do tutor' : 'Abrir painel do tutor'"
-      [title]="tutorPanelOpen ? 'Fechar tutor' : 'Abrir tutor (ARIA)'" (click)="toggleTutorPanel()">
-      @if (tutorPanelOpen) {
-      <svg-icon src="assets/mdi/chevron-right.svg" aria-hidden="true" focusable="false" />
-      } @else {
-      <svg-icon src="assets/mdi/message-text-outline.svg" aria-hidden="true" focusable="false" />
-      }
-    </button>
-    <button type="button" class="tutor-rail tutor-rail--clear" aria-label="Limpar destaques do tutor no código"
-      title="Remove destaques e comentários do tutor no editor (o chat não é limpo)"
-      (click)="clearTutorEditorDecorations()">
-      <svg-icon src="assets/mdi/eraser.svg" aria-hidden="true" focusable="false" />
-    </button>
+      <as-split-area [size]="20">
+        <ngx-monaco-editor id="output" [options]="stdOutEditorOptions" [(ngModel)]="executor.stdOut"
+          (init)="onStdOutEditorInit($event)" />
+      </as-split-area>
+    </as-split>
   </div>
 
-  <aside class="tutor-panel" role="complementary" aria-label="Painel do tutor ARIA">
-    <app-agent-chat [editorCode]="code ?? ''" [editorCodeSnapshot]="tutorEditorCodeSnapshot"
-      [compilerErrorsResolver]="tutorCompilerErrorsResolver" />
-  </aside>
+  @if (immersion.dataFlowConnections().length > 0) {
+  <svg #flowSvg class="data-flow-layer" [class.data-flow-layer--muted]="immersion.ghostLinesMuted()"
+    aria-hidden="true"></svg>
+  }
 </div>
 
 <ng-template #shareSnackTemplate let-data>
