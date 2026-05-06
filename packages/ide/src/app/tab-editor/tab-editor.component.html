@@ -106,10 +106,11 @@
 </div>
 
 <div #editorStage class="editor-stage" [class.tutor-focus-mode]="immersion.focusMode()"
-  [class.tutor-ghost-soft]="immersion.ghostLinesMuted()">
+  [class.tutor-ghost-soft]="immersion.ghostLinesMuted()"
+  [class.tutor-observer-mode]="tutorOverlay.isOpen() && tutorOverlay.isDimmed()">
   <div class="editor-inner">
     <as-split direction="vertical">
-      <as-split-area [size]="80">
+      <as-split-area [size]="tutorSplitEditorSize">
         <as-split direction="horizontal">
           <as-split-area [size]="100">
             <ngx-monaco-editor [options]="codeEditorOptions" [(ngModel)]="code" (init)="onEditorInit($event)" />
@@ -121,14 +122,14 @@
         </as-split>
       </as-split-area>
 
-      <as-split-area [size]="20">
+      <as-split-area [size]="tutorSplitTerminalSize">
         <ngx-monaco-editor id="output" [options]="stdOutEditorOptions" [(ngModel)]="executor.stdOut"
           (init)="onStdOutEditorInit($event)" />
       </as-split-area>
     </as-split>
   </div>
 
-  @if (immersion.dataFlowConnections().length > 0) {
+  @if (immersion.dataFlowConnections().length > 0 || immersion.hudLinkLine() !== null) {
   <svg #flowSvg class="data-flow-layer" [class.data-flow-layer--muted]="immersion.ghostLinesMuted()"
     aria-hidden="true"></svg>
   }

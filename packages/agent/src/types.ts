@@ -26,6 +26,11 @@ export interface TutorHelpRequest {
   astSummary?: string;
   /** Mapa de fluxo / variáveis em atenção gerado na IDE (cordas, pendências). */
   dataFlowContext?: string;
+  /**
+   * Linhas 1-based com erro de compilação/análise no momento do pedido (Monaco / worker),
+   * para correlação espacial no SMA sem expor o texto bruto ao aluno na UI.
+   */
+  compilerErrorLines?: number[];
 }
 
 export interface TutorDiagnosis {

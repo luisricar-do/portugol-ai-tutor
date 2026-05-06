@@ -1,20 +1,46 @@
-/* Overlay inferior: área ampla para o histórico; vidro quase invisível — o foco são as mensagens. */
+/*
+ * Camada cheia no viewport (:host fixed) + cartão flutuante junto ao rodapé, centrado.
+ * O foco no Monaco não está dentro deste painel — modo “fantasma” continua via TutorOverlayService.dim().
+ */
 
-/* Mantido sempre no DOM (não destruir) para preservar histórico do chat ao fechar. */
-.tutor-overlay {
+:host {
+  display: block;
   position: fixed;
-  inset-inline: 0;
+  top: 0;
+  right: 0;
   bottom: 0;
-  z-index: 1100;
-  width: 100%;
-  min-height: min(52dvh, calc(100dvh - 4.5rem));
-  max-height: min(82dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  left: 0;
+  width: auto;
+  height: auto;
   pointer-events: none;
-  padding-inline: min(1rem, 4vw);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Acima de painéis Material / Monaco */
+  z-index: 10050;
+  overflow: visible;
+}
+
+/* Brilho ciano derivado do primário do tema */
+$tutor-hud-glow: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 55%, transparent);
+$tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, transparent);
+
+/* Shell: ancora o cartão na base central */
+.tutor-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  max-height: min(58vh, calc(100dvh - env(safe-area-inset-top, 0px)));
+  min-height: min(18rem, 48vh);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+  padding-inline: max(0.75rem, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
   opacity: 0;
   visibility: hidden;
   transform: translateY(12px);
@@ -30,92 +56,231 @@
   transform: translateY(0);
 }
 
+/* Wrapper: cartão + barra de arrastar + translate utilizador */
+.tutor-overlay__panel-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-width: 0;
+  width: min(65vw, 42rem);
+  max-width: min(92vw, 42rem);
+  min-height: min(38vh, 20rem);
+  max-height: min(56vh, calc(100dvh - 5rem));
+  pointer-events: auto;
+  box-sizing: border-box;
+  border-radius: 1.125rem;
+  border: 1px solid color-mix(in srgb, $tutor-hud-glow-soft 65%, var(--pws-border-color));
+  background: var(--pws-bg-200);
+  box-shadow:
+    0 12px 40px -14px rgb(0 0 0 / 0.35),
+    0 0 0 1px color-mix(in srgb, var(--pws-text-100) 8%, transparent),
+    0 0 40px -8px $tutor-hud-glow,
+    0 0 72px -16px $tutor-hud-glow-soft;
+  overflow: hidden;
+  transition: transform 0.2s ease-out;
+}
+
+.tutor-overlay__panel-wrap--dragging {
+  transition: none;
+}
+
+.tutor-overlay__drag-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.15rem 0.25rem 0.15rem 0.45rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--pws-text-100) 8%, var(--pws-border-color));
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--pws-color-primary) 18%, transparent) 0%,
+      color-mix(in srgb, var(--pws-bg-200) 96%, var(--pws-bg-300)) 100%);
+}
+
+.tutor-overlay__drag-bar:active {
+  cursor: grabbing;
+}
+
+.tutor-overlay__drag-grip {
+  flex-shrink: 0;
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: color-mix(in srgb, var(--pws-text-300) 88%, transparent);
+
+  ::ng-deep svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+  }
+}
+
+.tutor-overlay__drag-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--pws-text-300) 92%, transparent);
+}
+
+.tutor-overlay__drag-spacer {
+  flex: 1 1 auto;
+}
+
+.tutor-overlay__drag-reset {
+  flex-shrink: 0;
+  margin-right: 0.1rem;
+  color: color-mix(in srgb, var(--pws-text-300) 90%, transparent);
+
+  ::ng-deep svg-icon {
+    display: inline-flex;
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  ::ng-deep svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+  }
+}
+
+/*
+ * Observador: TutorOverlayService.dim() ao editar no Monaco (foco fora deste painel).
+ * Reforço opcional: com foco dentro do HUD (ex.: Tab), :focus-within devolve opacidade total
+ * mesmo que dim() ainda não tenha sido limpo — em fluxos normais focusin já chama undim().
+ */
 .tutor-overlay--open.tutor-overlay--dimmed {
-  opacity: 0.38;
-  transform: scale(0.996) translateY(0);
-}
-
-.tutor-overlay--open.tutor-overlay--dimmed .tutor-overlay__panel {
-  background: color-mix(in srgb, var(--pws-bg-200) 2%, transparent);
-  backdrop-filter: blur(12px) saturate(1.02);
-  -webkit-backdrop-filter: blur(12px) saturate(1.02);
-}
-
-.tutor-overlay--open.tutor-overlay--dimmed:hover {
   opacity: 1;
-  transform: scale(1) translateY(0);
+
+  .tutor-overlay__panel {
+    opacity: 0.3;
+    transform: scale(0.98);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: color-mix(in srgb, var(--pws-bg-200) 72%, transparent);
+    box-shadow:
+      0 8px 32px -12px rgb(0 0 0 / 0.28),
+      0 0 0 1px color-mix(in srgb, var(--pws-text-100) 8%, transparent),
+      0 0 28px -8px $tutor-hud-glow-soft;
+  }
+
+  .tutor-overlay__panel.hud-socratico:focus-within {
+    opacity: 1;
+    transform: scale(1);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--pws-bg-200);
+    box-shadow:
+      0 12px 40px -14px rgb(0 0 0 / 0.35),
+      0 0 0 1px color-mix(in srgb, var(--pws-text-100) 10%, var(--pws-border-color)),
+      0 0 36px -6px $tutor-hud-glow;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .tutor-overlay--open.tutor-overlay--dimmed .tutor-overlay__panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 .tutor-overlay--open.tutor-overlay--dimmed:hover .tutor-overlay__panel {
-  background: color-mix(in srgb, var(--pws-bg-200) 5%, transparent);
-  backdrop-filter: blur(18px) saturate(1.05);
-  -webkit-backdrop-filter: blur(18px) saturate(1.05);
+  opacity: 1;
+  transform: scale(1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--pws-bg-200);
+  box-shadow:
+    0 12px 40px -14px rgb(0 0 0 / 0.35),
+    0 0 0 1px color-mix(in srgb, var(--pws-text-100) 10%, var(--pws-border-color)),
+    0 0 36px -6px $tutor-hud-glow;
 }
 
-/* Largura alinhada à caixa do chat; cantos superiores arredondados. */
 .tutor-overlay__panel {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 auto;
   min-height: 0;
-  width: min(64rem, 100%);
-  max-height: inherit;
+  min-width: 0;
+  width: 100%;
   pointer-events: auto;
   box-sizing: border-box;
   border: none;
-  border-radius: 1rem 1rem 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--pws-text-100) 4%, transparent);
-  background: color-mix(in srgb, var(--pws-bg-200) 3%, transparent);
-  backdrop-filter: blur(16px) saturate(1.04);
-  -webkit-backdrop-filter: blur(16px) saturate(1.04);
-  box-shadow: 0 -8px 40px -12px rgb(0 0 0 / 0.18);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--pws-bg-200);
   overflow: hidden;
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    backdrop-filter 0.2s ease-out,
+    background 0.2s ease-out,
+    box-shadow 0.2s ease-out;
 }
 
-.tutor-overlay__dismiss {
-  position: absolute;
-  top: 0.45rem;
-  right: max(0.5rem, env(safe-area-inset-right, 0px));
-  z-index: 2;
-  color: var(--pws-text-200);
-  background: color-mix(in srgb, var(--pws-bg-300) 28%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+.tutor-overlay__panel-wrap--success {
+  border-color: color-mix(in srgb, #22c55e 45%, var(--pws-border-color));
+  box-shadow:
+    0 12px 40px -14px rgb(0 0 0 / 0.35),
+    0 0 0 2px color-mix(in srgb, #22c55e 55%, transparent),
+    0 0 48px -8px color-mix(in srgb, #22c55e 42%, transparent),
+    0 0 72px -16px color-mix(in srgb, #22c55e 22%, transparent);
+}
 
-  &:hover {
-    color: var(--pws-text-100);
-    background: color-mix(in srgb, var(--pws-bg-300) 52%, transparent);
+@media (prefers-reduced-motion: no-preference) {
+
+  .tutor-overlay__panel-wrap--success {
+    animation: tutor-hud-success-glow 1.1s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes tutor-hud-success-glow {
+
+  from {
+    box-shadow:
+      0 12px 40px -14px rgb(0 0 0 / 0.35),
+      0 0 0 2px color-mix(in srgb, #22c55e 45%, transparent),
+      0 0 40px -8px color-mix(in srgb, #22c55e 35%, transparent);
   }
 
-  svg-icon {
-    display: flex;
-    width: 1.35rem;
-    height: 1.35rem;
+  to {
+    box-shadow:
+      0 12px 40px -14px rgb(0 0 0 / 0.35),
+      0 0 0 2px color-mix(in srgb, #22c55e 65%, transparent),
+      0 0 52px -6px color-mix(in srgb, #22c55e 48%, transparent);
   }
 }
 
 .tutor-overlay__inner {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.35rem min(1.1rem, 3vw) 0.5rem;
+  padding: 0.5rem min(1rem, 3vw) 0.55rem;
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .tutor-overlay__body {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-inline-end: 2.5rem;
+  overflow: hidden;
 
   app-agent-chat {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-height: 0;
+    overflow: hidden;
   }
 }
 

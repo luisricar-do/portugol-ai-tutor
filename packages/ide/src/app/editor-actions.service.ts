@@ -25,6 +25,9 @@ export class EditorActionsService {
 
   private decorationIds: string[] = [];
 
+  /** Glifos ❓ de erro de compilação (independentes das decorações pedagógicas do tutor). */
+  private compilerGlyphIds: string[] = [];
+
   private runCodeFn: (() => void | Promise<void>) | null = null;
 
   private stopCodeFn: (() => void) | null = null;
@@ -39,6 +42,7 @@ export class EditorActionsService {
   setEditor(editor: monaco.editor.IStandaloneCodeEditor | null): void {
     if (this.editor !== null && editor !== this.editor) {
       this.clearHighlightsInternal();
+      this.clearCompilerIssueGlyphsInternal();
     }
     this.editor = editor;
   }
@@ -75,6 +79,66 @@ export class EditorActionsService {
     this.cancelPendingFlush();
     this.clearHighlightsInternal();
     this.immersion.clearImmersion();
+  }
+
+  /** Glifos ❓ nas linhas com erro do compilador (estado atual). */
+  setCompilerIssueLines(lines: number[]): void {
+    const ed = this.editor;
+    const model = ed?.getModel();
+    if (!ed || !model) {
+      this.clearCompilerIssueGlyphsInternal();
+      return;
+    }
+    if (this.compilerGlyphIds.length > 0) {
+      ed.deltaDecorations(this.compilerGlyphIds, []);
+      this.compilerGlyphIds = [];
+    }
+    const uniq = [...new Set(lines)].filter(ln => ln >= 1 && ln <= model.getLineCount());
+    if (uniq.length === 0) {
+      return;
+    }
+    const decs = uniq.map(ln => ({
+      range: new monaco.Range(ln, 1, ln, 1),
+      options: {
+        glyphMarginClassName: "tutor-glyph-compile-issue",
+        isWholeLine: false,
+      },
+    }));
+    this.compilerGlyphIds = ed.deltaDecorations([], decs);
+  }
+
+  /** Pulsa ✔️ quando uma linha deixa de ter erro de compilação. */
+  flashResolvedCompilerLines(lines: number[]): void {
+    const ed = this.editor;
+    const model = ed?.getModel();
+    if (!ed || !model || lines.length === 0) {
+      return;
+    }
+    const uniq = [...new Set(lines)].filter(ln => ln >= 1 && ln <= model.getLineCount());
+    if (uniq.length === 0) {
+      return;
+    }
+    const decs = uniq.map(ln => ({
+      range: new monaco.Range(ln, 1, ln, 1),
+      options: {
+        glyphMarginClassName: "tutor-glyph-compile-fixed",
+        isWholeLine: false,
+      },
+    }));
+    const ids = ed.deltaDecorations([], decs);
+    window.setTimeout(() => {
+      ed.deltaDecorations(ids, []);
+    }, 480);
+  }
+
+  private clearCompilerIssueGlyphsInternal(): void {
+    const ed = this.editor;
+    const ids = [...this.compilerGlyphIds];
+    this.compilerGlyphIds = [];
+    if (!ed || ids.length === 0) {
+      return;
+    }
+    ed.deltaDecorations(ids, []);
   }
 
   dispatch(action: EditorAction): void {

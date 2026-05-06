@@ -9,6 +9,7 @@ import { DialogConfirmCloseTabComponent } from "./dialog-confirm-close-tab/dialo
 import { DialogRenameTabComponent } from "./dialog-rename-tab/dialog-rename-tab.component";
 import { DialogSettingsComponent } from "./dialog-settings/dialog-settings.component";
 import { ShareService } from "./share.service";
+import { TutorEditorContextService } from "./tutor-editor-context.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
 
 interface Tab {
@@ -31,6 +32,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private shareService = inject(ShareService);
   readonly tutorOverlay = inject(TutorOverlayService);
+  private readonly tutorEditorContext = inject(TutorEditorContextService);
 
   renameDialogRef?: MatDialogRef<DialogRenameTabComponent>;
   renameDialogSubscription?: Subscription;
@@ -60,14 +62,18 @@ export class AppComponent implements OnInit, OnDestroy {
       key: "cmd + k",
       preventDefault: true,
       command: () => {
-        this.tutorOverlay.toggle();
+        const lines = this.tutorEditorContext.getActive()?.getCompilerErrorLines?.() ?? [];
+        const focus = lines.length > 0 ? Math.min(...lines) : undefined;
+        this.tutorOverlay.toggle(focus !== undefined ? { focusLine: focus } : undefined);
       },
     },
     {
       key: "ctrl + k",
       preventDefault: true,
       command: () => {
-        this.tutorOverlay.toggle();
+        const lines = this.tutorEditorContext.getActive()?.getCompilerErrorLines?.() ?? [];
+        const focus = lines.length > 0 ? Math.min(...lines) : undefined;
+        this.tutorOverlay.toggle(focus !== undefined ? { focusLine: focus } : undefined);
       },
     },
   ];

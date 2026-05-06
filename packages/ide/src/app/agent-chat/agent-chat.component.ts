@@ -1,8 +1,10 @@
 import {
   afterNextRender,
+  AfterViewInit,
   ChangeDetectorRef,
   Component,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   Injector,
@@ -35,7 +37,7 @@ import { TutorSettingsService } from "../tutor-settings.service";
   templateUrl: "./agent-chat.component.html",
   styleUrl: "./agent-chat.component.scss",
 })
-export class AgentChatComponent {
+export class AgentChatComponent implements AfterViewInit {
   /** Valor espelhado do editor (pode atrasar face ao Monaco). */
   @Input() editorCode = "";
 
@@ -65,7 +67,29 @@ export class AgentChatComponent {
 
   @Input() dataFlowContextResolver?: () => string | undefined;
 
+  /** Linhas 1-based com erro de compilação no momento do pedido (payload `compilerErrorLines`). */
+  @Input() compilerErrorLinesResolver?: () => number[];
+
   readonly baseUrlConfigured = Boolean(environment.agentApiBaseUrl?.trim());
+
+  /** No modo HUD: só a última troca visível até expandir. */
+  immersiveHistoryExpanded = false;
+
+  private readonly hudPlaceholders = [
+    "Entrada: Minha hipótese é…",
+    "Entrada: Eu acho que o erro está ocorrendo porque…",
+    "Entrada: Se eu mudar esta condição, então…",
+    "Entrada: O que me parece estranho aqui é…",
+  ];
+
+  private immersivePlaceholderIndex = 0;
+
+  /** Havia erros reportados desde que o overlay esteve aberto — para celebrar limpeza. */
+  private compileErrorsWerePresent = false;
+
+  private successCelebrationTriggered = false;
+
+  private compileRecoveryInterval: ReturnType<typeof setInterval> | null = null;
 
   readonly scrollArea = viewChild<ElementRef<HTMLElement>>("scrollArea");
 
@@ -89,6 +113,20 @@ export class AgentChatComponent {
 
   private readonly destroyRef = inject(DestroyRef);
 
+  /** Opacidade por linha `.agent-chat__row` (modo imersivo), atualizada no scroll. */
+  private rowOpacityValues: number[] = [];
+
+  private layerOpacityReduceMotion = false;
+
+  /** `requestAnimationFrame` para recalcular opacidades das mensagens. */
+  private layerOpacityRaf: number | null = null;
+
+  private threadScrollEl: HTMLElement | null = null;
+
+  private readonly onThreadScroll = (): void => {
+    this.scheduleLayerOpacityUpdate();
+  };
+
   /** Tokens SSE acumulados até o próximo frame (evita NgZone/CD por caractere). */
   private streamingTokenBuffer = "";
 
@@ -111,6 +149,113 @@ export class AgentChatComponent {
     return this.history;
   }
 
+  /** Histórico visível no HUD compacto (última interação). */
+  visibleThreadForDisplay(): TutorHistoryItem[] {
+    if (!this.immersiveLayout || this.immersiveHistoryExpanded) {
+      return this.history;
+    }
+    const t = this.history;
+    if (t.length <= 2) {
+      return t;
+    }
+    let start = 0;
+    for (let i = t.length - 1; i >= 0; i--) {
+      if (t[i].role === "user") {
+        start = i;
+        break;
+      }
+    }
+    return t.slice(start);
+  }
+
+  showImmersiveHistoryToggle(): boolean {
+    return this.immersiveLayout && !this.immersiveHistoryExpanded && this.history.length > 2;
+  }
+
+  /** Faixa de estado do HUD (PT), derivada do TutorOverlayService. */
+  immersiveStateLabel(): string {
+    switch (this.tutorOverlay.uiState()) {
+      case "observer":
+        return "A observar a sua edição";
+      case "socratic":
+        return "Foco socrático ativo";
+      default:
+        return "";
+    }
+  }
+
+  immersiveMsgLabelsVisuallyHidden(): boolean {
+    return this.immersiveLayout && !this.immersiveHistoryExpanded;
+  }
+
+  /** Destaque tipográfico na última resposta da tutora (HUD colapsado). */
+  isHeroAssistantBubble(index: number): boolean {
+    if (!this.immersiveLayout || this.immersiveHistoryExpanded || this.streamingAssistant) {
+      return false;
+    }
+    const vis = this.visibleThreadForDisplay();
+    if (vis.length === 0) {
+      return false;
+    }
+    let lastAi = -1;
+    for (let i = vis.length - 1; i >= 0; i--) {
+      if (vis[i].role === "assistant") {
+        lastAi = i;
+        break;
+      }
+    }
+    return lastAi === index;
+  }
+
+  get immersiveHudPlaceholder(): string {
+    const lines = this.compilerErrorLinesResolver?.() ?? [];
+    const firstLine = lines.length ? lines[0] : null;
+    const errs = this.compilerErrorsSnapshot?.() ?? [];
+    const ident = AgentChatComponent.extractIdentifierHint(errs[0]);
+    const contextual =
+      firstLine != null
+        ? [
+          `Eu percebi que na linha ${firstLine}…`,
+          ident
+            ? `Talvez se eu mudar ${ident} para…`
+            : "Talvez se eu mudar a variável para…",
+          `Entrada: na linha ${firstLine}, minha hipótese é…`,
+          `Entrada: Se eu ajustar a linha ${firstLine}, então…`,
+        ]
+        : this.hudPlaceholders;
+    const idx = this.immersivePlaceholderIndex % contextual.length;
+    return contextual[idx] ?? this.hudPlaceholders[0];
+  }
+
+  /** FAB “pronto para submeter hipótese” quando há texto no rascunho. */
+  hudSendReady(): boolean {
+    return this.immersiveLayout && Boolean(this.draft.trim()) && !this.streamingAssistant;
+  }
+
+  private static extractIdentifierHint(errorMsg: string | undefined): string | null {
+    if (!errorMsg?.trim()) {
+      return null;
+    }
+    const quoted = errorMsg.match(/[`'"]([a-zA-Z_][\w]*)[`'"]/);
+    if (quoted) {
+      return quoted[1];
+    }
+    const named = errorMsg.match(/\b(identificador|variável|variavel|nome)\s+[`'"]([\w]+)[`'"]/i);
+    if (named) {
+      return named[2];
+    }
+    return null;
+  }
+
+  /** Compositor mais compacto (menos padding) quando o campo está vazio. */
+  hudComposerSlim(): boolean {
+    return this.immersiveLayout && !this.draft.trim();
+  }
+
+  onHudPlaceholderRotate(): void {
+    this.immersivePlaceholderIndex++;
+  }
+
   get hasHistory(): boolean {
     return this.history.length > 0;
   }
@@ -120,9 +265,176 @@ export class AgentChatComponent {
   }
 
   constructor() {
+    this.refreshLayerOpacityReduceMotion();
     this.tutorAutoTrigger.events$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(msg => {
       void this.sendWithText(msg);
     });
+    effect(
+      () => {
+        if (!this.tutorOverlay.isOpen()) {
+          this.compileErrorsWerePresent = false;
+          this.successCelebrationTriggered = false;
+          return;
+        }
+        if (!this.immersiveLayout) {
+          return;
+        }
+        this.successCelebrationTriggered = false;
+        const lines = this.compilerErrorLinesResolver?.() ?? [];
+        this.compileErrorsWerePresent = lines.length > 0;
+      },
+      { injector: this.injector },
+    );
+    this.destroyRef.onDestroy(() => {
+      this.detachThreadScrollListener();
+      if (this.layerOpacityRaf !== null) {
+        cancelAnimationFrame(this.layerOpacityRaf);
+        this.layerOpacityRaf = null;
+      }
+      if (this.compileRecoveryInterval != null) {
+        clearInterval(this.compileRecoveryInterval);
+        this.compileRecoveryInterval = null;
+      }
+    });
+  }
+
+  ngAfterViewInit(): void {
+    if (this.immersiveLayout) {
+      this.attachThreadScrollListener();
+      this.scheduleLayerOpacityUpdate();
+      this.compileRecoveryInterval = setInterval(() => {
+        this.checkCompileErrorRecovery();
+      }, 400);
+    }
+  }
+
+  /**
+   * Erros de compilação eliminados após haver erros com o HUD aberto: mensagem fixa + brilho verde + fechar.
+   */
+  private checkCompileErrorRecovery(): void {
+    if (!this.immersiveLayout || !this.tutorOverlay.isOpen() || this.successCelebrationTriggered) {
+      return;
+    }
+    if (this.streamingAssistant) {
+      return;
+    }
+    const lines = this.compilerErrorLinesResolver?.() ?? [];
+    if (lines.length > 0) {
+      this.compileErrorsWerePresent = true;
+      return;
+    }
+    if (this.compileErrorsWerePresent) {
+      this.successCelebrationTriggered = true;
+      this.triggerCompileFixedCelebration();
+    }
+  }
+
+  private triggerCompileFixedCelebration(): void {
+    this.ngZone.run(() => {
+      this.history.push({
+        role: "assistant",
+        content:
+          "Exato! Você percebeu como a condição de parada alterou o fluxo? Vamos seguir.",
+      });
+      this.scrollThreadToEnd();
+      this.cdr.markForCheck();
+      this.tutorOverlay.beginSuccessCelebration();
+    });
+  }
+
+  /** Fecha o painel flutuante do tutor (equivalente ao botão removido do overlay). */
+  closeTutorOverlay(): void {
+    this.tutorOverlay.hide();
+  }
+
+  /** Opacidade por índice de mensagem (e `thread.length` para a linha em streaming). */
+  rowOpacityStyle(index: number): string | undefined {
+    if (!this.immersiveLayout || this.layerOpacityReduceMotion) {
+      return undefined;
+    }
+    if (!this.immersiveHistoryExpanded && this.history.length > 2) {
+      return undefined;
+    }
+    const v = this.rowOpacityValues[index];
+    return String(v ?? 1);
+  }
+
+  private refreshLayerOpacityReduceMotion(): void {
+    this.layerOpacityReduceMotion =
+      typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  private attachThreadScrollListener(): void {
+    if (!this.immersiveLayout) {
+      this.detachThreadScrollListener();
+      return;
+    }
+    const el = this.scrollArea()?.nativeElement;
+    if (!el || el === this.threadScrollEl) {
+      return;
+    }
+    this.detachThreadScrollListener();
+    this.threadScrollEl = el;
+    el.addEventListener("scroll", this.onThreadScroll, { passive: true });
+  }
+
+  private detachThreadScrollListener(): void {
+    if (this.threadScrollEl) {
+      this.threadScrollEl.removeEventListener("scroll", this.onThreadScroll);
+      this.threadScrollEl = null;
+    }
+  }
+
+  private scheduleLayerOpacityUpdate(): void {
+    if (!this.immersiveLayout || !this.baseUrlConfigured) {
+      return;
+    }
+    if (this.layerOpacityRaf !== null) {
+      return;
+    }
+    this.layerOpacityRaf = requestAnimationFrame(() => {
+      this.layerOpacityRaf = null;
+      this.updateMessageLayerOpacities();
+    });
+  }
+
+  private updateMessageLayerOpacities(): void {
+    if (!this.immersiveLayout) {
+      this.rowOpacityValues = [];
+      return;
+    }
+    this.refreshLayerOpacityReduceMotion();
+    if (this.layerOpacityReduceMotion) {
+      this.rowOpacityValues = [];
+      this.cdr.markForCheck();
+      return;
+    }
+    const scrollEl = this.scrollArea()?.nativeElement;
+    if (!scrollEl) {
+      return;
+    }
+    const rows = scrollEl.querySelectorAll<HTMLElement>(".agent-chat__row");
+    const scrollRect = scrollEl.getBoundingClientRect();
+    const visibleBottom = scrollRect.bottom;
+    const fullBandPx = 280;
+    const minOpacity = 0.35;
+    const fadeRangePx = 420;
+    const next: number[] = [];
+    rows.forEach(row => {
+      const rowRect = row.getBoundingClientRect();
+      const d = visibleBottom - rowRect.bottom;
+      let opacity: number;
+      if (d <= fullBandPx) {
+        opacity = 1;
+      } else {
+        const extra = d - fullBandPx;
+        const t = Math.min(1, extra / fadeRangePx);
+        opacity = 1 - t * (1 - minOpacity);
+      }
+      next.push(opacity);
+    });
+    this.rowOpacityValues = next;
+    this.cdr.markForCheck();
   }
 
   /** Foco no compositor (ex.: ao abrir o overlay). */
@@ -162,6 +474,7 @@ export class AgentChatComponent {
       return;
     }
     scrollEl.scrollTop = scrollEl.scrollHeight;
+    this.scheduleLayerOpacityUpdate();
   }
 
   /** Após o DOM refletir novas mensagens / streaming, leva o scroll ao fundo do thread. */
@@ -180,6 +493,8 @@ export class AgentChatComponent {
             if (scrollEl) {
               scrollEl.scrollTop = scrollEl.scrollHeight;
             }
+            this.attachThreadScrollListener();
+            this.scheduleLayerOpacityUpdate();
           });
         });
       },
@@ -220,6 +535,15 @@ export class AgentChatComponent {
     return trimmed.length > 0 ? raw : TUTOR_CHAT_PLACEHOLDER_CODE;
   }
 
+  private compilerLinesPayload(): number[] | undefined {
+    const raw = this.compilerErrorLinesResolver?.();
+    if (!raw?.length) {
+      return undefined;
+    }
+    const lines = [...new Set(raw.map(n => Math.trunc(Number(n))).filter(n => Number.isFinite(n) && n >= 1))];
+    return lines.length > 0 ? lines.sort((a, b) => a - b) : undefined;
+  }
+
   private async errorsForRequest(): Promise<string[]> {
     if (this.compilerErrorsResolver) {
       try {
@@ -246,11 +570,14 @@ export class AgentChatComponent {
     void this.send();
   }
 
-  /** Altura auto do compositor imersivo (até ~8rem). */
+  /** Altura auto do compositor imersivo (até ~8rem). `scrollHeight` pode ser subdimensionado sem mínimo explícito. */
   onHudComposerInput(event: Event): void {
     const ta = event.target as HTMLTextAreaElement;
+    const maxPx = 192;
+    const minPx = 40;
     ta.style.height = "auto";
-    ta.style.height = `${Math.min(ta.scrollHeight, 192)}px`;
+    const next = Math.min(Math.max(ta.scrollHeight, minPx), maxPx);
+    ta.style.height = `${next}px`;
   }
 
   async send(): Promise<void> {
@@ -269,7 +596,7 @@ export class AgentChatComponent {
       if (!el) {
         return;
       }
-      el.style.height = "auto";
+      el.style.removeProperty("height");
     });
   }
 
@@ -313,6 +640,7 @@ export class AgentChatComponent {
           cursorColumn: this.cursorColumnResolver?.(),
           astSummary: this.astSummaryResolver?.(),
           dataFlowContext: this.dataFlowContextResolver?.(),
+          compilerErrorLines: this.compilerLinesPayload(),
         },
         {
           onToken: delta => {
@@ -372,7 +700,9 @@ export class AgentChatComponent {
     this.streamingAssistant = false;
     this.streamingText = "";
     this.draft = "";
+    this.immersiveHistoryExpanded = false;
     this.resetHudComposerHeight();
     this.editorActionsService.clearTutorDecorations();
+    this.scheduleLayerOpacityUpdate();
   }
 }

@@ -1,15 +1,18 @@
 import {
   Component,
   ElementRef,
+  Injector,
   Input,
   OnChanges,
   OnDestroy,
   OnInit,
   SimpleChanges,
   TemplateRef,
+  afterNextRender,
   effect,
   inject,
   output,
+  signal,
   viewChild,
 } from "@angular/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
@@ -30,6 +33,7 @@ import { SettingsService } from "../settings.service";
 import { ShareService } from "../share.service";
 import { ThemeService } from "../theme.service";
 import { TutorEditorContextService, type TutorEditorContextHandle } from "../tutor-editor-context.service";
+import { TutorHudLayoutService } from "../tutor-hud-layout.service";
 import { TutorImmersionService } from "../tutor-immersion.service";
 import { TutorInterceptorService } from "../tutor-interceptor.service";
 import { TutorOverlayService } from "../tutor-overlay.service";
@@ -61,7 +65,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   private dialog = inject(MatDialog);
   private editorActions = inject(EditorActionsService);
   private tutorEditorContext = inject(TutorEditorContextService);
-  private readonly tutorOverlay = inject(TutorOverlayService);
+  readonly tutorOverlay = inject(TutorOverlayService);
+  private readonly tutorHudLayout = inject(TutorHudLayoutService);
+  private readonly injector = inject(Injector);
   readonly immersion = inject(TutorImmersionService);
   private readonly tutorInterceptor = inject(TutorInterceptorService);
   private readonly tutorProactivity = inject(TutorProactivityService);
@@ -76,6 +82,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   /** Aba visível no grupo de separadores — regista contexto do tutor e editor ativo. */
   @Input()
   isActiveTab = false;
+
+  /** Espelho reativo de {@link isActiveTab} para efeitos que dependem do HUD (apenas aba ativa consome scroll/corda). */
+  private readonly isActiveTabSignal = signal(false);
 
   readonly titleChange = output<string>();
   readonly help = output();
@@ -123,6 +132,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
 
   private lastAstSummary = "";
 
+  /** Linhas que tinham erro na última passagem do worker (para ✔️ ao corrigir). */
+  private lastCompilerErrorLines = new Set<number>();
+
   private readonly tutorContextHandle: TutorEditorContextHandle = {
     getEditorCode: () => this.code ?? "",
     getEditorCodeSnapshot: () => this.tutorEditorCodeSnapshot(),
@@ -149,6 +161,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       }
       return parts.join(" · ").slice(0, 2000);
     },
+    getCompilerErrorLines: () => this.getCompilerErrorLineNumbers(),
   };
 
   /** Código atual do buffer do Monaco para o tutor (o ngModel pode não estar sincronizado a cada tecla). */
@@ -161,9 +174,74 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: "owner" });
-    return markers
-      .filter(m => m.severity === monaco.MarkerSeverity.Error)
-      .map(m => `Linha ${m.startLineNumber}, coluna ${m.startColumn}: ${m.message}`);
+    return markers.map(m => `Linha ${m.startLineNumber}, coluna ${m.startColumn}: ${m.message}`);
+  }
+
+  /** Linhas 1-based com marcador do owner (alinhado ao payload `compilerErrorLines`). */
+  private getCompilerErrorLineNumbers(): number[] {
+    const model = this.codeEditor?.getModel();
+    if (!model) {
+      return [];
+    }
+    const markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: "owner" });
+    const lines = new Set<number>();
+    for (const m of markers) {
+      lines.add(m.startLineNumber);
+    }
+    return [...lines].sort((a, b) => a - b);
+  }
+
+  /** Primeira linha com marcador do compilador (scroll / corda ao abrir o HUD). */
+  private firstCompilerMarkerLine(): number | undefined {
+    const lines = this.getCompilerErrorLineNumbers();
+    return lines.length > 0 ? lines[0] : undefined;
+  }
+
+  /** Recolhe o terminal em baixo quando o HUD do tutor está aberto. */
+  get tutorSplitEditorSize(): number {
+    return this.tutorOverlay.isOpen() ? 100 : 80;
+  }
+
+  get tutorSplitTerminalSize(): number {
+    return this.tutorOverlay.isOpen() ? 0 : 20;
+  }
+
+  /** Expõe linha-alvo ao alternar o HUD com ⌘K (prioriza erro do compilador). */
+  private tutorToggleFromEditor(): void {
+    const focus = this.firstCompilerMarkerLine();
+    if (focus !== undefined) {
+      this.tutorOverlay.toggle({ focusLine: focus });
+    } else {
+      this.tutorOverlay.toggle();
+    }
+  }
+
+  /** Posiciona a linha na zona útil acima do HUD (~25% inferior). */
+  private scrollEditorLineForHud(lineNumber: number): void {
+    const ed = this.codeEditor;
+    if (!ed) {
+      return;
+    }
+    const model = ed.getModel();
+    if (!model) {
+      return;
+    }
+    const ln = Math.min(Math.max(Math.trunc(lineNumber), 1), model.getLineCount());
+    ed.revealLineInCenter(ln, 0);
+    requestAnimationFrame(() => {
+      const layout = ed.getLayoutInfo();
+      const pos = ed.getScrolledVisiblePosition({ lineNumber: ln, column: 1 });
+      if (!layout || !pos) {
+        this.scheduleFlowSvgLayout();
+        return;
+      }
+      const lineCenterPx = pos.top + pos.height / 2;
+      const hudReserve = layout.height * 0.45;
+      const targetY = (layout.height - hudReserve) * 0.42;
+      const delta = lineCenterPx - targetY;
+      ed.setScrollTop(ed.getScrollTop() + delta);
+      this.scheduleFlowSvgLayout();
+    });
   }
 
   /** Erros do compilador/analisador alinhados ao código atual (mesmo fluxo que o worker do editor). */
@@ -208,6 +286,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["isActiveTab"]) {
+      this.isActiveTabSignal.set(this.isActiveTab);
       if (!this.isActiveTab) {
         this.immersion.clearImmersion();
       }
@@ -216,6 +295,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnInit() {
+    this.isActiveTabSignal.set(this.isActiveTab);
     this.code ||= `programa {\n  funcao inicio() {\n    \n  }\n}\n`;
 
     this._stdOut$ = this.executor.stdOut$.subscribe(() => {
@@ -315,6 +395,42 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     effect(() => {
       this.immersion.setGhostLinesMuted(this.tutorOverlay.isDimmed());
     });
+
+    effect(() => {
+      if (!this.isActiveTabSignal()) {
+        return;
+      }
+      const open = this.tutorOverlay.isOpen();
+      if (!open) {
+        this.immersion.setHudLinkLine(null);
+        return;
+      }
+      afterNextRender(
+        () => {
+          if (!this.isActiveTabSignal()) {
+            return;
+          }
+          const pending = this.tutorOverlay.takePendingFocusLine();
+          const line = pending ?? this.firstCompilerMarkerLine();
+          if (line !== undefined) {
+            this.scrollEditorLineForHud(line);
+            this.immersion.setHudLinkLine(line);
+          } else {
+            this.immersion.setHudLinkLine(null);
+          }
+          this.scheduleFlowSvgLayout();
+        },
+        { injector: this.injector },
+      );
+    });
+
+    effect(() => {
+      this.tutorHudLayout.panelViewport();
+      if (!this.isActiveTabSignal()) {
+        return;
+      }
+      this.scheduleFlowSvgLayout();
+    });
   }
 
   private flowSvgLayoutRaf: number | null = null;
@@ -379,14 +495,44 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       );
       svg.appendChild(path);
     }
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.setAttribute("x", String(w - 8));
-    label.setAttribute("y", "14");
-    label.setAttribute("text-anchor", "end");
-    label.setAttribute("fill", "var(--pws-text-300, #94a3b8)");
-    label.setAttribute("font-size", "10");
-    label.textContent = "Fluxo de dados (tutor)";
-    svg.appendChild(label);
+    const hudLine = this.immersion.hudLinkLine();
+    const hudPanel = this.tutorHudLayout.panelViewport();
+    if (hudLine !== null && hudPanel) {
+      const pT = ed.getScrolledVisiblePosition({ lineNumber: hudLine, column: 1 });
+      const editorDom2 = ed.getDomNode();
+      const editorRect2 = editorDom2?.getBoundingClientRect();
+      if (pT && editorRect2) {
+        /* Origem junto ao canto inferior do HUD (próximo do FAB “cérebro”), não ao topo. */
+        const startX = hudPanel.left + hudPanel.width - 28 - rect.left;
+        const startY = hudPanel.top + hudPanel.height - rect.top;
+        const endX = editorRect2.left - rect.left + pT.left + 48;
+        const endY = editorRect2.top - rect.top + pT.top + pT.height / 2;
+        const pathHud = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const midY = (startY + endY) / 2;
+        pathHud.setAttribute(
+          "d",
+          `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`,
+        );
+        pathHud.setAttribute("fill", "none");
+        pathHud.setAttribute("stroke", "rgb(34 211 238 / 0.95)");
+        pathHud.setAttribute("stroke-width", "2");
+        pathHud.setAttribute("stroke-dasharray", "8 6");
+        pathHud.setAttribute("stroke-linecap", "round");
+        pathHud.setAttribute("class", "tutor-flow-path tutor-hud-cord");
+        svg.appendChild(pathHud);
+      }
+    }
+
+    if (conns.length > 0) {
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", String(w - 8));
+      label.setAttribute("y", "14");
+      label.setAttribute("text-anchor", "end");
+      label.setAttribute("fill", "var(--pws-text-300, #94a3b8)");
+      label.setAttribute("font-size", "10");
+      label.textContent = "Fluxo de dados (tutor)";
+      svg.appendChild(label);
+    }
   }
 
   ngOnDestroy() {
@@ -656,7 +802,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
       label: "Alternar tutor ARIA",
       run: () => {
-        this.tutorOverlay.toggle();
+        this.tutorToggleFromEditor();
       },
     });
   }
@@ -670,6 +816,10 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       });
     }
     this.initShortcuts(editor);
+
+    editor.onDidScrollChange(() => {
+      this.scheduleFlowSvgLayout();
+    });
 
     this._code$?.unsubscribe();
 
@@ -772,6 +922,14 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
 
   setEditorErrors(errors: PortugolCodeError[]) {
     const model = this.codeEditor?.getModel();
+
+    const nextLineSet = new Set(errors.map(e => e.startLine));
+    const clearedLines = [...this.lastCompilerErrorLines].filter(l => !nextLineSet.has(l));
+    if (clearedLines.length > 0) {
+      this.editorActions.flashResolvedCompilerLines(clearedLines);
+    }
+    this.lastCompilerErrorLines = nextLineSet;
+    this.editorActions.setCompilerIssueLines([...nextLineSet]);
 
     if (model) {
       monaco.editor.setModelMarkers(

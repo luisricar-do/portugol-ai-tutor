@@ -26,11 +26,15 @@ export class TutorImmersionService {
   /** Linhas fantasmas mais suaves (HUD em retirada estratégica). */
   private readonly ghostLinesMutedSignal = signal(false);
 
+  /** Linha-alvo para a corda HUD ↔ código ( Corda fantasma ), 1-based. */
+  private readonly hudLinkLineSignal = signal<number | null>(null);
+
   readonly focusMode = this.focusModeSignal.asReadonly();
   readonly pulsingLine = this.pulsingLineSignal.asReadonly();
   readonly dataFlowConnections = this.dataFlowConnectionsSignal.asReadonly();
   readonly pendingBrokenVar = this.pendingBrokenVarSignal.asReadonly();
   readonly ghostLinesMuted = this.ghostLinesMutedSignal.asReadonly();
+  readonly hudLinkLine = this.hudLinkLineSignal.asReadonly();
 
   setFocusMode(on: boolean): void {
     this.focusModeSignal.set(on);
@@ -55,6 +59,14 @@ export class TutorImmersionService {
     this.ghostLinesMutedSignal.set(on);
   }
 
+  setHudLinkLine(line: number | null): void {
+    if (line !== null && (!Number.isFinite(line) || line < 1)) {
+      this.hudLinkLineSignal.set(null);
+      return;
+    }
+    this.hudLinkLineSignal.set(line === null ? null : Math.trunc(line));
+  }
+
   /** Chamado quando o aluno corrige o fluxo (ex.: adicionou leia). */
   resolvePendingFlow(): void {
     const conns = this.dataFlowConnectionsSignal().map(c =>
@@ -70,5 +82,6 @@ export class TutorImmersionService {
     this.focusModeSignal.set(false);
     this.pulsingLineSignal.set(null);
     this.clearDataFlow();
+    this.hudLinkLineSignal.set(null);
   }
 }

@@ -24,29 +24,6 @@
   min-height: 0;
 }
 
-.app-shell__tutor {
-  flex: 0 0 0;
-  width: 0;
-  min-width: 0;
-  max-width: 0;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* HUD em position fixed: o aside não ocupa largura; só serve de ancoragem no DOM. */
-.app-shell__tutor--host {
-  overflow: visible;
-  opacity: 1;
-}
-
-.app-shell__tutor--host>* {
-  pointer-events: auto;
-}
-
 #preload {
   width: 0;
   height: 0;

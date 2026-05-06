@@ -81,8 +81,6 @@
     </mat-tab-group>
   </div>
 
-  <aside class="app-shell__tutor" [class.app-shell__tutor--host]="tutorOverlay.isOpen()"
-    [attr.aria-hidden]="!tutorOverlay.isOpen()" aria-label="Tutor socrático ARIA">
-    <app-tutor-overlay />
-  </aside>
+  <!-- HUD em camada viewport (evita aside width:0 / overflow que cortava position:fixed nalguns browsers). -->
+  <app-tutor-overlay aria-label="Tutor socrático ARIA" />
 </div>

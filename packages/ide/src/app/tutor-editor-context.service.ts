@@ -19,6 +19,8 @@ export interface TutorEditorContextHandle {
   getAstSummary?: () => string | undefined;
   /** Contexto do mapa de fluxo (variável pendente, ligações desenhadas). */
   getDataFlowContext?: () => string | undefined;
+  /** Linhas 1-based com erro de compilação (marcadores Monaco / worker), para o payload e glifos. */
+  getCompilerErrorLines?: () => number[];
 }
 
 @Injectable({ providedIn: "root" })

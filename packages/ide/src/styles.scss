@@ -39,6 +39,18 @@ body {
   color: var(--pws-body-color);
 }
 
+/*
+ * HUD do tutor: ancorado ao viewport. Reforço global porque html/body/app-root usam
+ * overflow:hidden — nalguns motores isso interage mal com position:fixed dentro da árvore.
+ * O componente também reparenta o host para document.body em runtime.
+ */
+app-tutor-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  pointer-events: none;
+  z-index: 10050;
+}
+
 // Barras de scroll finas e coerentes com o tema (Firefox: scrollbar-*; WebKit: ::-webkit-scrollbar)
 [data-theme="dark"],
 [data-theme="dark"] * {
