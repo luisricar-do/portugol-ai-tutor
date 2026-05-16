@@ -40,13 +40,17 @@ body {
 }
 
 /*
- * HUD do tutor: ancorado ao viewport. Reforço global porque html/body/app-root usam
- * overflow:hidden — nalguns motores isso interage mal com position:fixed dentro da árvore.
- * O componente também reparenta o host para document.body em runtime.
+ * HUD do tutor: ancorado ao viewport. html/body/app-root têm overflow:hidden, o que
+ * em alguns motores bloqueia position:fixed dentro da árvore. O componente reparenta o
+ * host para document.body em ngAfterViewInit; o ViewRef mantém-se no app para o CD.
  */
 app-tutor-overlay {
+  display: block !important;
+  box-sizing: border-box;
   position: fixed !important;
   inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
   pointer-events: none;
   z-index: 10050;
 }

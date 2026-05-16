@@ -50,6 +50,8 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
 
   readonly agentChat = viewChild(AgentChatComponent);
   readonly panelRef = viewChild<ElementRef<HTMLElement>>("panel");
+  /** Raiz do cartão HUD — classes de abrir/dim aplicadas por effect (robusto após reparent ao body). */
+  readonly overlayDiv = viewChild<ElementRef<HTMLElement>>("overlayRoot");
 
   readonly hudTransform = computed(() => {
     const o = this.hudLayout.hudOffset();
@@ -66,6 +68,11 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
 
   private dragCapturePointerId: number | null = null;
 
+  /**
+   * Move o host para document.body em runtime para sair da cadeia overflow:hidden
+   * do app-root (que bloqueia position:fixed em alguns motores).
+   * O ViewRef mantém-se na árvore Angular — CD continua a funcionar normalmente.
+   */
   ngAfterViewInit(): void {
     if (!isPlatformBrowser(this.platformId)) {
       return;
@@ -77,6 +84,16 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   }
 
   constructor() {
+    effect(() => {
+      const open = this.shell.isOpen();
+      const dimmed = this.shell.isDimmed();
+      const root = this.overlayDiv()?.nativeElement;
+      if (root) {
+        root.classList.toggle("tutor-overlay--open", open);
+        root.classList.toggle("tutor-overlay--dimmed", open && dimmed);
+      }
+    });
+
     effect(() => {
       if (!this.shell.isOpen()) {
         return;
@@ -228,6 +245,24 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     if (el) {
       this.hudLayout.setPanelViewport(el.getBoundingClientRect());
     }
+  }
+
+  onExpandImmersiveHistory(ev: Event): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    this.agentChat()?.expandImmersiveHudHistory();
+  }
+
+  onHudClearConversation(ev: Event): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    this.agentChat()?.clearConversation();
+  }
+
+  onHudClose(ev: Event): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    this.close();
   }
 
   resetHudPosition(ev: Event): void {

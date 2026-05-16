@@ -84,6 +84,11 @@
   }
 }
 
+.sidebar-button--tutor-open:not(:disabled) {
+  background-color: color-mix(in srgb, var(--pws-color-primary) 20%, var(--pws-bg-200));
+  color: var(--pws-color-primary);
+}
+
 .sidebar-button svg,
 .sidebar-button svg-icon {
   width: 1.5rem;

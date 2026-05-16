@@ -206,13 +206,28 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     return this.tutorOverlay.isOpen() ? 0 : 20;
   }
 
-  /** Expõe linha-alvo ao alternar o HUD com ⌘K (prioriza erro do compilador). */
+  /** Expõe linha-alvo ao alternar o HUD com ⌘⇧A / Ctrl+Shift+A (prioriza erro do compilador). */
   private tutorToggleFromEditor(): void {
     const focus = this.firstCompilerMarkerLine();
     if (focus !== undefined) {
       this.tutorOverlay.toggle({ focusLine: focus });
     } else {
       this.tutorOverlay.toggle();
+    }
+  }
+
+  /**
+   * Botão lateral: sempre abre ou reativa o HUD (não usa {@link TutorOverlayService.toggle},
+   * para não fechar o tutor por engano e “devolver” o painel de saída como se fosse o terminal).
+   */
+  openTutorHud(ev?: Event): void {
+    ev?.stopPropagation();
+    ev?.preventDefault();
+    const focus = this.firstCompilerMarkerLine();
+    if (focus !== undefined) {
+      this.tutorOverlay.show({ focusLine: focus });
+    } else {
+      this.tutorOverlay.show();
     }
   }
 
@@ -796,10 +811,10 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       run: this.openHelp.bind(this),
     });
 
-    /** ⌘K / Ctrl+K: o Monaco captura o atalho antes do ng-keyboard-shortcuts com foco no editor. */
+    /** ⌘⇧A / Ctrl+Shift+A: o Monaco captura o atalho antes do ng-keyboard-shortcuts com foco no editor. */
     editor.addAction({
       id: "toggleTutorAria",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyA],
       label: "Alternar tutor ARIA",
       run: () => {
         this.tutorToggleFromEditor();

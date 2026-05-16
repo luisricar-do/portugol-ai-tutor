@@ -172,13 +172,22 @@ export class AgentChatComponent implements AfterViewInit {
     return this.immersiveLayout && !this.immersiveHistoryExpanded && this.history.length > 2;
   }
 
+  /** Usado pela barra «Mover» do overlay (botão Ver histórico). */
+  expandImmersiveHudHistory(): void {
+    if (!this.immersiveLayout) {
+      return;
+    }
+    this.immersiveHistoryExpanded = true;
+    this.scrollThreadToEnd();
+    this.scheduleLayerOpacityUpdate();
+    this.cdr.markForCheck();
+  }
+
   /** Faixa de estado do HUD (PT), derivada do TutorOverlayService. */
   immersiveStateLabel(): string {
     switch (this.tutorOverlay.uiState()) {
       case "observer":
         return "A observar a sua edição";
-      case "socratic":
-        return "Foco socrático ativo";
       default:
         return "";
     }
@@ -340,11 +349,6 @@ export class AgentChatComponent implements AfterViewInit {
       this.cdr.markForCheck();
       this.tutorOverlay.beginSuccessCelebration();
     });
-  }
-
-  /** Fecha o painel flutuante do tutor (equivalente ao botão removido do overlay). */
-  closeTutorOverlay(): void {
-    this.tutorOverlay.hide();
   }
 
   /** Opacidade por índice de mensagem (e `thread.length` para a linha em streaming). */

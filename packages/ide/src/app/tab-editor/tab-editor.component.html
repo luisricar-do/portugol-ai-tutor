@@ -90,6 +90,13 @@
 
   <div class="sidebar-divider"></div>
 
+  <button mat-ripple type="button" class="sidebar-button" [class.sidebar-button--tutor-open]="tutorOverlay.isOpen()"
+    title="Abrir o painel da tutora ARIA (atalho alterna: ⌘⇧A ou Ctrl+Shift+A; Esc fecha)"
+    aria-label="Abrir o painel da tutora ARIA" gaEvent="editor_open_tutor_hud" gaCategory="Editor"
+    gaLabel="Botão tutora ARIA" (click)="openTutorHud($event)">
+    <svg-icon src="assets/mdi/brain.svg" svgClass="text-primary" aria-hidden="true" focusable="false" />
+  </button>
+
   <button mat-ripple type="button" class="sidebar-button" title="Abrir seção de Ajuda" (click)="openHelp()">
     <svg-icon src="assets/mdi/help-circle-outline.svg" svgClass="text-blue" aria-hidden="true" focusable="false" />
   </button>

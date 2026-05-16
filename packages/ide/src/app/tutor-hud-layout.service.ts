@@ -10,7 +10,7 @@ export interface TutorHudPanelViewport {
   readonly height: number;
 }
 
-/** Deslocamento em px aplicado ao painel (translate) relativamente à posição por defeito. */
+/** Deslocamento em px aplicado ao painel (translate) ao arrastar a barra “Mover”. */
 export interface TutorHudPixelOffset {
   readonly dx: number;
   readonly dy: number;
@@ -30,7 +30,28 @@ export class TutorHudLayoutService {
 
   readonly hudOffset = this.hudOffsetSignal.asReadonly();
 
+  /**
+   * Limita o translate do HUD ao que faz sentido para um cartão centrado no fundo
+   * (~metade do viewport). Usado em toda escrita e ao ler o localStorage.
+   */
+  private static clampOffset(dx: number, dy: number): TutorHudPixelOffset {
+    if (typeof window === "undefined") {
+      return { dx: 0, dy: 0 };
+    }
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const maxDx = Math.max(120, Math.round(w * 0.45));
+    const maxDy = Math.max(80, Math.round(h * 0.45));
+    return {
+      dx: Math.max(-maxDx, Math.min(maxDx, dx)),
+      dy: Math.max(-maxDy, Math.min(maxDy, dy)),
+    };
+  }
+
   constructor() {
+    if (typeof window === "undefined") {
+      return;
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
@@ -38,13 +59,39 @@ export class TutorHudLayoutService {
       }
       const p = JSON.parse(raw) as Partial<TutorHudPixelOffset>;
       if (
-        typeof p.dx === "number" &&
-        typeof p.dy === "number" &&
-        Number.isFinite(p.dx) &&
-        Number.isFinite(p.dy)
+        typeof p.dx !== "number" ||
+        typeof p.dy !== "number" ||
+        !Number.isFinite(p.dx) ||
+        !Number.isFinite(p.dy)
       ) {
-        this.hudOffsetSignal.set({ dx: p.dx, dy: p.dy });
+        this.clearStoredOffset();
+        return;
       }
+      // Valores de versões antigas / bug (ex. milhares de px): repor ao centro.
+      const looseMaxDx = window.innerWidth * 0.55;
+      const looseMaxDy = window.innerHeight * 0.55;
+      if (Math.abs(p.dx) > looseMaxDx || Math.abs(p.dy) > looseMaxDy) {
+        this.clearStoredOffset();
+        return;
+      }
+      const next = TutorHudLayoutService.clampOffset(p.dx, p.dy);
+      this.hudOffsetSignal.set(next);
+      if (next.dx !== p.dx || next.dy !== p.dy) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      this.clearStoredOffset();
+    }
+  }
+
+  private clearStoredOffset(): void {
+    this.hudOffsetSignal.set({ dx: 0, dy: 0 });
+    try {
+      localStorage.removeItem(STORAGE_KEY);
     } catch {
       /* ignore */
     }
@@ -64,7 +111,7 @@ export class TutorHudLayoutService {
   }
 
   setHudOffset(dx: number, dy: number): void {
-    const next: TutorHudPixelOffset = { dx, dy };
+    const next = TutorHudLayoutService.clampOffset(dx, dy);
     this.hudOffsetSignal.set(next);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -74,6 +121,6 @@ export class TutorHudLayoutService {
   }
 
   resetHudOffset(): void {
-    this.setHudOffset(0, 0);
+    this.clearStoredOffset();
   }
 }

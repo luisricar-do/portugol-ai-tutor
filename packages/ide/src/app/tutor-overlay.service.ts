@@ -36,6 +36,8 @@ export class TutorOverlayService {
     const ln = options?.focusLine;
     if (typeof ln === "number" && Number.isFinite(ln) && ln >= 1) {
       this.pendingFocusLineSignal.set(Math.trunc(ln));
+    } else {
+      this.pendingFocusLineSignal.set(null);
     }
   }
 
@@ -68,7 +70,7 @@ export class TutorOverlayService {
     }, 2000);
   }
 
-  /** Alterna visibilidade (ex.: ⌘K / Ctrl+K) — mesmo HUD que {@link show}. */
+  /** Alterna visibilidade (ex.: ⌘⇧A / Ctrl+Shift+A) — mesmo HUD que {@link show}. */
   toggle(options?: { focusLine?: number }): void {
     if (this.openSignal()) {
       this.hide();
@@ -78,12 +80,16 @@ export class TutorOverlayService {
   }
 
   dim(): void {
-    if (this.openSignal()) {
-      this.dimmedSignal.set(true);
+    if (!this.openSignal() || this.dimmedSignal()) {
+      return;
     }
+    this.dimmedSignal.set(true);
   }
 
   undim(): void {
+    if (!this.dimmedSignal()) {
+      return;
+    }
     this.dimmedSignal.set(false);
   }
 }

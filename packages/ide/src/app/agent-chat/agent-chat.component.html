@@ -20,7 +20,7 @@
     </p>
   </div>
   } @else {
-  @if (immersiveLayout && baseUrlConfigured) {
+  @if (immersiveLayout && baseUrlConfigured && immersiveStateLabel()) {
   <p class="agent-chat__immersive-state" role="status">{{ immersiveStateLabel() }}</p>
   }
   <div #scrollArea class="agent-chat__thread" role="log" aria-live="polite" aria-relevant="additions">
@@ -81,14 +81,6 @@
       </div>
       }
 
-      @if (showImmersiveHistoryToggle()) {
-      <div class="agent-chat__immersive-history-actions">
-        <button mat-button type="button" class="agent-chat__history-expand" (click)="immersiveHistoryExpanded = true">
-          Ver histórico
-        </button>
-      </div>
-      }
-
       @if (error) {
       <p class="agent-chat__error" role="alert">{{ error }}</p>
       }
@@ -112,18 +104,6 @@
     <p class="agent-chat__helper">Pressione Enter para enviar, Shift + Enter para nova linha</p>
     } @else {
     <div class="agent-chat__hud-footer">
-      <div class="agent-chat__hud-toolbar" aria-label="Ações do tutor">
-        @if (baseUrlConfigured && hasHistory) {
-        <button mat-icon-button type="button" class="agent-chat__hud-tool" [disabled]="streamingAssistant"
-          title="Limpar conversa" aria-label="Limpar conversa" (click)="clearConversation()">
-          <svg-icon src="assets/mdi/eraser.svg" aria-hidden="true" focusable="false" />
-        </button>
-        }
-        <button mat-icon-button type="button" class="agent-chat__hud-tool" title="Fechar (Esc)"
-          aria-label="Fechar tutor" (click)="closeTutorOverlay()">
-          <svg-icon src="assets/mdi/close.svg" aria-hidden="true" focusable="false" />
-        </button>
-      </div>
       <div class="agent-chat__composer agent-chat__composer--hud"
         [class.agent-chat__composer--hud-slim]="hudComposerSlim()">
         <div class="agent-chat__composer-hud-row">

@@ -1,7 +1,5 @@
-<div class="tutor-overlay" [class.tutor-overlay--open]="shell.isOpen()"
-  [class.tutor-overlay--dimmed]="shell.isOpen() && shell.isDimmed()" role="presentation"
-  [attr.aria-hidden]="shell.isOpen() ? null : 'true'" [attr.inert]="shell.isOpen() ? null : ''"
-  (mouseenter)="shell.undim()">
+<div #overlayRoot class="tutor-overlay" role="presentation" [attr.aria-hidden]="shell.isOpen() ? null : 'true'"
+  [attr.inert]="shell.isOpen() ? null : ''" (mouseenter)="shell.undim()">
   <div #panel class="tutor-overlay__panel-wrap" [class.tutor-overlay__panel-wrap--dragging]="dragging()"
     [class.tutor-overlay__panel-wrap--success]="shell.isSuccessCelebration()" [style.transform]="hudTransform()">
     <div class="tutor-overlay__drag-bar" role="toolbar" aria-label="Mover painel do tutor"
@@ -11,6 +9,26 @@
         focusable="false" />
       <span class="tutor-overlay__drag-label">Mover</span>
       <span class="tutor-overlay__drag-spacer"></span>
+      @if (activeContext()) {
+      <div class="tutor-overlay__drag-actions" (pointerdown)="$event.stopPropagation()">
+        @if (agentChat()?.showImmersiveHistoryToggle()) {
+        <button mat-button type="button" class="tutor-overlay__history-btn" (click)="onExpandImmersiveHistory($event)">
+          Ver histórico
+        </button>
+        }
+        @if (agentChat()?.baseUrlConfigured && agentChat()?.hasHistory) {
+        <button mat-icon-button type="button" class="tutor-overlay__drag-icon"
+          [disabled]="agentChat()?.streamingAssistant" title="Limpar conversa" aria-label="Limpar conversa"
+          (click)="onHudClearConversation($event)">
+          <svg-icon src="assets/mdi/eraser.svg" aria-hidden="true" focusable="false" />
+        </button>
+        }
+        <button mat-icon-button type="button" class="tutor-overlay__drag-icon" title="Fechar (Esc)"
+          aria-label="Fechar tutor" (click)="onHudClose($event)">
+          <svg-icon src="assets/mdi/close.svg" aria-hidden="true" focusable="false" />
+        </button>
+      </div>
+      }
       <button mat-icon-button type="button" class="tutor-overlay__drag-reset" aria-label="Repor posição do painel"
         (pointerdown)="$event.stopPropagation()" (click)="resetHudPosition($event)">
         <svg-icon src="assets/mdi/backup-restore.svg" aria-hidden="true" focusable="false" />

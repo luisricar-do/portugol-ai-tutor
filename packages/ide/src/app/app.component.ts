@@ -59,7 +59,8 @@ export class AppComponent implements OnInit, OnDestroy {
     },
     {
       // macOS: `cmd` é o reconhecido pelo ng-keyboard-shortcuts; `meta` pode falhar.
-      key: "cmd + k",
+      // Ctrl/Cmd+K conflitua com o Cursor/VS Code (terminal, acordes); A = ARIA.
+      key: "cmd + shift + a",
       preventDefault: true,
       command: () => {
         const lines = this.tutorEditorContext.getActive()?.getCompilerErrorLines?.() ?? [];
@@ -68,7 +69,7 @@ export class AppComponent implements OnInit, OnDestroy {
       },
     },
     {
-      key: "ctrl + k",
+      key: "ctrl + shift + a",
       preventDefault: true,
       command: () => {
         const lines = this.tutorEditorContext.getActive()?.getCompilerErrorLines?.() ?? [];
