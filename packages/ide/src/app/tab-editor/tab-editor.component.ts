@@ -32,7 +32,10 @@ import { FileService } from "../file.service";
 import { SettingsService } from "../settings.service";
 import { ShareService } from "../share.service";
 import { ThemeService } from "../theme.service";
+import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
+import { TutorCompileTriggerService } from "../tutor-compile-trigger.service";
 import { TutorEditorContextService, type TutorEditorContextHandle } from "../tutor-editor-context.service";
+import { buildGlyphClickMessage, lineHasClickableTutorGlyph } from "../tutor-glyph-click.util";
 import { TutorHudLayoutService } from "../tutor-hud-layout.service";
 import { TutorImmersionService } from "../tutor-immersion.service";
 import { TutorInterceptorService } from "../tutor-interceptor.service";
@@ -72,6 +75,17 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   private readonly tutorInterceptor = inject(TutorInterceptorService);
   private readonly tutorProactivity = inject(TutorProactivityService);
   private readonly tutorRealtimeValidator = inject(TutorRealtimeValidatorService);
+  private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
+  private readonly tutorCompileTrigger = inject(TutorCompileTriggerService);
+
+  private glyphMouseDownDisposable?: monaco.IDisposable;
+
+  /**
+   * ID numérico da aba do editor Portugol (`AppComponent.tabs[].id`), não o separador do browser.
+   * Usado como `tabKey` para boas-vindas (`localStorage` `pws:tutor:welcomeShown:{tabId}`).
+   */
+  @Input()
+  tabId?: string;
 
   @Input()
   title?: string;
@@ -135,6 +149,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   /** Linhas que tinham erro na última passagem do worker (para ✔️ ao corrigir). */
   private lastCompilerErrorLines = new Set<number>();
 
+  /** Último lote de erros do compilador (reaplica marcadores quando ARIA foca linha). */
+  private lastCompilerErrors: PortugolCodeError[] = [];
+
   private readonly tutorContextHandle: TutorEditorContextHandle = {
     getEditorCode: () => this.code ?? "",
     getEditorCodeSnapshot: () => this.tutorEditorCodeSnapshot(),
@@ -162,6 +179,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       return parts.join(" · ").slice(0, 2000);
     },
     getCompilerErrorLines: () => this.getCompilerErrorLineNumbers(),
+    getTabKey: () => this.tabId ?? this.title ?? "editor",
   };
 
   /** Código atual do buffer do Monaco para o tutor (o ngModel pode não estar sincronizado a cada tecla). */
@@ -197,13 +215,53 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     return lines.length > 0 ? lines[0] : undefined;
   }
 
-  /** Recolhe o terminal em baixo quando o HUD do tutor está aberto. */
-  get tutorSplitEditorSize(): number {
-    return this.tutorOverlay.isOpen() ? 100 : 80;
+  private getCompilerMarkerMessageForLine(line: number): string | undefined {
+    const model = this.codeEditor?.getModel();
+    if (!model) {
+      return undefined;
+    }
+    const markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: "owner" });
+    const onLine = markers.filter(m => m.startLineNumber === line);
+    return onLine[0]?.message;
   }
 
-  get tutorSplitTerminalSize(): number {
-    return this.tutorOverlay.isOpen() ? 0 : 20;
+  /** Clique no ? da margem: abre HUD, foca linha e envia pedido de ajuda ao tutor. */
+  private openTutorFromGlyphClick(line: number): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+    this.gaService.event("editor_glyph_open_tutor", "Editor", `Linha ${line}`);
+    const msg = buildGlyphClickMessage(line, this.getCompilerMarkerMessageForLine(line));
+    this.tutorOverlay.show({ focusLine: line });
+    this.tutorAutoTrigger.emitUserMessage(msg);
+  }
+
+  private attachTutorGlyphClickHandler(editor: monaco.editor.IStandaloneCodeEditor): void {
+    this.disposeTutorGlyphClickHandler();
+    this.glyphMouseDownDisposable = editor.onMouseDown(e => {
+      if (!this.isActiveTab) {
+        return;
+      }
+      if (e.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+        return;
+      }
+      const line = e.target.position?.lineNumber;
+      if (!line) {
+        return;
+      }
+      const decos = editor.getLineDecorations(line);
+      if (!lineHasClickableTutorGlyph(decos)) {
+        return;
+      }
+      e.event.preventDefault();
+      e.event.stopPropagation();
+      this.openTutorFromGlyphClick(line);
+    });
+  }
+
+  private disposeTutorGlyphClickHandler(): void {
+    this.glyphMouseDownDisposable?.dispose();
+    this.glyphMouseDownDisposable = undefined;
   }
 
   /** Expõe linha-alvo ao alternar o HUD com ⌘⇧A / Ctrl+Shift+A (prioriza erro do compilador). */
@@ -339,6 +397,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
 
           case "parseError": {
             this.setEditorErrors(event.errors);
+            this.tutorCompileTrigger.onRunWithCompileErrors(event.errors, this.isActiveTab);
             break;
           }
 
@@ -429,6 +488,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
           const line = pending ?? this.firstCompilerMarkerLine();
           if (line !== undefined) {
             this.scrollEditorLineForHud(line);
+            this.nudgeHudAwayFromEditorLine(line);
             this.immersion.setHudLinkLine(line);
           } else {
             this.immersion.setHudLinkLine(null);
@@ -563,7 +623,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     this._stdOut$?.unsubscribe();
     this._theme$?.unsubscribe();
     this._settings$?.unsubscribe();
+    this.disposeTutorGlyphClickHandler();
     this.editorActions.setEditor(null);
+    this.editorActions.setRefreshCompilerMarkers(null);
     this.editorActions.setRunCode(null);
     this.editorActions.setStopCode(null);
   }
@@ -597,7 +659,13 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     if (result) {
-      this.setEditorErrors([]);
+      const merged = result.errors.concat(result.parseErrors);
+      if (merged.length > 0) {
+        this.setEditorErrors(merged);
+        this.tutorCompileTrigger.onRunWithCompileErrors(merged, this.isActiveTab);
+      } else {
+        this.setEditorErrors([]);
+      }
       this.executor.runTranspiled({ ...result, code });
     }
   }
@@ -826,11 +894,17 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     this.codeEditor = editor;
     if (this.isActiveTab) {
       this.editorActions.setEditor(editor);
+      this.editorActions.setRefreshCompilerMarkers(() => {
+        if (this.lastCompilerErrors.length > 0) {
+          this.setEditorErrors([...this.lastCompilerErrors]);
+        }
+      });
       this.editorActions.setRunCode(() => {
         void this.runCode();
       });
     }
     this.initShortcuts(editor);
+    this.attachTutorGlyphClickHandler(editor);
 
     editor.onDidScrollChange(() => {
       this.scheduleFlowSvgLayout();
@@ -935,7 +1009,23 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     this.snack.dismiss();
   }
 
+  private nudgeHudAwayFromEditorLine(line: number): void {
+    const ed = this.codeEditor;
+    if (!ed) {
+      return;
+    }
+    const pos = ed.getScrolledVisiblePosition({ lineNumber: line, column: 1 });
+    const dom = ed.getDomNode();
+    if (!pos || !dom) {
+      return;
+    }
+    const rect = dom.getBoundingClientRect();
+    const lineHeight = ed.getOption(monaco.editor.EditorOption.lineHeight);
+    this.tutorHudLayout.nudgeHudAwayFromLine(rect.top + pos.top, lineHeight);
+  }
+
   setEditorErrors(errors: PortugolCodeError[]) {
+    this.lastCompilerErrors = errors;
     const model = this.codeEditor?.getModel();
 
     const nextLineSet = new Set(errors.map(e => e.startLine));
@@ -944,20 +1034,35 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       this.editorActions.flashResolvedCompilerLines(clearedLines);
     }
     this.lastCompilerErrorLines = nextLineSet;
-    this.editorActions.setCompilerIssueLines([...nextLineSet]);
+
+    const primaryFromTutor = this.tutorHudLayout.getTutorPrimaryErrorLine();
+    const primaryLine =
+      primaryFromTutor != null && nextLineSet.has(primaryFromTutor)
+        ? primaryFromTutor
+        : errors.length > 0
+          ? errors[0].startLine
+          : null;
+
+    const glyphLines =
+      primaryLine != null ? [primaryLine] : [...nextLineSet];
+    this.editorActions.setCompilerIssueLines(glyphLines);
 
     if (model) {
       monaco.editor.setModelMarkers(
         model,
         "owner",
-        errors.map(error => {
+        errors.map((error, index) => {
+          const isPrimary =
+            primaryLine != null
+              ? error.startLine === primaryLine
+              : index === 0;
           return {
             startLineNumber: error.startLine,
             startColumn: error.startCol + 1,
             endLineNumber: error.endLine,
             endColumn: error.endCol + 2,
             message: error.message,
-            severity: monaco.MarkerSeverity.Info,
+            severity: isPrimary ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Hint,
           };
         }),
       );

@@ -24,6 +24,9 @@
   },
   "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
   "scripts": {
+    "prestart": "node scripts/inject-version.mjs",
+    "prebuild": "node scripts/inject-version.mjs",
+    "prerelease": "node scripts/inject-version.mjs",
     "start": "ng serve",
     "release": "ng build",
     "watch": "ng build --watch --configuration development",

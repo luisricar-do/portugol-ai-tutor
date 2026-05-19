@@ -2,6 +2,8 @@ import { Injectable, NgZone, inject } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import type { EditorAction } from "@luisricar-do/agent";
 
+import { TUTOR_GLYPH_HOVER_MESSAGE } from "./tutor-glyph-click.util";
+import { TutorHudLayoutService } from "./tutor-hud-layout.service";
 import { TutorImmersionService, type TutorDataFlowConnection } from "./tutor-immersion.service";
 
 function escapeRegExp(s: string): string {
@@ -21,9 +23,17 @@ export class EditorActionsService {
 
   private readonly immersion = inject(TutorImmersionService);
 
+  private readonly hudLayout = inject(TutorHudLayoutService);
+
   private editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
+  /** Reaplica marcadores do compilador após mudança da linha primária (registado pelo editor). */
+  private refreshCompilerMarkersFn: (() => void) | null = null;
+
   private decorationIds: string[] = [];
+
+  /** Comentários inline do tutor por linha (substitui o anterior na mesma linha). */
+  private inlineCommentByLine = new Map<number, string>();
 
   /** Glifos ❓ de erro de compilação (independentes das decorações pedagógicas do tutor). */
   private compilerGlyphIds: string[] = [];
@@ -57,6 +67,10 @@ export class EditorActionsService {
   /** Para pausar execução (loops / playback didático). */
   setStopCode(fn: (() => void) | null): void {
     this.stopCodeFn = fn;
+  }
+
+  setRefreshCompilerMarkers(fn: (() => void) | null): void {
+    this.refreshCompilerMarkersFn = fn;
   }
 
   /**
@@ -101,6 +115,7 @@ export class EditorActionsService {
       range: new monaco.Range(ln, 1, ln, 1),
       options: {
         glyphMarginClassName: "tutor-glyph-compile-issue",
+        glyphMarginHoverMessage: { value: TUTOR_GLYPH_HOVER_MESSAGE },
         isWholeLine: false,
       },
     }));
@@ -287,6 +302,7 @@ export class EditorActionsService {
     const ed = this.editor;
     const ids = [...this.decorationIds];
     this.decorationIds = [];
+    this.inlineCommentByLine.clear();
     if (!ed || ids.length === 0) {
       return;
     }
@@ -394,6 +410,8 @@ export class EditorActionsService {
           range: new monaco.Range(clamped, 1, clamped, 1),
           options: {
             glyphMarginClassName: glyphOk,
+            glyphMarginHoverMessage:
+              c.status === "broken" ? { value: TUTOR_GLYPH_HOVER_MESSAGE } : undefined,
             isWholeLine: false,
           },
         });
@@ -495,6 +513,20 @@ export class EditorActionsService {
       ],
     );
     this.decorationIds.push(...ids);
+    this.hudLayout.setTutorPrimaryErrorLine(ln);
+    this.nudgeHudForEditorLine(ed, ln);
+    this.refreshCompilerMarkersFn?.();
+  }
+
+  private nudgeHudForEditorLine(ed: monaco.editor.IStandaloneCodeEditor, line: number): void {
+    const pos = ed.getScrolledVisiblePosition({ lineNumber: line, column: 1 });
+    const dom = ed.getDomNode();
+    if (!pos || !dom) {
+      return;
+    }
+    const rect = dom.getBoundingClientRect();
+    const lineHeight = ed.getOption(monaco.editor.EditorOption.lineHeight);
+    this.hudLayout.nudgeHudAwayFromLine(rect.top + pos.top, lineHeight);
   }
 
   private highlightVariable(payload: Record<string, unknown>): void {
@@ -548,6 +580,13 @@ export class EditorActionsService {
       return;
     }
 
+    const previousId = this.inlineCommentByLine.get(ln);
+    if (previousId) {
+      ed.deltaDecorations([previousId], []);
+      this.decorationIds = this.decorationIds.filter(id => id !== previousId);
+      this.inlineCommentByLine.delete(ln);
+    }
+
     const ids = ed.deltaDecorations(
       [],
       [
@@ -563,7 +602,11 @@ export class EditorActionsService {
         },
       ],
     );
-    this.decorationIds.push(...ids);
+    const id = ids[0];
+    if (id) {
+      this.decorationIds.push(id);
+      this.inlineCommentByLine.set(ln, id);
+    }
   }
 
   private runWithWatch(payload: Record<string, unknown>): void {

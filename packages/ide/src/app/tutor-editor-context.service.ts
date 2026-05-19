@@ -21,6 +21,8 @@ export interface TutorEditorContextHandle {
   getDataFlowContext?: () => string | undefined;
   /** Linhas 1-based com erro de compilação (marcadores Monaco / worker), para o payload e glifos. */
   getCompilerErrorLines?: () => number[];
+  /** Chave da aba do editor (`tab.id`), não do browser — boas-vindas e telemetria por ficheiro aberto. */
+  getTabKey?: () => string;
 }
 
 @Injectable({ providedIn: "root" })

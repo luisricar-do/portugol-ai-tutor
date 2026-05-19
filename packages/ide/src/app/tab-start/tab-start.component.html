@@ -68,5 +68,5 @@
 </section>
 
 <footer>
-  <summary>Versão: <span matTooltip="%DATE%">%COMMIT_SHA%</span></summary>
+  <summary>Versão: <span [matTooltip]="buildDate">{{ commitSha }}</span></summary>
 </footer>

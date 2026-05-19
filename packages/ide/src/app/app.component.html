@@ -59,8 +59,8 @@
 
         @switch (tab.type) {
         @case ("editor") {
-        <app-tab-editor [code]="tab.contents" [isActiveTab]="(selected.value ?? 0) === i + 1" [(title)]="tab.title"
-          (help)="upsertHelpTab()" (settings)="openSettingsModal()" />
+        <app-tab-editor [tabId]="'' + tab.id" [code]="tab.contents" [isActiveTab]="(selected.value ?? 0) === i + 1"
+          [(title)]="tab.title" (help)="upsertHelpTab()" (settings)="openSettingsModal()" />
         }
 
         @case ("help") {

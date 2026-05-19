@@ -8,7 +8,7 @@ export class TutorOverlayService {
   private readonly openSignal = signal(false);
   private readonly dimmedSignal = signal(false);
   private readonly pendingFocusLineSignal = signal<number | null>(null);
-  /** Brilho verde + auto-fechar após correção de erros de compilação. */
+  /** Borda verde discreta após correção de erros de compilação (sem auto-fechar o HUD). */
   private readonly successCelebrationSignal = signal(false);
 
   /** Indica se o HUD flutuante do tutor está visível. */
@@ -58,16 +58,18 @@ export class TutorOverlayService {
   }
 
   /**
-   * Celebra correção do código (erros de compilação eliminados): feedback visual e {@link hide} após 2s.
+   * Celebra correção do código (erros de compilação eliminados): borda verde discreta.
+   * O HUD permanece aberto para o aluno ler a mensagem reflexiva.
    */
   beginSuccessCelebration(): void {
     if (!this.openSignal()) {
       return;
     }
     this.successCelebrationSignal.set(true);
-    window.setTimeout(() => {
-      this.hide();
-    }, 2000);
+  }
+
+  clearSuccessCelebration(): void {
+    this.successCelebrationSignal.set(false);
   }
 
   /** Alterna visibilidade (ex.: ⌘⇧A / Ctrl+Shift+A) — mesmo HUD que {@link show}. */

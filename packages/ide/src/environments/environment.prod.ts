@@ -1,5 +1,10 @@
+import { buildVersion } from "./environment.version";
+
 export const environment = {
   production: true,
+  commitSha: buildVersion.commitSha,
+  buildDate: buildVersion.buildDate,
+  enableTutorTelemetry: true,
   /** Defina no build (substituição de arquivo) ou ajuste antes do deploy. */
   agentApiBaseUrl: "",
   firebase: {

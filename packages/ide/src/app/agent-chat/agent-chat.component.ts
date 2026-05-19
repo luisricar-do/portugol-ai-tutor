@@ -10,6 +10,7 @@ import {
   Injector,
   Input,
   NgZone,
+  signal,
   viewChild,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
@@ -23,16 +24,23 @@ import {
   type TutorStreamDonePayload,
 } from "@luisricar-do/agent";
 import { AngularSvgIconModule } from "angular-svg-icon";
+import { MarkdownComponent } from "ngx-markdown";
 
 import { environment } from "../../environments/environment";
 import { EditorActionsService } from "../editor-actions.service";
 import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
+import { TutorChatSessionService } from "../tutor-chat-session.service";
+import { TutorEditorContextService } from "../tutor-editor-context.service";
+import {
+  TUTOR_SUCCESS_REFLECTION_MESSAGE,
+  TUTOR_WELCOME_MESSAGE,
+} from "../tutor-messages";
 import { TutorOverlayService } from "../tutor-overlay.service";
 import { TutorSettingsService } from "../tutor-settings.service";
 
 @Component({
   selector: "app-agent-chat",
-  imports: [AngularSvgIconModule, FormsModule, MatButtonModule],
+  imports: [AngularSvgIconModule, FormsModule, MatButtonModule, MarkdownComponent],
   standalone: true,
   templateUrl: "./agent-chat.component.html",
   styleUrl: "./agent-chat.component.scss",
@@ -70,7 +78,13 @@ export class AgentChatComponent implements AfterViewInit {
   /** Linhas 1-based com erro de compilação no momento do pedido (payload `compilerErrorLines`). */
   @Input() compilerErrorLinesResolver?: () => number[];
 
+  /** Chave da aba do editor (`tab.id`), não do browser — boas-vindas por ficheiro aberto. */
+  @Input() tabKeyResolver?: () => string;
+
   readonly baseUrlConfigured = Boolean(environment.agentApiBaseUrl?.trim());
+
+  /** Aguarda erros do worker antes do primeiro token SSE. */
+  preparingResponse = false;
 
   /** No modo HUD: só a última troca visível até expandir. */
   immersiveHistoryExpanded = false;
@@ -111,7 +125,18 @@ export class AgentChatComponent implements AfterViewInit {
 
   private readonly tutorOverlay = inject(TutorOverlayService);
 
+  private readonly tutorEditorContext = inject(TutorEditorContextService);
+
+  private readonly chatSession = inject(TutorChatSessionService);
+
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Utilizador no fundo do thread — auto-scroll durante streaming só se true (M13). */
+  private readonly threadPinnedToBottom = signal(true);
+
+  private forceScrollNext = false;
+
+  private static readonly THREAD_SCROLL_BOTTOM_THRESHOLD_PX = 48;
 
   /** Opacidade por linha `.agent-chat__row` (modo imersivo), atualizada no scroll. */
   private rowOpacityValues: number[] = [];
@@ -124,6 +149,7 @@ export class AgentChatComponent implements AfterViewInit {
   private threadScrollEl: HTMLElement | null = null;
 
   private readonly onThreadScroll = (): void => {
+    this.updateThreadPinnedState();
     this.scheduleLayerOpacityUpdate();
   };
 
@@ -169,7 +195,11 @@ export class AgentChatComponent implements AfterViewInit {
   }
 
   showImmersiveHistoryToggle(): boolean {
-    return this.immersiveLayout && !this.immersiveHistoryExpanded && this.history.length > 2;
+    if (!this.immersiveLayout || this.immersiveHistoryExpanded) {
+      return false;
+    }
+    const hasAssistant = this.history.some(m => m.role === "assistant");
+    return hasAssistant && this.history.length >= 2;
   }
 
   /** Usado pela barra «Mover» do overlay (botão Ver histórico). */
@@ -178,7 +208,7 @@ export class AgentChatComponent implements AfterViewInit {
       return;
     }
     this.immersiveHistoryExpanded = true;
-    this.scrollThreadToEnd();
+    this.requestScrollToEnd();
     this.scheduleLayerOpacityUpdate();
     this.cdr.markForCheck();
   }
@@ -265,6 +295,13 @@ export class AgentChatComponent implements AfterViewInit {
     this.immersivePlaceholderIndex++;
   }
 
+  applyHudPlaceholderSuggestion(): void {
+    this.draft = this.immersiveHudPlaceholder;
+    this.onHudComposerInput({ target: this.draftInput()?.nativeElement } as unknown as Event);
+    this.draftInput()?.nativeElement?.focus();
+    this.cdr.markForCheck();
+  }
+
   get hasHistory(): boolean {
     return this.history.length > 0;
   }
@@ -278,6 +315,30 @@ export class AgentChatComponent implements AfterViewInit {
     this.tutorAutoTrigger.events$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(msg => {
       void this.sendWithText(msg);
     });
+    effect(
+      () => {
+        if (!this.tutorOverlay.isOpen() || !this.immersiveLayout) {
+          return;
+        }
+        const tabKey = this.tabKeyResolver?.() ?? this.tutorEditorContext.getActive()?.getTabKey?.() ?? "";
+        if (!tabKey || this.tutorSettings.hasWelcomeShown(tabKey) || this.history.length > 0) {
+          return;
+        }
+        this.tutorSettings.markWelcomeShown(tabKey);
+        this.pushLocalAssistantMessage(TUTOR_WELCOME_MESSAGE);
+      },
+      { injector: this.injector },
+    );
+    effect(
+      () => {
+        const len = this.history.length;
+        const streaming = this.streamingAssistant;
+        if (this.immersiveLayout && (len > 0 || streaming) && this.shouldAutoScroll()) {
+          this.scrollThreadToEnd();
+        }
+      },
+      { injector: this.injector },
+    );
     effect(
       () => {
         if (!this.tutorOverlay.isOpen()) {
@@ -318,7 +379,8 @@ export class AgentChatComponent implements AfterViewInit {
   }
 
   /**
-   * Erros de compilação eliminados após haver erros com o HUD aberto: mensagem fixa + brilho verde + fechar.
+   * Erros de compilação eliminados após haver erros com o HUD aberto:
+   * limpar destaques do tutor, borda verde discreta + mensagem reflexiva.
    */
   private checkCompileErrorRecovery(): void {
     if (!this.immersiveLayout || !this.tutorOverlay.isOpen() || this.successCelebrationTriggered) {
@@ -340,15 +402,49 @@ export class AgentChatComponent implements AfterViewInit {
 
   private triggerCompileFixedCelebration(): void {
     this.ngZone.run(() => {
-      this.history.push({
-        role: "assistant",
-        content:
-          "Exato! Você percebeu como a condição de parada alterou o fluxo? Vamos seguir.",
-      });
-      this.scrollThreadToEnd();
-      this.cdr.markForCheck();
+      this.pushLocalAssistantMessage(TUTOR_SUCCESS_REFLECTION_MESSAGE);
+      this.editorActionsService.clearTutorDecorations();
       this.tutorOverlay.beginSuccessCelebration();
     });
+  }
+
+  private pushLocalAssistantMessage(content: string): void {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return;
+    }
+    this.history.push({ role: "assistant", content: trimmed });
+    this.syncChatSession();
+    if (this.shouldAutoScroll()) {
+      this.scrollThreadToEnd();
+    }
+    this.cdr.markForCheck();
+  }
+
+  private syncChatSession(): void {
+    this.chatSession.syncFromHistory(this.history);
+  }
+
+  private updateThreadPinnedState(): void {
+    const el = this.threadScrollEl ?? this.scrollArea()?.nativeElement;
+    if (!el) {
+      return;
+    }
+    const distanceFromBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.threadPinnedToBottom.set(
+      distanceFromBottom < AgentChatComponent.THREAD_SCROLL_BOTTOM_THRESHOLD_PX,
+    );
+  }
+
+  private shouldAutoScroll(): boolean {
+    return this.threadPinnedToBottom() || this.forceScrollNext;
+  }
+
+  private requestScrollToEnd(): void {
+    this.forceScrollNext = true;
+    this.threadPinnedToBottom.set(true);
+    this.scrollThreadToEnd();
   }
 
   /** Opacidade por índice de mensagem (e `thread.length` para a linha em streaming). */
@@ -380,6 +476,7 @@ export class AgentChatComponent implements AfterViewInit {
     this.detachThreadScrollListener();
     this.threadScrollEl = el;
     el.addEventListener("scroll", this.onThreadScroll, { passive: true });
+    this.updateThreadPinnedState();
   }
 
   private detachThreadScrollListener(): void {
@@ -457,7 +554,8 @@ export class AgentChatComponent implements AfterViewInit {
     this.history = [...this.lastArchivedThread];
     this.lastArchivedThread = null;
     this.error = null;
-    this.scrollThreadToEnd();
+    this.syncChatSession();
+    this.requestScrollToEnd();
     this.cdr.markForCheck();
   }
 
@@ -473,16 +571,24 @@ export class AgentChatComponent implements AfterViewInit {
 
   /** Scroll leve durante streaming (um rAF; não empilha `afterNextRender`). */
   private scrollThreadToEndFast(): void {
+    if (!this.shouldAutoScroll()) {
+      return;
+    }
     const scrollEl = this.scrollArea()?.nativeElement;
     if (!scrollEl) {
       return;
     }
     scrollEl.scrollTop = scrollEl.scrollHeight;
+    this.forceScrollNext = false;
+    this.updateThreadPinnedState();
     this.scheduleLayerOpacityUpdate();
   }
 
   /** Após o DOM refletir novas mensagens / streaming, leva o scroll ao fundo do thread. */
   private scrollThreadToEnd(): void {
+    if (!this.shouldAutoScroll()) {
+      return;
+    }
     afterNextRender(
       () => {
         requestAnimationFrame(() => {
@@ -497,7 +603,9 @@ export class AgentChatComponent implements AfterViewInit {
             if (scrollEl) {
               scrollEl.scrollTop = scrollEl.scrollHeight;
             }
+            this.forceScrollNext = false;
             this.attachThreadScrollListener();
+            this.updateThreadPinnedState();
             this.scheduleLayerOpacityUpdate();
           });
         });
@@ -621,13 +729,20 @@ export class AgentChatComponent implements AfterViewInit {
     this.ngZone.run(() => {
       this.tutorOverlay.undim();
       this.history.push({ role: "user", content: trimmed });
+      this.syncChatSession();
       this.error = null;
+      this.preparingResponse = true;
       this.streamingAssistant = true;
       this.streamingText = "";
-      this.scrollThreadToEnd();
+      this.requestScrollToEnd();
     });
 
     const errors = await this.errorsForRequest();
+
+    this.ngZone.run(() => {
+      this.preparingResponse = false;
+      this.cdr.markForCheck();
+    });
 
     this.streamingTokenBuffer = "";
 
@@ -638,7 +753,7 @@ export class AgentChatComponent implements AfterViewInit {
           errors,
           history: this.history,
           activeTutorDecorations: this.editorActionsService.activeTutorDecorationCount,
-          hintLevel: 1,
+          hintLevel: this.tutorSettings.hintLevel(),
           studentName: this.tutorSettings.studentName() ?? undefined,
           cursorLine: this.cursorLineResolver?.(),
           cursorColumn: this.cursorColumnResolver?.(),
@@ -664,16 +779,21 @@ export class AgentChatComponent implements AfterViewInit {
                 this.streamingTokenBuffer = "";
               }
               const reply = this.streamingText;
+              this.preparingResponse = false;
               this.streamingAssistant = false;
               this.streamingText = "";
               if (reply.length > 0) {
                 this.history.push({ role: "assistant", content: reply });
               }
+              this.syncChatSession();
               if (payload?.tutorMeta?.suggestedConversationEnd === true) {
                 this.lastArchivedThread = [...this.history];
                 this.history = [];
+                this.syncChatSession();
               }
-              this.scrollThreadToEnd();
+              if (this.shouldAutoScroll()) {
+                this.scrollThreadToEnd();
+              }
               this.cdr.markForCheck();
             });
           },
@@ -683,13 +803,17 @@ export class AgentChatComponent implements AfterViewInit {
         this.ngZone.run(() => {
           this.cancelStreamingTokenFlush();
           this.streamingTokenBuffer = "";
+          this.preparingResponse = false;
           this.streamingAssistant = false;
           this.streamingText = "";
           if (this.history.length > 0 && this.history[this.history.length - 1]?.role === "user") {
             this.history.pop();
           }
+          this.syncChatSession();
           this.error = error instanceof TutorAgentError ? error.message : "Falha ao contactar o tutor.";
-          this.scrollThreadToEnd();
+          if (this.shouldAutoScroll()) {
+            this.scrollThreadToEnd();
+          }
           this.cdr.markForCheck();
         });
       });
@@ -700,13 +824,18 @@ export class AgentChatComponent implements AfterViewInit {
     this.streamingTokenBuffer = "";
     this.history = [];
     this.lastArchivedThread = null;
+    this.chatSession.reset();
     this.error = null;
     this.streamingAssistant = false;
     this.streamingText = "";
     this.draft = "";
     this.immersiveHistoryExpanded = false;
+    this.preparingResponse = false;
+    this.threadPinnedToBottom.set(true);
+    this.forceScrollNext = false;
     this.resetHudComposerHeight();
     this.editorActionsService.clearTutorDecorations();
     this.scheduleLayerOpacityUpdate();
+    this.scrollThreadToEnd();
   }
 }

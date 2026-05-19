@@ -2,8 +2,14 @@
 // `ng build` replaces `environment.ts` with `environment.prod.ts`.
 // The list of file replacements can be found in `angular.json`.
 
+import { buildVersion } from "./environment.version";
+
 export const environment = {
   production: false,
+  commitSha: buildVersion.commitSha,
+  buildDate: buildVersion.buildDate,
+  /** Registo estruturado de eventos do tutor (dissertação); desligar em demos públicas se necessário. */
+  enableTutorTelemetry: true,
   /** Base URL da API Azure Functions (inclua `/api`). Ex.: http://localhost:7071/api */
   agentApiBaseUrl: "http://localhost:7071/api",
   firebase: {

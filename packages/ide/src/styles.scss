@@ -261,6 +261,101 @@ markdown {
   }
 }
 
+/* Markdown compacto no chat do tutor (sobrepõe padding da Ajuda). */
+.agent-chat__bubble-markdown markdown.agent-chat__markdown {
+  display: block;
+  padding: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: inherit;
+  overflow-wrap: anywhere;
+
+  :first-child {
+    margin-top: 0;
+  }
+
+  :last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    margin: 0 0 0.5rem;
+  }
+
+  ul,
+  ol {
+    margin: 0 0 0.5rem;
+    padding-left: 1.25rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0.65rem 0 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  h1 {
+    font-size: 0.95rem;
+  }
+
+  a,
+  a:visited {
+    color: var(--pws-color-secondary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  code {
+    display: inline;
+    padding: 0.1rem 0.35rem;
+    font-family: monospace;
+    font-size: 0.78em;
+    background-color: var(--pws-bg-100);
+    border-radius: 0.25rem;
+  }
+
+  pre {
+    margin: 0.35rem 0 0.5rem;
+    padding: 0.5rem 0.65rem;
+    overflow: auto;
+    font-family: monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    background-color: var(--pws-bg-100);
+    border-radius: 0.35rem;
+    border: 1px solid color-mix(in srgb, var(--pws-border-color) 65%, transparent);
+
+    code {
+      padding: 0;
+      background: transparent;
+      border-radius: 0;
+    }
+  }
+
+  blockquote {
+    margin: 0.35rem 0 0.5rem;
+    padding-left: 0.65rem;
+    border-left: 3px solid color-mix(in srgb, var(--pws-color-primary) 45%, var(--pws-border-color));
+    color: color-mix(in srgb, var(--pws-text-200) 92%, transparent);
+  }
+}
+
+.agent-chat--immersive .agent-chat__bubble-markdown markdown.agent-chat__markdown {
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 /* Tutor ARIA — decorações Monaco (EditorActionsService) */
 .monaco-editor .tutor-line--warning {
   background-color: rgba(255, 193, 7, 0.22);
@@ -286,6 +381,11 @@ markdown {
   color: #81d4fa;
   font-style: italic;
   opacity: 0.95;
+}
+
+/* Erros secundários do compilador (marcador Hint) — menos alarmantes que o erro primário */
+.monaco-editor .squiggly-hint {
+  opacity: 0.35;
 }
 
 .tutor-snack--celebrate .mdc-snackbar__label {

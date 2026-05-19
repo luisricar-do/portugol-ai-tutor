@@ -1,4 +1,4 @@
-import { DOCUMENT, isPlatformBrowser } from "@angular/common";
+import { DOCUMENT, NgStyle, isPlatformBrowser } from "@angular/common";
 import {
   AfterViewInit,
   Component,
@@ -16,9 +16,12 @@ import {
   viewChild,
 } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
+import { MatDialog } from "@angular/material/dialog";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { AngularSvgIconModule } from "angular-svg-icon";
 
 import { AgentChatComponent } from "../agent-chat/agent-chat.component";
+import { DialogConfirmClearTutorComponent } from "../dialog-confirm-clear-tutor/dialog-confirm-clear-tutor.component";
 import { TutorEditorContextService } from "../tutor-editor-context.service";
 import { TutorHudLayoutService } from "../tutor-hud-layout.service";
 import { TutorOverlayService } from "../tutor-overlay.service";
@@ -28,14 +31,23 @@ const VIEWPORT_MARGIN_PX = 12;
 @Component({
   selector: "app-tutor-overlay",
   standalone: true,
-  imports: [AgentChatComponent, MatButtonModule, AngularSvgIconModule],
+  imports: [
+    AgentChatComponent,
+    MatButtonModule,
+    MatTooltipModule,
+    AngularSvgIconModule,
+    NgStyle,
+  ],
   templateUrl: "./tutor-overlay.component.html",
   styleUrl: "./tutor-overlay.component.scss",
 })
 export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   private readonly tutorContext = inject(TutorEditorContextService);
   private readonly hudLayout = inject(TutorHudLayoutService);
+  private readonly dialog = inject(MatDialog);
   readonly shell = inject(TutorOverlayService);
+
+  readonly tabKeyResolver = (): string => this.tutorContext.getActive()?.getTabKey?.() ?? "";
 
   private readonly doc = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
@@ -58,7 +70,22 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     return `translate(${o.dx}px, ${o.dy}px)`;
   });
 
+  readonly hudPanelSizeStyle = computed(() => {
+    const size = this.hudLayout.hudSize();
+    if (!size) {
+      return null;
+    }
+    return {
+      width: `${size.width}px`,
+      height: `${size.height}px`,
+    };
+  });
+
+  readonly hasCustomHudSize = computed(() => this.hudLayout.hudSize() !== null);
+
   readonly dragging = signal(false);
+
+  readonly resizing = signal(false);
 
   private panelResizeObserver: ResizeObserver | null = null;
 
@@ -67,6 +94,17 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   private dragCaptureBar: HTMLElement | null = null;
 
   private dragCapturePointerId: number | null = null;
+
+  private resizeSession: {
+    width: number;
+    height: number;
+    px: number;
+    py: number;
+  } | null = null;
+
+  private resizeCaptureEl: HTMLElement | null = null;
+
+  private resizeCapturePointerId: number | null = null;
 
   /**
    * Move o host para document.body em runtime para sair da cadeia overflow:hidden
@@ -154,6 +192,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     if (!this.shell.isOpen() || !isPlatformBrowser(this.platformId)) {
       return;
     }
+    this.hudLayout.reclampHudSize();
     this.clampPanelToViewport();
     const el = this.panelRef()?.nativeElement;
     if (el) {
@@ -220,6 +259,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     const nx = s.dx + (ev.clientX - s.px);
     const ny = s.dy + (ev.clientY - s.py);
     this.hudLayout.setHudOffset(nx, ny);
+    this.hudLayout.noteUserDrag();
     this.clampPanelToViewport();
     const co = this.hudLayout.hudOffset();
     this.dragSession = { dx: co.dx, dy: co.dy, px: ev.clientX, py: ev.clientY };
@@ -247,6 +287,68 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  onResizePointerDown(ev: PointerEvent): void {
+    if (!isPlatformBrowser(this.platformId) || ev.button !== 0) {
+      return;
+    }
+    ev.preventDefault();
+    ev.stopPropagation();
+    const handle = ev.currentTarget as HTMLElement;
+    const el = this.panelRef()?.nativeElement;
+    if (!el) {
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const stored = this.hudLayout.hudSize();
+    const width = stored?.width ?? rect.width;
+    const height = stored?.height ?? rect.height;
+    if (!stored) {
+      this.hudLayout.setHudSize(width, height);
+    }
+    this.resizeSession = { width, height, px: ev.clientX, py: ev.clientY };
+    this.resizing.set(true);
+    this.resizeCaptureEl = handle;
+    this.resizeCapturePointerId = ev.pointerId;
+    handle.setPointerCapture(ev.pointerId);
+  }
+
+  onResizePointerMove(ev: PointerEvent): void {
+    if (!this.resizeSession) {
+      return;
+    }
+    const s = this.resizeSession;
+    const nw = s.width + (ev.clientX - s.px);
+    const nh = s.height + (ev.clientY - s.py);
+    this.hudLayout.setHudSize(nw, nh);
+    this.clampPanelToViewport();
+    const size = this.hudLayout.hudSize();
+    if (size) {
+      this.resizeSession = { width: size.width, height: size.height, px: ev.clientX, py: ev.clientY };
+    }
+    const el = this.panelRef()?.nativeElement;
+    if (el) {
+      this.hudLayout.setPanelViewport(el.getBoundingClientRect());
+    }
+  }
+
+  onResizePointerUp(ev: PointerEvent): void {
+    if (this.resizeCaptureEl !== null && this.resizeCapturePointerId !== null) {
+      try {
+        this.resizeCaptureEl.releasePointerCapture(this.resizeCapturePointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+    this.resizeCaptureEl = null;
+    this.resizeCapturePointerId = null;
+    this.resizeSession = null;
+    this.resizing.set(false);
+    const el = this.panelRef()?.nativeElement;
+    if (el) {
+      this.hudLayout.setPanelViewport(el.getBoundingClientRect());
+    }
+  }
+
   onExpandImmersiveHistory(ev: Event): void {
     ev.stopPropagation();
     ev.preventDefault();
@@ -256,7 +358,12 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   onHudClearConversation(ev: Event): void {
     ev.stopPropagation();
     ev.preventDefault();
-    this.agentChat()?.clearConversation();
+    const ref = this.dialog.open(DialogConfirmClearTutorComponent, { width: "min(92vw, 22rem)" });
+    ref.afterClosed().subscribe(confirmed => {
+      if (confirmed === true) {
+        this.agentChat()?.clearConversation();
+      }
+    });
   }
 
   onHudClose(ev: Event): void {

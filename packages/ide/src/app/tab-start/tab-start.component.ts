@@ -3,6 +3,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { GoogleAnalyticsService } from "ngx-google-analytics";
 import { Subscription } from "rxjs";
 
+import { environment } from "../../environments/environment";
 import { DialogAboutComponent } from "../dialog-about/dialog-about.component";
 import { DialogOpenExampleComponent } from "../dialog-open-example/dialog-open-example.component";
 import { FileService } from "../file.service";
@@ -23,6 +24,10 @@ export class TabStartComponent {
   private _dialogRef$?: Subscription;
 
   public logo: string;
+
+  readonly commitSha = environment.commitSha;
+
+  readonly buildDate = environment.buildDate;
 
   public gaService = inject(GoogleAnalyticsService);
   private dialog = inject(MatDialog);

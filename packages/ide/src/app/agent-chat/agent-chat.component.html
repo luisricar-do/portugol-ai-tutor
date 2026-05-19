@@ -50,8 +50,13 @@
             m.role === 'user' ? 'Você' : 'ARIA' }}</span>
           <div class="agent-chat__bubble" [class.agent-chat__bubble--user]="m.role === 'user'"
             [class.agent-chat__bubble--assistant]="m.role === 'assistant'"
-            [class.agent-chat__bubble--immersive-hero]="immersiveLayout && isHeroAssistantBubble($index)">
+            [class.agent-chat__bubble--immersive-hero]="immersiveLayout && isHeroAssistantBubble($index)"
+            [class.agent-chat__bubble-markdown]="m.role === 'assistant'">
+            @if (m.role === 'assistant') {
+            <markdown class="agent-chat__markdown" [data]="m.content" />
+            } @else {
             <p class="agent-chat__bubble-text">{{ m.content }}</p>
+            }
           </div>
         </div>
       </div>
@@ -70,7 +75,7 @@
               {{ streamingText }}<span class="agent-chat__cursor" aria-hidden="true">▍</span>
             </p>
             } @else {
-            <div class="agent-chat__typing-dots" aria-label="A responder">
+            <div class="agent-chat__typing-dots" aria-label="ARIA está a pensar">
               <span class="agent-chat__typing-dot"></span>
               <span class="agent-chat__typing-dot"></span>
               <span class="agent-chat__typing-dot"></span>
@@ -95,7 +100,8 @@
       <textarea #draftInput class="agent-chat__input" name="agentDraft" rows="2" [(ngModel)]="draft"
         placeholder="Pergunte algo sobre código…" (keydown.enter)="onDraftEnter($event)"></textarea>
       <div class="agent-chat__composer-actions">
-        <button mat-mini-fab type="button" color="primary" class="agent-chat__send"
+        <button mat-icon-button type="button" class="agent-chat__send agent-chat__send--panel"
+          [class.agent-chat__send--ready]="!!draft.trim() && !streamingAssistant"
           [disabled]="streamingAssistant || !draft.trim()" aria-label="Enviar mensagem" (click)="send()">
           <svg-icon src="assets/mdi/send.svg" aria-hidden="true" focusable="false" />
         </button>
@@ -110,16 +116,21 @@
           <textarea #draftInput class="agent-chat__input agent-chat__input--hud" name="agentDraft" rows="1"
             [(ngModel)]="draft" [placeholder]="immersiveHudPlaceholder" (keydown.enter)="onDraftEnter($event)"
             (input)="onHudComposerInput($event)" (focus)="onHudPlaceholderRotate()"></textarea>
-          <button mat-mini-fab type="button" color="primary" class="agent-chat__send agent-chat__send--hud"
-            [class.agent-chat__send--hud-ready]="hudSendReady()" [disabled]="streamingAssistant || !draft.trim()"
+          <button mat-icon-button type="button" class="agent-chat__send agent-chat__send--hud"
+            [class.agent-chat__send--ready]="hudSendReady()" [disabled]="streamingAssistant || !draft.trim()"
             aria-label="Submeter hipótese ao tutor" (click)="send()">
             <svg-icon src="assets/mdi/brain.svg" svgClass="agent-chat__send-icon-hud agent-chat__send-icon-hud--brain"
               aria-hidden="true" focusable="false" />
           </button>
         </div>
       </div>
-      <p class="agent-chat__helper agent-chat__helper--hud">Pressione Enter para enviar, Shift + Enter para nova linha
-      </p>
+      <div class="agent-chat__hud-suggest-row">
+        <button type="button" class="agent-chat__suggest-btn" [disabled]="streamingAssistant"
+          (click)="applyHudPlaceholderSuggestion()">
+          Usar sugestão
+        </button>
+        <p class="agent-chat__helper agent-chat__helper--hud">Enter envia · Shift+Enter nova linha</p>
+      </div>
     </div>
     }
   </footer>
