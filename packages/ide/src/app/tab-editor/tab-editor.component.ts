@@ -149,7 +149,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   /** Linhas que tinham erro na última passagem do worker (para ✔️ ao corrigir). */
   private lastCompilerErrorLines = new Set<number>();
 
-  /** Último lote de erros do compilador (reaplica marcadores quando ARIA foca linha). */
+  /** Último lote de erros do compilador (reaplica marcadores quando ADA foca linha). */
   private lastCompilerErrors: PortugolCodeError[] = [];
 
   private readonly tutorContextHandle: TutorEditorContextHandle = {
@@ -881,9 +881,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
 
     /** ⌘⇧A / Ctrl+Shift+A: o Monaco captura o atalho antes do ng-keyboard-shortcuts com foco no editor. */
     editor.addAction({
-      id: "toggleTutorAria",
+      id: "toggleTutorAda",
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyA],
-      label: "Alternar tutor ARIA",
+      label: "Alternar tutora ADA",
       run: () => {
         this.tutorToggleFromEditor();
       },

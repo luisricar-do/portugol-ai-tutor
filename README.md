@@ -13,7 +13,7 @@ Este repositório é um **fork** de [Portugol-Webstudio](https://github.com/dgad
 
 - **Autor do fork / pesquisa:** Luis Ricardo Albano Santos
 - **Upstream:** `https://github.com/dgadelha/Portugol-Webstudio.git` (remote sugerido: `upstream`)
-- **Backend (Azure Functions + LangGraph):** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica). Esta IDE inclui o tutor socrático **ARIA** em **overlay imersivo** (atalho **⌘⇧A** / **Ctrl+Shift+A** e botão na barra lateral), consumindo `/api/help/stream` em modo SSE. Quando a API sinaliza problema resolvido (`tutorMeta.suggestedConversationEnd`), a conversa é arquivada e inicia-se um fio novo, com opção de reabrir a anterior.
+- **Backend (Azure Functions + LangGraph):** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica). Esta IDE inclui o tutora socrática **ADA** em **overlay imersivo** (atalho **⌘⇧A** / **Ctrl+Shift+A** e botão na barra lateral), consumindo `/api/help/stream` em modo SSE. Quando a API sinaliza problema resolvido (`tutorMeta.suggestedConversationEnd`), a conversa é arquivada e inicia-se um fio novo, com opção de reabrir a anterior.
 
 ### Sincronizar com o upstream
 

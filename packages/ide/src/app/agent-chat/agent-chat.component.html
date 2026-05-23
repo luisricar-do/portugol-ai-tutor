@@ -1,8 +1,8 @@
-<div class="agent-chat" [class.agent-chat--immersive]="immersiveLayout" aria-label="Conversa com a tutora ARIA">
+<div class="agent-chat" [class.agent-chat--immersive]="immersiveLayout" aria-label="Conversa com a tutora ADA">
   @if (!immersiveLayout) {
   <header class="agent-chat__header">
     <div class="agent-chat__header-text">
-      <span class="agent-chat__name">ARIA</span>
+      <span class="agent-chat__name">ADA</span>
       <span class="agent-chat__role">Tutora socrática</span>
     </div>
     @if (baseUrlConfigured && hasHistory) {
@@ -47,7 +47,7 @@
         [style.opacity]="rowOpacityStyle($index)">
         <div class="agent-chat__bubble-stack" [class.agent-chat__bubble-stack--user]="m.role === 'user'">
           <span class="agent-chat__msg-label" [class.agent-chat__msg-label--sr]="immersiveMsgLabelsVisuallyHidden()">{{
-            m.role === 'user' ? 'Você' : 'ARIA' }}</span>
+            m.role === 'user' ? 'Você' : 'ADA' }}</span>
           <div class="agent-chat__bubble" [class.agent-chat__bubble--user]="m.role === 'user'"
             [class.agent-chat__bubble--assistant]="m.role === 'assistant'"
             [class.agent-chat__bubble--immersive-hero]="immersiveLayout && isHeroAssistantBubble($index)"
@@ -67,7 +67,7 @@
         [style.opacity]="rowOpacityStyle(thread.length)">
         <div class="agent-chat__bubble-stack">
           <span class="agent-chat__msg-label"
-            [class.agent-chat__msg-label--sr]="immersiveMsgLabelsVisuallyHidden()">ARIA</span>
+            [class.agent-chat__msg-label--sr]="immersiveMsgLabelsVisuallyHidden()">ADA</span>
           <div class="agent-chat__bubble agent-chat__bubble--assistant agent-chat__bubble--streaming"
             [class.agent-chat__bubble--immersive-hero]="immersiveLayout">
             @if (streamingText) {
@@ -75,7 +75,7 @@
               {{ streamingText }}<span class="agent-chat__cursor" aria-hidden="true">▍</span>
             </p>
             } @else {
-            <div class="agent-chat__typing-dots" aria-label="ARIA está a pensar">
+            <div class="agent-chat__typing-dots" aria-label="ADA está a pensar">
               <span class="agent-chat__typing-dot"></span>
               <span class="agent-chat__typing-dot"></span>
               <span class="agent-chat__typing-dot"></span>

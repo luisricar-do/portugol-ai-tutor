@@ -9,7 +9,7 @@ import { MatDialogModule } from "@angular/material/dialog";
   template: `
     <h2 mat-dialog-title>Limpar conversa</h2>
     <mat-dialog-content>
-      <p>Apagar todas as mensagens desta conversa com a ARIA?</p>
+      <p>Apagar todas as mensagens desta conversa com a ADA?</p>
       <p>Os destaques no código também serão removidos.</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">

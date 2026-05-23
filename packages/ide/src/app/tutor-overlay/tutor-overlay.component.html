@@ -6,7 +6,7 @@
     [class.tutor-overlay__panel-wrap--custom-size]="hasCustomHudSize()"
     [class.tutor-overlay__panel-wrap--success]="shell.isSuccessCelebration()" [style.transform]="hudTransform()"
     [ngStyle]="hudPanelSizeStyle()">
-    <div class="tutor-overlay__drag-bar" role="toolbar" aria-label="Painel do tutor ARIA"
+    <div class="tutor-overlay__drag-bar" role="toolbar" aria-label="Painel da tutora ADA"
       (pointermove)="onDragPointerMove($event)" (pointerup)="onDragPointerUp($event)"
       (pointercancel)="onDragPointerUp($event)">
       <button type="button" class="tutor-overlay__drag-grip" aria-label="Mover painel"
@@ -14,7 +14,7 @@
         <svg-icon src="assets/mdi/cursor-move.svg" aria-hidden="true" focusable="false" />
       </button>
       <div class="tutor-overlay__drag-identity" aria-hidden="true">
-        <span class="tutor-overlay__drag-name">ARIA</span>
+        <span class="tutor-overlay__drag-name">ADA</span>
         <span class="tutor-overlay__drag-role">Tutora de Lógica</span>
       </div>
       <span class="tutor-overlay__drag-spacer"></span>
@@ -46,7 +46,7 @@
         <svg-icon src="assets/mdi/backup-restore.svg" aria-hidden="true" focusable="false" />
       </button>
     </div>
-    <div class="tutor-overlay__panel hud-socratico" role="complementary" aria-label="Tutor socrático ARIA"
+    <div class="tutor-overlay__panel hud-socratico" role="complementary" aria-label="Tutora socrática ADA"
       (click)="$event.stopPropagation()" (focusin)="shell.undim()">
       <div class="tutor-overlay__inner">
         @if (activeContext(); as ctx) {

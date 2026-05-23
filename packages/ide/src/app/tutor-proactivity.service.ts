@@ -27,7 +27,7 @@ export class TutorProactivityService {
       this.timerId = null;
       if (this.lastHasErrors && !this.tutorOverlay.isOpen()) {
         this.snack.open(
-          "Ainda há erros no código. O tutor ARIA pode ajudar com perguntas — sem entregar a solução pronta.",
+          "Ainda há erros no código. A tutora ADA pode ajudar com perguntas — sem entregar a solução pronta.",
           "OK",
           { duration: 7000, panelClass: ["tutor-snack", "tutor-snack--nudge"] },
         );

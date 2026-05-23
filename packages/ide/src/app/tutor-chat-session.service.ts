@@ -39,7 +39,7 @@ export class TutorChatSessionService {
 
   /**
    * M03: gatilho proativo após compilação só se o HUD estiver fechado ou o aluno
-   * ainda não enviou mensagens (boas-vindas da ARIA não contam).
+   * ainda não enviou mensagens (boas-vindas da ADA não contam).
    */
   canAcceptProactiveCompilePrompt(): boolean {
     if (!this.tutorOverlay.isOpen()) {
