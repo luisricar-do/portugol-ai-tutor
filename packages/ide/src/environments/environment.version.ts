@@ -1,5 +1,5 @@
 /** Gerado por scripts/inject-version.mjs — não editar manualmente. */
 export const buildVersion = {
-  commitSha: "0761f57",
-  buildDate: "23/05/2026, 15:03:07",
+  commitSha: "835dddf",
+  buildDate: "25/05/2026, 20:24:58",
 };

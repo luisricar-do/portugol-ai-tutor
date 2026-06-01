@@ -12,7 +12,15 @@ import {
   Token,
 } from "antlr4ng";
 
+interface PortugolErrorFallbackLocation {
+  line: number;
+  column: number;
+  textLength?: number;
+}
+
 export class PortugolCodeError extends Error {
+  private static readonly EMPTY_CONTEXT = { getText: () => "" } as unknown as ParseTree;
+
   constructor(
     public readonly message: string,
     public readonly context: ParseTree,
@@ -22,10 +30,59 @@ export class PortugolCodeError extends Error {
     public readonly endCol: number,
   ) {
     super(message);
+    this.name = "PortugolCodeError";
   }
 
-  static fromContext(ctx: ParseTree, message: string) {
+  private static fromFallbackLocation(
+    ctx: ParseTree | null,
+    message: string,
+    fallback?: PortugolErrorFallbackLocation,
+  ): PortugolCodeError | null {
+    if (!fallback || !Number.isFinite(fallback.line) || fallback.line < 1) {
+      return null;
+    }
+
+    const column = Number.isFinite(fallback.column) && fallback.column >= 0 ? fallback.column : 0;
+    const textLength =
+      typeof fallback.textLength === "number" && Number.isFinite(fallback.textLength) && fallback.textLength > 0
+        ? Math.trunc(fallback.textLength)
+        : 1;
+    const fallbackContext = ctx ?? ({ getText: () => "" } as unknown as ParseTree);
+    return new PortugolCodeError(
+      message,
+      fallbackContext,
+      Math.trunc(fallback.line),
+      Math.trunc(column),
+      Math.trunc(fallback.line),
+      Math.trunc(column) + textLength,
+    );
+  }
+
+  private static fromPayloadToken(ctx: ParseTree | null, message: string): PortugolCodeError | null {
+    if (!ctx || !Object.hasOwn(ctx, "getPayload") || typeof ctx.getPayload !== "function") {
+      return null;
+    }
+
+    const possibleSymbol = ctx.getPayload() as Token | ParseTree | ParserRuleContext | undefined;
+    if (!possibleSymbol || !Object.hasOwn(possibleSymbol, "column") || !Object.hasOwn(possibleSymbol, "line")) {
+      return null;
+    }
+
+    const { line, column } = possibleSymbol as unknown as Token;
+    const textLength =
+      Object.hasOwn(ctx, "getText") && typeof ctx.getText === "function"
+        ? Math.max(ctx.getText().length, 1)
+        : 1;
+    return new PortugolCodeError(message, ctx, line, column, line, column + textLength);
+  }
+
+  static fromContext(ctx: ParseTree | null, message: string, fallback?: PortugolErrorFallbackLocation) {
     let possibleContext = ctx;
+    const fallbackError = PortugolCodeError.fromFallbackLocation(ctx, message, fallback);
+    const payloadError = PortugolCodeError.fromPayloadToken(ctx, message);
+    if (payloadError) {
+      return payloadError;
+    }
 
     if (
       typeof ctx === "object" &&
@@ -40,8 +97,9 @@ export class PortugolCodeError extends Error {
     }
 
     if (!possibleContext) {
-      return new PortugolCodeError(message, ctx, 1, 0, 9999, 0);
+      return fallbackError ?? new PortugolCodeError(message, PortugolCodeError.EMPTY_CONTEXT, 1, 0, 1, 1);
     }
+    const context = ctx as ParseTree;
 
     if (
       Object.hasOwn(possibleContext, "start") &&
@@ -53,56 +111,52 @@ export class PortugolCodeError extends Error {
       const { line: startLine, column: startCol } = start;
 
       if (typeof stop === "object" && stop !== null) {
-        let { line: endLine, column: endCol } = stop;
+        const { line: endLine } = stop;
+        let { column: endCol } = stop;
 
         if (startLine === endLine && startCol === endCol) {
-          endCol += ctx.getText().length - 1;
+          endCol += context.getText().length - 1;
         }
 
-        return new PortugolCodeError(message, ctx, startLine, startCol, endLine, endCol);
+        return new PortugolCodeError(message, context, startLine, startCol, endLine, endCol);
       }
 
       return new PortugolCodeError(
         message,
-        ctx,
+        context,
         Math.max(startLine - 1, 1),
         startCol,
         startLine,
-        startCol + ctx.getText().length,
+        startCol + context.getText().length,
       );
     }
 
-    if (Object.hasOwn(ctx, "getPayload") && typeof ctx.getPayload === "function") {
-      const possibleSymbol = ctx.getPayload() as Token | ParseTree | ParserRuleContext | undefined;
-
-      if (possibleSymbol && Object.hasOwn(possibleSymbol, "column") && Object.hasOwn(possibleSymbol, "line")) {
-        const { line, column } = possibleSymbol as unknown as Token;
-
-        return new PortugolCodeError(message, ctx, line, column, line, column + ctx.getText().length);
-      }
+    if (Object.hasOwn(context, "getText") && typeof context.getText === "function") {
+      return fallbackError ?? new PortugolCodeError(message, context, 1, 1, 1, 2 + context.getText().length);
     }
 
-    if (Object.hasOwn(ctx, "getText") && typeof ctx.getText === "function") {
-      return new PortugolCodeError(message, ctx, 1, 1, 1, 2 + ctx.getText().length);
-    }
-
-    return new PortugolCodeError(message, ctx, 1, 0, 9999, 0);
+    return fallbackError ?? new PortugolCodeError(message, context, 1, 0, 1, 1);
   }
 }
 
 export class PortugolErrorListener implements ANTLRErrorListener {
   private errors: PortugolCodeError[] = [];
 
-  syntaxError<S extends Token, T extends ATNSimulator>(
+  syntaxError<T extends ATNSimulator>(
     _recognizer: Recognizer<T>,
-    offendingSymbol: S | null,
-    _line: number,
-    _charPositionInLine: number,
+    offendingSymbol: Token | null,
+    line: number,
+    charPositionInLine: number,
     _msg: string,
     e: RecognitionException | null,
   ) {
+    const context = (e?.ctx || offendingSymbol || null) as unknown as ParseTree | null;
     this.errors.push(
-      PortugolCodeError.fromContext(e?.ctx || offendingSymbol || (null as any), "Código incompleto ou inválido"),
+      PortugolCodeError.fromContext(context, "Código incompleto ou inválido", {
+        line,
+        column: charPositionInLine,
+        textLength: offendingSymbol?.text?.length,
+      }),
     );
   }
 
@@ -122,7 +176,7 @@ export class PortugolErrorListener implements ANTLRErrorListener {
     _exact: boolean,
     _ambigAlts: BitSet | undefined,
     _configs: ATNConfigSet,
-  ) {}
+  ) { }
 
   reportAttemptingFullContext(
     _recognizer: Parser,
@@ -131,7 +185,7 @@ export class PortugolErrorListener implements ANTLRErrorListener {
     _stopIndex: number,
     _conflictingAlts: BitSet | undefined,
     _configs: ATNConfigSet,
-  ) {}
+  ) { }
 
   reportContextSensitivity(
     _recognizer: Parser,
@@ -140,5 +194,5 @@ export class PortugolErrorListener implements ANTLRErrorListener {
     _stopIndex: number,
     _prediction: number,
     _configs: ATNConfigSet,
-  ) {}
+  ) { }
 }

@@ -33,6 +33,7 @@ import { SettingsService } from "../settings.service";
 import { ShareService } from "../share.service";
 import { ThemeService } from "../theme.service";
 import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
+import { TutorChatSessionService } from "../tutor-chat-session.service";
 import { TutorCompileTriggerService } from "../tutor-compile-trigger.service";
 import { TutorEditorContextService, type TutorEditorContextHandle } from "../tutor-editor-context.service";
 import { buildGlyphClickMessage, lineHasClickableTutorGlyph } from "../tutor-glyph-click.util";
@@ -77,6 +78,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   private readonly tutorRealtimeValidator = inject(TutorRealtimeValidatorService);
   private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
   private readonly tutorCompileTrigger = inject(TutorCompileTriggerService);
+  private readonly tutorChatSession = inject(TutorChatSessionService);
 
   private glyphMouseDownDisposable?: monaco.IDisposable;
 
@@ -386,18 +388,21 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
               rendererModal.close();
             }
 
+            this.tutorChatSession.recordExecutionFinished(false, this.isActiveTab);
             break;
           }
 
           case "error": {
             this.gaService.event("execution_error", "Execução", "Erro em execução de código");
             this.tutorInterceptor.onExecutionFailed(this.isActiveTab);
+            this.tutorChatSession.recordExecutionFinished(true, this.isActiveTab);
             break;
           }
 
           case "parseError": {
             this.setEditorErrors(event.errors);
             this.tutorCompileTrigger.onRunWithCompileErrors(event.errors, this.isActiveTab);
+            this.tutorChatSession.recordExecutionFinished(true, this.isActiveTab);
             break;
           }
 
@@ -663,6 +668,8 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       if (merged.length > 0) {
         this.setEditorErrors(merged);
         this.tutorCompileTrigger.onRunWithCompileErrors(merged, this.isActiveTab);
+        this.tutorChatSession.recordExecutionFinished(true, this.isActiveTab);
+        return;
       } else {
         this.setEditorErrors([]);
       }
@@ -1024,6 +1031,25 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     this.tutorHudLayout.nudgeHudAwayFromLine(rect.top + pos.top, lineHeight);
   }
 
+  private markerRangeForError(error: PortugolCodeError, model: monaco.editor.ITextModel) {
+    const lineCount = model.getLineCount();
+    const startLineNumber = Math.min(Math.max(error.startLine, 1), lineCount);
+    const startColumn = Math.min(Math.max(error.startCol + 1, 1), model.getLineMaxColumn(startLineNumber));
+    let endLineNumber = Math.min(Math.max(error.endLine, startLineNumber), lineCount);
+    let endColumn = Math.min(Math.max(error.endCol + 2, startColumn + 1), model.getLineMaxColumn(endLineNumber));
+    const spansWholeModel = lineCount > 1 && startLineNumber === 1 && endLineNumber >= lineCount;
+    const spansTooManyLines = endLineNumber - startLineNumber > 20;
+    const isUndeclaredIdentifier =
+      /(?:vari[aá]vel|identificador)\s+n[aã]o\s+declarad[ao]|identificador usado antes/i.test(error.message);
+
+    if (isUndeclaredIdentifier || spansWholeModel || spansTooManyLines) {
+      endLineNumber = startLineNumber;
+      endColumn = Math.min(startColumn + 1, model.getLineMaxColumn(startLineNumber));
+    }
+
+    return { startLineNumber, startColumn, endLineNumber, endColumn };
+  }
+
   setEditorErrors(errors: PortugolCodeError[]) {
     this.lastCompilerErrors = errors;
     const model = this.codeEditor?.getModel();
@@ -1043,8 +1069,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
           ? errors[0].startLine
           : null;
 
-    const glyphLines =
-      primaryLine != null ? [primaryLine] : [...nextLineSet];
+    const glyphLines = primaryLine === null ? [...nextLineSet] : [primaryLine];
     this.editorActions.setCompilerIssueLines(glyphLines);
 
     if (model) {
@@ -1052,15 +1077,10 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
         model,
         "owner",
         errors.map((error, index) => {
-          const isPrimary =
-            primaryLine != null
-              ? error.startLine === primaryLine
-              : index === 0;
+          const isPrimary = primaryLine === null ? index === 0 : error.startLine === primaryLine;
+          const range = this.markerRangeForError(error, model);
           return {
-            startLineNumber: error.startLine,
-            startColumn: error.startCol + 1,
-            endLineNumber: error.endLine,
-            endColumn: error.endCol + 2,
+            ...range,
             message: error.message,
             severity: isPrimary ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Hint,
           };

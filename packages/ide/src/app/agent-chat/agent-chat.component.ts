@@ -32,6 +32,7 @@ import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
 import { TutorChatSessionService } from "../tutor-chat-session.service";
 import { TutorEditorContextService } from "../tutor-editor-context.service";
 import {
+  TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE,
   TUTOR_SUCCESS_REFLECTION_MESSAGE,
   TUTOR_WELCOME_MESSAGE,
 } from "../tutor-messages";
@@ -90,10 +91,10 @@ export class AgentChatComponent implements AfterViewInit {
   immersiveHistoryExpanded = false;
 
   private readonly hudPlaceholders = [
-    "Entrada: Minha hipótese é…",
-    "Entrada: Eu acho que o erro está ocorrendo porque…",
-    "Entrada: Se eu mudar esta condição, então…",
-    "Entrada: O que me parece estranho aqui é…",
+    "Minha hipótese é...",
+    "Quero entender melhor...",
+    "Se eu pensar passo a passo, eu vejo...",
+    "O que me parece estranho aqui é...",
   ];
 
   private immersivePlaceholderIndex = 0;
@@ -248,20 +249,18 @@ export class AgentChatComponent implements AfterViewInit {
 
   get immersiveHudPlaceholder(): string {
     const lines = this.compilerErrorLinesResolver?.() ?? [];
-    const firstLine = lines.length ? lines[0] : null;
+    const firstLine = lines.length > 0 ? lines[0] : null;
     const errs = this.compilerErrorsSnapshot?.() ?? [];
     const ident = AgentChatComponent.extractIdentifierHint(errs[0]);
     const contextual =
-      firstLine != null
-        ? [
-          `Eu percebi que na linha ${firstLine}…`,
-          ident
-            ? `Talvez se eu mudar ${ident} para…`
-            : "Talvez se eu mudar a variável para…",
-          `Entrada: na linha ${firstLine}, minha hipótese é…`,
-          `Entrada: Se eu ajustar a linha ${firstLine}, então…`,
-        ]
-        : this.hudPlaceholders;
+      firstLine == null
+        ? this.hudPlaceholders
+        : [
+          `Na linha ${firstLine}, minha hipótese é...`,
+          `Ao observar a linha ${firstLine}, eu percebo...`,
+          ident ? `Quero revisar como ${ident} está sendo usado...` : "Quero revisar o trecho destacado...",
+          `Se eu ajustar minha leitura da linha ${firstLine}, então...`,
+        ];
     const idx = this.immersivePlaceholderIndex % contextual.length;
     return contextual[idx] ?? this.hudPlaceholders[0];
   }
@@ -275,11 +274,11 @@ export class AgentChatComponent implements AfterViewInit {
     if (!errorMsg?.trim()) {
       return null;
     }
-    const quoted = errorMsg.match(/[`'"]([a-zA-Z_][\w]*)[`'"]/);
+    const quoted = errorMsg.match(/["'`]([A-Z_a-z]\w*)["'`]/);
     if (quoted) {
       return quoted[1];
     }
-    const named = errorMsg.match(/\b(identificador|variável|variavel|nome)\s+[`'"]([\w]+)[`'"]/i);
+    const named = errorMsg.match(/\b(identificador|variável|variavel|nome)\s+["'`](\w+)["'`]/i);
     if (named) {
       return named[2];
     }
@@ -314,6 +313,13 @@ export class AgentChatComponent implements AfterViewInit {
     this.refreshLayerOpacityReduceMotion();
     this.tutorAutoTrigger.events$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(msg => {
       void this.sendWithText(msg);
+    });
+    this.chatSession.successfulRunAfterManyAttempts$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (!this.immersiveLayout) {
+        return;
+      }
+      this.pushLocalAssistantMessage(TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE);
+      this.tutorOverlay.beginSuccessCelebration();
     });
     effect(
       () => {

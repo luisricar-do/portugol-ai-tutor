@@ -1,19 +1,78 @@
 import { PortugolErrorChecker } from "@luisricar-do/parser";
 import { PortugolJs } from "@luisricar-do/runtime";
 
-function mapError(error) {
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function friendlyErrorMessage(error) {
+  const message = typeof error === "object" && error !== null ? error.message : String(error);
+
+  if (message === "Cannot read properties of undefined (reading 'clone')") {
+    return "Há um identificador usado antes de ser declarado. Verifique os nomes das variáveis na linha indicada.";
+  }
+
+  return message;
+}
+
+function extractUndeclaredIdentifier(message) {
+  const match = String(message).match(
+    /(?:vari[aá]vel|identificador|fun[cç][aã]o)\s+n[aã]o\s+declarad[ao]:?\s*([_a-z]\w*)?/i,
+  );
+  return match?.[1] ?? null;
+}
+
+function firstIdentifierLocation(code, identifier) {
+  if (!identifier) {
+    return null;
+  }
+  const escaped = identifier.replaceAll(/[$()*+.?[\\\]^{|}]/g, "\\$&");
+  const pattern = new RegExp(`\\b${escaped}\\b`);
+  const lines = String(code).split(/\r\n|\r|\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const column = lines[index].search(pattern);
+    if (column >= 0) {
+      return { line: index + 1, column };
+    }
+  }
+  return null;
+}
+
+function mapError(error, code = "") {
   if (typeof error !== "object" || error === null) {
     return {
-      message: String(error),
+      message: friendlyErrorMessage(error),
+      startLine: 1,
+      startCol: 0,
+      endLine: 1,
+      endCol: 1,
     };
   }
 
+  const rawMessage = typeof error.message === "string" ? error.message : String(error.message ?? error);
+  const message = friendlyErrorMessage(error);
+  const lineCount = Math.max(1, String(code).split(/\r\n|\r|\n/).length);
+  const identifier = extractUndeclaredIdentifier(rawMessage) ?? extractUndeclaredIdentifier(message);
+  const identifierLocation = firstIdentifierLocation(code, identifier);
+  let startLine =
+    identifierLocation?.line ?? (isFiniteNumber(error.startLine) && error.startLine >= 1 ? error.startLine : 1);
+  let startCol =
+    identifierLocation?.column ?? (isFiniteNumber(error.startCol) && error.startCol >= 0 ? error.startCol : 0);
+  let endLine = isFiniteNumber(error.endLine) && error.endLine >= startLine ? error.endLine : startLine;
+  let endCol = isFiniteNumber(error.endCol) && error.endCol > startCol ? error.endCol : startCol + 1;
+
+  const spansTooMuch = endLine > lineCount || (startLine === 1 && endLine >= lineCount && lineCount > 1);
+  if (identifier || spansTooMuch) {
+    endLine = startLine;
+    endCol = startCol + Math.max(identifier?.length ?? 1, 1);
+  }
+
   return {
-    message: error.message,
-    startLine: error.startLine,
-    startCol: error.startCol,
-    endLine: error.endLine,
-    endCol: error.endCol,
+    message,
+    startLine,
+    startCol,
+    endLine,
+    endCol,
   };
 }
 
@@ -35,8 +94,8 @@ function checkCode(code) {
   }
 
   return {
-    errors: errors.map(error => mapError(error)),
-    parseErrors: parseErrors.map(error => mapError(error)),
+    errors: errors.map(error => mapError(error, code)),
+    parseErrors: parseErrors.map(error => mapError(error, code)),
   };
 }
 
@@ -75,8 +134,8 @@ function transpileCode(code) {
 
   return {
     js,
-    errors: errors.map(error => mapError(error)),
-    parseErrors: parseErrors.map(error => mapError(error)),
+    errors: errors.map(error => mapError(error, code)),
+    parseErrors: parseErrors.map(error => mapError(error, code)),
     times: {
       check: checkTime,
       transpile: transpileTime,

@@ -6,5 +6,7 @@ export const TUTOR_WELCOME_MESSAGE =
 export const TUTOR_COMPILE_RUN_PROMPT =
   "Você tentou executar e apareceu um erro. O que você observou no código antes de executar?";
 
-export const TUTOR_SUCCESS_REFLECTION_MESSAGE =
-  "O programa rodou! O que você aprendeu com esse processo de depuração?";
+export const TUTOR_SUCCESS_REFLECTION_MESSAGE = "O programa rodou! O que você aprendeu com esse processo de depuração?";
+
+export const TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE =
+  "Boa, agora ele executou sem erros. Que caso de teste você quer usar para conferir se a lógica ficou como você esperava?";
