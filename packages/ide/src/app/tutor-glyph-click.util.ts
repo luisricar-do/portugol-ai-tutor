@@ -19,7 +19,7 @@ export function lineHasClickableTutorGlyph(
 export function buildGlyphClickMessage(line: number, compilerMarkerMessage?: string): string {
   const trimmed = compilerMarkerMessage?.trim();
   if (trimmed) {
-    return `Estou com dificuldade na linha ${line}: ${trimmed}. Pode me orientar com uma pergunta socrática?`;
+    return `Estou com dificuldade na linha ${line}: ${trimmed}. Pode me ajudar a entender?`;
   }
-  return `Tenho dúvida sobre o fluxo de dados na linha ${line}. Pode me orientar com uma pergunta socrática?`;
+  return `Tenho dúvida sobre o fluxo de dados na linha ${line}. Pode me ajudar a entender?`;
 }
