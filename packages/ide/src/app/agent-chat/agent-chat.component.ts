@@ -28,6 +28,8 @@ import { MarkdownComponent } from "ngx-markdown";
 
 import { environment } from "../../environments/environment";
 import { EditorActionsService } from "../editor-actions.service";
+import { HelpNavigationService } from "../help-navigation.service";
+import { DOC_LINK_SCHEME, docSlugFromHref, resolveDocTopic } from "../tutor-doc-topics";
 import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
 import { TutorChatSessionService } from "../tutor-chat-session.service";
 import { TutorEditorContextService } from "../tutor-editor-context.service";
@@ -45,6 +47,7 @@ import { TutorSettingsService } from "../tutor-settings.service";
   standalone: true,
   templateUrl: "./agent-chat.component.html",
   styleUrl: "./agent-chat.component.scss",
+  host: { "(click)": "onDocLinkClick($event)" },
 })
 export class AgentChatComponent implements AfterViewInit {
   /** Valor espelhado do editor (pode atrasar face ao Monaco). */
@@ -119,6 +122,11 @@ export class AgentChatComponent implements AfterViewInit {
   private readonly cdr = inject(ChangeDetectorRef);
 
   private readonly editorActionsService = inject(EditorActionsService);
+
+  private readonly helpNavigation = inject(HelpNavigationService);
+
+  /** Tópicos de documentação sugeridos pela ADA no turno atual (viram link no fim da resposta). */
+  private readonly pendingDocTopics = new Set<string>();
 
   private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
 
@@ -737,6 +745,7 @@ export class AgentChatComponent implements AfterViewInit {
       this.history.push({ role: "user", content: trimmed });
       this.syncChatSession();
       this.error = null;
+      this.pendingDocTopics.clear();
       this.preparingResponse = true;
       this.streamingAssistant = true;
       this.streamingText = "";
@@ -775,6 +784,15 @@ export class AgentChatComponent implements AfterViewInit {
           // Ações do editor são enfileiradas no EditorActionsService (rAF + NgZone) para não bloquear
           // o thread principal durante o SSE — evita competir com o worker de transpilação.
           onAction: action => {
+            // `suggest_documentation` não é uma ação de editor: vira um link de referência anexado
+            // ao fim da resposta da ADA (ver `appendDocReferences`), sem toast nem mexer no Monaco.
+            if (action.type === "suggest_documentation") {
+              const topic = resolveDocTopic(action.payload?.["topic"]);
+              if (topic) {
+                this.pendingDocTopics.add(topic.slug);
+              }
+              return;
+            }
             this.editorActionsService.dispatch(action);
           },
           onDone: (payload?: TutorStreamDonePayload) => {
@@ -784,7 +802,7 @@ export class AgentChatComponent implements AfterViewInit {
                 this.streamingText += this.streamingTokenBuffer;
                 this.streamingTokenBuffer = "";
               }
-              const reply = this.streamingText;
+              const reply = this.appendDocReferences(this.streamingText);
               this.preparingResponse = false;
               this.streamingAssistant = false;
               this.streamingText = "";
@@ -823,6 +841,46 @@ export class AgentChatComponent implements AfterViewInit {
           this.cdr.markForCheck();
         });
       });
+  }
+
+  /**
+   * Anexa à resposta da ADA um bloco de referências clicáveis para os tópicos de documentação
+   * sugeridos neste turno (tool `suggest_documentation`). Os links usam o esquema interno
+   * `#doc:<slug>` e são interceptados por `onBubbleClick` para abrir o painel de Ajuda.
+   */
+  private appendDocReferences(reply: string): string {
+    if (this.pendingDocTopics.size === 0) {
+      return reply;
+    }
+    const links: string[] = [];
+    for (const slug of this.pendingDocTopics) {
+      const topic = resolveDocTopic(slug);
+      if (topic) {
+        links.push(`- [${topic.title}](${DOC_LINK_SCHEME}${topic.slug})`);
+      }
+    }
+    this.pendingDocTopics.clear();
+    if (links.length === 0) {
+      return reply;
+    }
+    const base = reply.trimEnd();
+    const block = `📖 Para revisar na documentação:\n${links.join("\n")}`;
+    return base.length > 0 ? `${base}\n\n${block}` : block;
+  }
+
+  /**
+   * Intercepta cliques nos links de documentação (`#doc-<slug>`) que a ADA insere nas respostas
+   * (renderizados como âncoras pelo markdown) e abre o painel de Ajuda no tópico, em vez de navegar
+   * pelo hash da URL. Cliques fora desses links são ignorados.
+   */
+  onDocLinkClick(event: MouseEvent): void {
+    const anchor = (event.target as HTMLElement | null)?.closest("a");
+    const slug = docSlugFromHref(anchor?.getAttribute("href"));
+    if (!slug) {
+      return;
+    }
+    event.preventDefault();
+    this.helpNavigation.openTopicBySlug(slug);
   }
 
   clearConversation(): void {

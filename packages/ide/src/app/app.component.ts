@@ -8,6 +8,7 @@ import { Subscription } from "rxjs";
 import { DialogConfirmCloseTabComponent } from "./dialog-confirm-close-tab/dialog-confirm-close-tab.component";
 import { DialogRenameTabComponent } from "./dialog-rename-tab/dialog-rename-tab.component";
 import { DialogSettingsComponent } from "./dialog-settings/dialog-settings.component";
+import { HelpNavigationService } from "./help-navigation.service";
 import { ShareService } from "./share.service";
 import { TutorEditorContextService } from "./tutor-editor-context.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
@@ -33,6 +34,8 @@ export class AppComponent implements OnInit, OnDestroy {
   private shareService = inject(ShareService);
   readonly tutorOverlay = inject(TutorOverlayService);
   private readonly tutorEditorContext = inject(TutorEditorContextService);
+  private readonly helpNavigation = inject(HelpNavigationService);
+  private helpNavigationSubscription?: Subscription;
 
   renameDialogRef?: MatDialogRef<DialogRenameTabComponent>;
   renameDialogSubscription?: Subscription;
@@ -80,6 +83,12 @@ export class AppComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit() {
+    // A ADA sugeriu um tópico de documentação no chat: abre/seleciona a aba de Ajuda.
+    // O TabHelpComponent navega até o href (pendente) assim que montar.
+    this.helpNavigationSubscription = this.helpNavigation.openTopic$.subscribe(() => {
+      this.upsertHelpTab();
+    });
+
     void (async () => {
       if (window.location.hash.startsWith("#share=")) {
         this.snack.open("Carregando código compartilhado…", undefined, { duration: -1 });
@@ -103,6 +112,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.renameDialogSubscription?.unsubscribe();
     this.closeDialogSubscription?.unsubscribe();
+    this.helpNavigationSubscription?.unsubscribe();
   }
 
   addTab(title?: string, contents?: string) {
