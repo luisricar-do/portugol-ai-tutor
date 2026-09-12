@@ -49,7 +49,7 @@ O Portugol Webstudio é um projeto que utiliza o framework [Angular](https://ang
 - `@luisricar-do/ide`: Pacote que contém a interface do usuário
 - `@luisricar-do/parser`: Pacote que contém o novo parser do Portugol, que recebe uma árvore pré-processada pelo ANTLR e a transforma em uma árvore semântica
 - `@luisricar-do/resources`: Pacote que contém os recursos do Portugol, como os exemplos e a seção de ajuda
-- `@luisricar-do/runner`: Pacote que executa o código gerado pelo transpilador em Web Workers, tratando entrada, saída, erros e eventos. Inclui também o executor **headless** em Node (`PortugolNodeRunner`, `runPortugolProgram` e a CLI `lib/headless/cli.js`), usado pela avaliação da dissertação.
+- `@luisricar-do/runner`: Pacote que executa o código gerado pelo transpilador em Web Workers, tratando entrada, saída, erros e eventos. Inclui também o executor **headless** em Node (`PortugolNodeRunner`, `runPortugolProgram` e a CLI `lib/headless/cli.js`), exposto em `@luisricar-do/runner/headless` e usado pela avaliação da dissertação.
 - `@luisricar-do/runtime`: Pacote que contém o transpilador de Portugol para JavaScript e o código de execução em _runtime_ necessário: variáveis, bibliotecas, etc.
 - `@luisricar-do/worker`: Pacote que contém o código que será executado em Web Workers, que é responsável por receber o código do Portugol, e executar a verificação de erros e transpilação do código em uma _thread_ separada.
 
@@ -93,14 +93,15 @@ regra objetiva do movimento do estudante (progresso, estagnação, regressão).
 
 ```bash
 npm run build:runner
-echo '{ "code": "programa {\n funcao inicio() {\n escreva(1)\n }\n}", "stdin": [], "timeoutMs": 5000 }' \
+printf '%s' '{ "code": "programa {\n funcao inicio() {\n escreva(1)\n }\n}", "stdin": [], "timeoutMs": 5000 }' \
   | node packages/runner/lib/headless/cli.js
 ```
 
 A saída é JSON com `errors`, `parseErrors`, `compilerErrorLines`, `stdout`, `timedOut`,
 `stdoutTruncated`, `runtimeError` e `executed`; a entrada pode ser um objeto ou uma lista de
 objetos (um por estado de código). O `timeoutMs` corta laços infinitos e a saída é limitada a
-64 000 caracteres. Em API: `runPortugolProgram()` de `@luisricar-do/runner`.
+64 000 caracteres. Em API: `runPortugolProgram()` de `@luisricar-do/runner/headless` — subcaminho
+próprio porque o executor headless usa `node:worker_threads`, que não existe no bundle do browser.
 
 ### Telemetria da avaliação (dissertação)
 

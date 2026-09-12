@@ -24,6 +24,18 @@
   },
   "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
   "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./headless": {
+      "types": "./lib/headless/index.d.ts",
+      "default": "./lib/headless/index.js"
+    },
+    "./headless/cli": "./lib/headless/cli.js",
+    "./package.json": "./package.json"
+  },
   "typings": "lib/index.d.ts",
   "directories": {
     "lib": "lib"

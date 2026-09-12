@@ -6,5 +6,5 @@
     "sourceMap": false,
     "inlineSourceMap": true
   },
-  "files": ["src/index.ts", "src/headless/cli.ts"]
+  "files": ["src/index.ts", "src/headless/index.ts", "src/headless/cli.ts"]
 }
