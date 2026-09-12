@@ -32,15 +32,18 @@ import { AppComponent } from "./app.component";
 import { DialogOpenExampleComponent } from "./dialog-open-example/dialog-open-example.component";
 import { MonacoService } from "./monaco.service";
 import { PwaService } from "./pwa.service";
+import { StudySessionBarComponent } from "./study-session-bar/study-session-bar.component";
 import { TabEditorComponent } from "./tab-editor/tab-editor.component";
 import { TabHelpComponent } from "./tab-help/tab-help.component";
 import { TabStartComponent } from "./tab-start/tab-start.component";
 import { ThemeService } from "./theme.service";
 import { TutorOverlayComponent } from "./tutor-overlay/tutor-overlay.component";
+import { TutorTelemetryService } from "./tutor-telemetry.service";
 
 @NgModule({
   imports: [
     AgentChatComponent,
+    StudySessionBarComponent,
     TutorOverlayComponent,
     BrowserModule,
     RouterModule.forRoot([]),
@@ -82,6 +85,9 @@ import { TutorOverlayComponent } from "./tutor-overlay/tutor-overlay.component";
       inject(MonacoService);
       inject(ThemeService);
       inject(PwaService);
+      // Constrói a telemetria no arranque: sem isto, `session_start` só sairia
+      // quando algum outro serviço a injetasse.
+      inject(TutorTelemetryService);
     }),
     MonacoService,
     PwaService,

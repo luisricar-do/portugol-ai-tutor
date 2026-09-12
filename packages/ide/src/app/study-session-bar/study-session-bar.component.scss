@@ -1,0 +1,74 @@
+.study-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
+  background: var(--study-bar-bg, rgb(255 193 7 / 12%));
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.study-bar__assign {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.study-bar__label {
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.study-bar__input,
+.study-bar__select {
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--divider-color, rgb(0 0 0 / 24%));
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.study-bar__input {
+  width: 6rem;
+}
+
+.study-bar__chip {
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(76 175 80 / 22%);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.study-bar__task {
+  font-weight: 600;
+}
+
+.study-bar__timer {
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 8%);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  // Largura estável para o cronómetro não empurrar os botões a cada segundo.
+  min-width: 3.5rem;
+  text-align: center;
+}
+
+.study-bar__timer--warning {
+  background: rgb(244 67 54 / 22%);
+}
+
+.study-bar__turns,
+.study-bar__outcome {
+  opacity: 0.8;
+}
+
+.study-bar__outcome--timeout {
+  color: rgb(198 40 40);
+  font-weight: 600;
+}

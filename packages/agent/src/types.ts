@@ -31,6 +31,15 @@ export interface TutorHelpRequest {
    * para correlação espacial no SMA sem expor o texto bruto ao aluno na UI.
    */
   compilerErrorLines?: number[];
+  /**
+   * Identificador de sessão gerado pela IDE (`[A-Za-z0-9_-]`, até 64 caracteres). É a chave do
+   * registro estruturado por turno no serviço; o nome do aluno nunca entra nesse registro.
+   */
+  sessionId?: string;
+  /** Estado do código no turno anterior do tutor (classificação do movimento do estudante). */
+  previousCode?: string;
+  /** Erros do compilador no turno anterior, par de `previousCode`. */
+  previousErrors?: string[];
 }
 
 export interface TutorDiagnosis {
@@ -58,6 +67,15 @@ export interface EditorAction {
 export interface TutorTutorMeta {
   suggestedConversationEnd?: boolean;
   endReason?: "bug_resolved" | "none" | string;
+  /** Rótulo do roteador: `DEBUG`, `THEORY`, `CASUAL` ou `OUT_OF_SCOPE`. */
+  intent?: string;
+  /**
+   * Movimento classificado no turno anterior do estudante (política de contingência):
+   * `PROGRESSO`, `ESTAGNACAO`, `REGRESSAO`, `PEDIDO_EXPLICITO` ou `NENHUM`.
+   */
+  studentMovement?: string;
+  /** Modelo que gerou o turno (reprodutibilidade). */
+  model?: string;
 }
 
 export interface TutorHelpResponse {

@@ -1,0 +1,70 @@
+@if (visible()) {
+  <div class="study-bar" role="region" aria-label="Condução da sessão de pesquisa">
+    @if (needsAssignment()) {
+      <form class="study-bar__assign" (ngSubmit)="assignParticipant()">
+        <label class="study-bar__label" for="study-pid">Participante</label>
+        <input
+          id="study-pid"
+          class="study-bar__input"
+          type="text"
+          placeholder="P07"
+          autocomplete="off"
+          name="participantId"
+          [ngModel]="draftParticipantId()"
+          (ngModelChange)="draftParticipantId.set($event)"
+        />
+
+        <label class="study-bar__label" for="study-cond">Etapa</label>
+        <input
+          id="study-cond"
+          class="study-bar__input"
+          type="text"
+          placeholder="turma-2026-1"
+          autocomplete="off"
+          name="condition"
+          [ngModel]="draftCondition()"
+          (ngModelChange)="draftCondition.set($event)"
+        />
+
+        <button mat-stroked-button type="submit" [disabled]="!draftParticipantId().trim()">Atribuir</button>
+      </form>
+    } @else {
+      <span class="study-bar__chip">{{ participantId() }} · {{ conditionLabel() }}</span>
+
+      @if (isRunning()) {
+        <span class="study-bar__task">{{ activeTask()?.label }}</span>
+
+        <span class="study-bar__timer" role="timer" aria-live="off" [class.study-bar__timer--warning]="isWarning()">
+          {{ remainingLabel() }}
+        </span>
+
+        @if (studentTurns() > 0) {
+          <span class="study-bar__turns">{{ studentTurns() }} turno(s)</span>
+        }
+
+        <button mat-flat-button color="primary" type="button" (click)="finishTask()">Concluí</button>
+        <button mat-stroked-button type="button" (click)="abortTask()">Interromper</button>
+      } @else {
+        <label class="study-bar__label" for="study-task">Tarefa</label>
+        <select
+          id="study-task"
+          class="study-bar__select"
+          [value]="selectedTaskIndex()"
+          (change)="onSelectedTaskChange($event)"
+        >
+          @for (task of tasks; track task.index) {
+            <option [value]="task.index">{{ task.label }}</option>
+          }
+        </select>
+
+        <button mat-flat-button color="primary" type="button" (click)="startTask()">Iniciar</button>
+
+        @if (lastOutcome(); as outcome) {
+          <span class="study-bar__outcome" aria-live="polite" [class.study-bar__outcome--timeout]="isTimeoutOutcome()">
+            {{ outcome.label }}
+          </span>
+        }
+      }
+    }
+  </div>
+}

@@ -17,6 +17,7 @@ import {
 } from "@angular/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
+import { summarizeErrorClasses } from "@luisricar-do/agent";
 import type { PortugolCodeError } from "@luisricar-do/antlr";
 import { PortugolExecutor, PortugolMessage, PortugolWebWorkersRunner } from "@luisricar-do/runner";
 import { saveAs } from "file-saver";
@@ -43,6 +44,7 @@ import { TutorInterceptorService } from "../tutor-interceptor.service";
 import { TutorOverlayService } from "../tutor-overlay.service";
 import { TutorProactivityService } from "../tutor-proactivity.service";
 import { TutorRealtimeValidatorService } from "../tutor-realtime-validator.service";
+import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { WorkerService } from "../worker.service";
 
 @Component({
@@ -79,6 +81,10 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
   private readonly tutorCompileTrigger = inject(TutorCompileTriggerService);
   private readonly tutorChatSession = inject(TutorChatSessionService);
+  private readonly telemetry = inject(TutorTelemetryService);
+
+  /** Início da execução corrente, para medir a duração no evento `run`. */
+  private runStartedAt: number | undefined;
 
   private glyphMouseDownDisposable?: monaco.IDisposable;
 
@@ -388,12 +394,14 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
               rendererModal.close();
             }
 
+            this.logRunEnd("finished");
             this.tutorChatSession.recordExecutionFinished(false, this.isActiveTab);
             break;
           }
 
           case "error": {
             this.gaService.event("execution_error", "Execução", "Erro em execução de código");
+            this.logRunEnd("runtime_error");
             this.tutorInterceptor.onExecutionFailed(this.isActiveTab);
             this.tutorChatSession.recordExecutionFinished(true, this.isActiveTab);
             break;
@@ -401,6 +409,8 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
 
           case "parseError": {
             this.setEditorErrors(event.errors);
+            this.logCheckResult([], event.errors, "compile_on_run");
+            this.logRunEnd("compile_error");
             this.tutorCompileTrigger.onRunWithCompileErrors(event.errors, this.isActiveTab);
             this.tutorChatSession.recordExecutionFinished(true, this.isActiveTab);
             break;
@@ -641,6 +651,8 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.gaService.event("editor_start_execution", "Editor", "Botão de Iniciar Execução");
+    this.telemetry.log({ type: "run", phase: "start" });
+    this.runStartedAt = Date.now();
 
     this.transpiling = true;
 
@@ -667,6 +679,8 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       const merged = result.errors.concat(result.parseErrors);
       if (merged.length > 0) {
         this.setEditorErrors(merged);
+        this.logCheckResult(result.errors, result.parseErrors, "compile_on_run");
+        this.logRunEnd("compile_error");
         this.tutorCompileTrigger.onRunWithCompileErrors(merged, this.isActiveTab);
         this.tutorChatSession.recordExecutionFinished(true, this.isActiveTab);
         return;
@@ -679,6 +693,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
 
   stopCode() {
     this.gaService.event("editor_stop_execution", "Editor", "Botão de Parar Execução");
+    // Interrupção manual é o sinal mais próximo de laço infinito que a IDE tem;
+    // a classificação final é feita na análise, com a duração da execução.
+    this.logRunEnd("stopped");
     this.executor.stop();
 
     if (this.transpiling) {
@@ -925,6 +942,9 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
           if (this.tutorOverlay.isOpen()) {
             this.tutorOverlay.dim();
           }
+          // Sinal de edição (δ da métrica de atrito): registado no evento em si,
+          // antes do debounce, para preservar a ordem face aos turnos de chat.
+          this.logCodeEdit();
         }),
         debounceTime(500),
         switchMap(async () => this.worker.checkCode(this.codeEditor?.getModel()?.getValue() ?? this.code ?? "")),
@@ -937,6 +957,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
           const msgs = merged.map(
             e => `Linha ${e.startLine}, coluna ${e.startCol + 1}: ${e.message}`,
           );
+          this.logCheckResult(result.errors, result.parseErrors);
           this.tutorRealtimeValidator.onErrorsUpdated(msgs);
           this.tutorProactivity.resetWatch(merged.length > 0);
           this.scheduleFlowSvgLayout();
@@ -945,6 +966,54 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
           console.error(err);
         },
       });
+  }
+
+  /**
+   * Registra a edição de código. O texto **não** é enviado — só o tamanho e um
+   * resumo, o que basta para o sinal de edição e mantém o dado minimizado.
+   */
+  private logCodeEdit(): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+    const code = this.codeEditor?.getModel()?.getValue() ?? this.code ?? "";
+    this.telemetry.log({
+      type: "code_edit",
+      codeLength: code.length,
+      codeLines: code.length === 0 ? 0 : code.split("\n").length,
+    });
+  }
+
+  /** Resultado da verificação estática, com a classe de falha do protocolo. */
+  private logCheckResult(
+    errors: readonly PortugolCodeError[],
+    parseErrors: readonly PortugolCodeError[],
+    trigger: "check" | "compile_on_run" = "check",
+  ): void {
+    if (!this.isActiveTab) {
+      return;
+    }
+    const summary = summarizeErrorClasses(
+      errors.map(error => error.message),
+      parseErrors.map(error => error.message),
+    );
+    this.telemetry.log({
+      type: "compile",
+      trigger,
+      errorCount: summary.errorCount,
+      errorClass: summary.errorClass,
+      errorClassCounts: summary.errorClassCounts,
+      errorLines: [...errors, ...parseErrors].map(error => error.startLine).slice(0, 20),
+    });
+  }
+
+  private logRunEnd(outcome: "finished" | "runtime_error" | "compile_error" | "stopped"): void {
+    if (!this.isActiveTab || this.runStartedAt === undefined) {
+      return;
+    }
+    const durationMs = Math.max(0, Date.now() - this.runStartedAt);
+    this.runStartedAt = undefined;
+    this.telemetry.log({ type: "run", phase: "end", outcome, durationMs });
   }
 
   private syncActiveEditorAndTutorContext(): void {

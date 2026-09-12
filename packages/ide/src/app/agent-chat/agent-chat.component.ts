@@ -40,6 +40,8 @@ import {
 } from "../tutor-messages";
 import { TutorOverlayService } from "../tutor-overlay.service";
 import { TutorSettingsService } from "../tutor-settings.service";
+import { TutorStudySessionService } from "../tutor-study-session.service";
+import { TutorTelemetryService } from "../tutor-telemetry.service";
 
 @Component({
   selector: "app-agent-chat",
@@ -131,6 +133,8 @@ export class AgentChatComponent implements AfterViewInit {
   private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
 
   private readonly tutorSettings = inject(TutorSettingsService);
+  private readonly studySession = inject(TutorStudySessionService);
+  private readonly telemetry = inject(TutorTelemetryService);
 
   private readonly tutorOverlay = inject(TutorOverlayService);
 
@@ -320,7 +324,7 @@ export class AgentChatComponent implements AfterViewInit {
   constructor() {
     this.refreshLayerOpacityReduceMotion();
     this.tutorAutoTrigger.events$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(msg => {
-      void this.sendWithText(msg);
+      void this.sendWithText(msg, "proactive");
     });
     this.chatSession.successfulRunAfterManyAttempts$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (!this.immersiveLayout) {
@@ -655,6 +659,14 @@ export class AgentChatComponent implements AfterViewInit {
     }
   }
 
+  /**
+   * Código e erros enviados no turno anterior desta conversa. O serviço usa-os para classificar
+   * o movimento do estudante (progresso, estagnação, regressão) pela regra do compilador em vez
+   * de depender só do texto. Indefinidos no primeiro turno e após reiniciar a conversa.
+   */
+  private previousRequestCode?: string;
+  private previousRequestErrors?: string[];
+
   private codeForRequest(): string {
     const raw = this.editorCodeSnapshot?.() ?? this.editorCode ?? "";
     const trimmed = raw.trim();
@@ -713,7 +725,7 @@ export class AgentChatComponent implements AfterViewInit {
     }
     this.draft = "";
     this.resetHudComposerHeight();
-    await this.sendWithText(text);
+    await this.sendWithText(text, "student");
   }
 
   private resetHudComposerHeight(): void {
@@ -726,11 +738,26 @@ export class AgentChatComponent implements AfterViewInit {
     });
   }
 
-  private async sendWithText(text: string): Promise<void> {
+  /**
+   * `origin` separa o pedido explícito do estudante do disparo proativo da IDE:
+   * só o primeiro conta como "pedido de orientação" na métrica de atrito.
+   */
+  private async sendWithText(text: string, origin: "student" | "proactive"): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed || !this.baseUrlConfigured || this.streamingAssistant) {
       return;
     }
+
+    if (origin === "student" && this.studySession.noteStudentHelpRequest()) {
+      this.telemetry.log({ type: "first_help_request" });
+    }
+    this.telemetry.log({
+      type: "chat_turn_user",
+      origin,
+      messageLength: trimmed.length,
+      hintLevel: this.tutorSettings.hintLevel(),
+    });
+    const turnStartedAt = Date.now();
 
     // Não passar `runInZone`: o cliente chamaria NgZone por cada token SSE e saturava o ciclo de detecção
     // de mudanças (sintoma: UI “travada” até abrir DevTools). O batching abaixo entra na zona no máx. ~60/s.
@@ -761,10 +788,17 @@ export class AgentChatComponent implements AfterViewInit {
 
     this.streamingTokenBuffer = "";
 
+    // O estado anterior vai no pedido; o atual passa a ser o anterior do próximo turno.
+    const requestCode = this.codeForRequest();
+    const previousCode = this.previousRequestCode;
+    const previousErrors = this.previousRequestErrors;
+    this.previousRequestCode = requestCode;
+    this.previousRequestErrors = errors;
+
     void client
       .helpStream(
         {
-          code: this.codeForRequest(),
+          code: requestCode,
           errors,
           history: this.history,
           activeTutorDecorations: this.editorActionsService.activeTutorDecorationCount,
@@ -775,6 +809,9 @@ export class AgentChatComponent implements AfterViewInit {
           astSummary: this.astSummaryResolver?.(),
           dataFlowContext: this.dataFlowContextResolver?.(),
           compilerErrorLines: this.compilerLinesPayload(),
+          sessionId: this.telemetry.sessionId,
+          previousCode,
+          previousErrors,
         },
         {
           onToken: delta => {
@@ -806,6 +843,13 @@ export class AgentChatComponent implements AfterViewInit {
               this.preparingResponse = false;
               this.streamingAssistant = false;
               this.streamingText = "";
+              this.telemetry.log({
+                type: "chat_turn_assistant",
+                origin,
+                latencyMs: Date.now() - turnStartedAt,
+                replyLength: reply.length,
+                suggestedConversationEnd: payload?.tutorMeta?.suggestedConversationEnd === true,
+              });
               if (reply.length > 0) {
                 this.history.push({ role: "assistant", content: reply });
               }
@@ -813,6 +857,8 @@ export class AgentChatComponent implements AfterViewInit {
               if (payload?.tutorMeta?.suggestedConversationEnd === true) {
                 this.lastArchivedThread = [...this.history];
                 this.history = [];
+                this.previousRequestCode = undefined;
+                this.previousRequestErrors = undefined;
                 this.syncChatSession();
               }
               if (this.shouldAutoScroll()) {
@@ -834,6 +880,12 @@ export class AgentChatComponent implements AfterViewInit {
             this.history.pop();
           }
           this.syncChatSession();
+          this.telemetry.log({
+            type: error instanceof TutorAgentError ? "sse_error" : "api_error",
+            origin,
+            status: error instanceof TutorAgentError ? error.status : undefined,
+            latencyMs: Date.now() - turnStartedAt,
+          });
           this.error = error instanceof TutorAgentError ? error.message : "Falha ao contactar o tutor.";
           if (this.shouldAutoScroll()) {
             this.scrollThreadToEnd();
@@ -888,6 +940,8 @@ export class AgentChatComponent implements AfterViewInit {
     this.streamingTokenBuffer = "";
     this.history = [];
     this.lastArchivedThread = null;
+    this.previousRequestCode = undefined;
+    this.previousRequestErrors = undefined;
     this.chatSession.reset();
     this.error = null;
     this.streamingAssistant = false;
