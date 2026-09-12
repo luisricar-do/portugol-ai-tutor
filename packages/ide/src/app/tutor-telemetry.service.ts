@@ -38,6 +38,7 @@ export type TutorTelemetryEventType =
   | "hint_level_changed"
   | "sse_error"
   | "api_error"
+  | "first_token_timeout"
   | "compile_trigger_fired"
   | "compile_trigger_skipped_active_chat";
 
@@ -55,6 +56,15 @@ export interface TutorTelemetryEvent {
   task?: number;
   /** Classe de falha do compilador (`syntax`, `type_mismatch`, …). */
   errorClass?: string;
+  /** Latência total do turno, do envio ao fim do fluxo (ou ao erro). */
+  latencyMs?: number;
+  /**
+   * Latência até o primeiro token do fluxo SSE. É o que a espera custa em atenção: depois dele
+   * o estudante vê a resposta a formar-se. Ausente quando nenhum token chegou.
+   */
+  firstTokenMs?: number;
+  /** Teto de espera em vigor, gravado com `first_token_timeout` para o registro ser auto-suficiente. */
+  timeoutMs?: number;
   [key: string]: unknown;
 }
 

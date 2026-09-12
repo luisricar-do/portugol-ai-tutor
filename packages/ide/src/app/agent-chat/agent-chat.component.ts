@@ -34,6 +34,8 @@ import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
 import { TutorChatSessionService } from "../tutor-chat-session.service";
 import { TutorEditorContextService } from "../tutor-editor-context.service";
 import {
+  TUTOR_FIRST_TOKEN_TIMEOUT_MESSAGE,
+  TUTOR_FIRST_TOKEN_TIMEOUT_MS,
   TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE,
   TUTOR_SUCCESS_REFLECTION_MESSAGE,
   TUTOR_WELCOME_MESSAGE,
@@ -759,6 +761,20 @@ export class AgentChatComponent implements AfterViewInit {
     });
     const turnStartedAt = Date.now();
 
+    // Espera limitada até o primeiro token: passado o teto sem nada chegar, aborta o pedido e
+    // entra a mensagem de indisponibilidade, em vez de deixar o estudante à espera indefinida.
+    // Depois do primeiro token não há mais limite — o fluxo já mostra progresso.
+    const firstTokenAbort = new AbortController();
+    let firstTokenAt: number | null = null;
+    let firstTokenTimedOut = false;
+    const firstTokenTimer = setTimeout(() => {
+      firstTokenTimedOut = true;
+      firstTokenAbort.abort();
+    }, TUTOR_FIRST_TOKEN_TIMEOUT_MS);
+    const settleFirstTokenTimer = (): void => {
+      clearTimeout(firstTokenTimer);
+    };
+
     // Não passar `runInZone`: o cliente chamaria NgZone por cada token SSE e saturava o ciclo de detecção
     // de mudanças (sintoma: UI “travada” até abrir DevTools). O batching abaixo entra na zona no máx. ~60/s.
     const client = createTutorAgentClient({
@@ -815,6 +831,10 @@ export class AgentChatComponent implements AfterViewInit {
         },
         {
           onToken: delta => {
+            if (firstTokenAt === null) {
+              firstTokenAt = Date.now();
+              settleFirstTokenTimer();
+            }
             this.streamingTokenBuffer += delta;
             this.scheduleStreamingTokenFlush();
           },
@@ -843,10 +863,12 @@ export class AgentChatComponent implements AfterViewInit {
               this.preparingResponse = false;
               this.streamingAssistant = false;
               this.streamingText = "";
+              settleFirstTokenTimer();
               this.telemetry.log({
                 type: "chat_turn_assistant",
                 origin,
                 latencyMs: Date.now() - turnStartedAt,
+                firstTokenMs: firstTokenAt === null ? undefined : firstTokenAt - turnStartedAt,
                 replyLength: reply.length,
                 suggestedConversationEnd: payload?.tutorMeta?.suggestedConversationEnd === true,
               });
@@ -868,8 +890,10 @@ export class AgentChatComponent implements AfterViewInit {
             });
           },
         },
+        { signal: firstTokenAbort.signal },
       )
       .catch((error: unknown) => {
+        settleFirstTokenTimer();
         this.ngZone.run(() => {
           this.cancelStreamingTokenFlush();
           this.streamingTokenBuffer = "";
@@ -881,12 +905,21 @@ export class AgentChatComponent implements AfterViewInit {
           }
           this.syncChatSession();
           this.telemetry.log({
-            type: error instanceof TutorAgentError ? "sse_error" : "api_error",
+            type: firstTokenTimedOut
+              ? "first_token_timeout"
+              : error instanceof TutorAgentError
+                ? "sse_error"
+                : "api_error",
             origin,
             status: error instanceof TutorAgentError ? error.status : undefined,
             latencyMs: Date.now() - turnStartedAt,
+            timeoutMs: firstTokenTimedOut ? TUTOR_FIRST_TOKEN_TIMEOUT_MS : undefined,
           });
-          this.error = error instanceof TutorAgentError ? error.message : "Falha ao contactar o tutor.";
+          if (firstTokenTimedOut) {
+            this.error = TUTOR_FIRST_TOKEN_TIMEOUT_MESSAGE;
+          } else {
+            this.error = error instanceof TutorAgentError ? error.message : "Falha ao contactar o tutor.";
+          }
           if (this.shouldAutoScroll()) {
             this.scrollThreadToEnd();
           }
