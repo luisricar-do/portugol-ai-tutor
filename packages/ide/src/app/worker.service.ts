@@ -7,8 +7,8 @@ export class WorkerService {
   private transpileWorker?: Worker;
   busy = false;
 
-  private static readonly CHECK_TIMEOUT_MS = 15000;
-  private static readonly TRANSPILE_TIMEOUT_MS = 120000;
+  private static readonly CHECK_TIMEOUT_MS = 15_000;
+  private static readonly TRANSPILE_TIMEOUT_MS = 120_000;
 
   /** Garante uma transpilação de cada vez (evita fila no worker + timeout falso). */
   private transpileTail: Promise<unknown> = Promise.resolve();
@@ -59,7 +59,7 @@ export class WorkerService {
         clearTimeout(timeout);
         worker.removeEventListener("message", listener);
         worker.removeEventListener("error", onError);
-        reject(event.error ?? new Error(event.message));
+        reject(event.error instanceof Error ? event.error : new Error(event.message));
       };
 
       worker.addEventListener("message", listener);
@@ -77,8 +77,8 @@ export class WorkerService {
     const run = this.doTranspile(code);
     const next = this.transpileTail.then(() => run);
     this.transpileTail = next.then(
-      () => undefined,
-      () => undefined,
+      () => {},
+      () => {},
     );
     return next;
   }
@@ -118,7 +118,7 @@ export class WorkerService {
         worker.removeEventListener("message", listener);
         worker.removeEventListener("error", onError);
         this.busy = false;
-        reject(event.error ?? new Error(event.message));
+        reject(event.error instanceof Error ? event.error : new Error(event.message));
       };
 
       worker.addEventListener("message", listener);

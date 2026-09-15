@@ -1,16 +1,36 @@
-<div #overlayRoot class="tutor-overlay" [class.tutor-overlay--custom-size]="hasCustomHudSize()" role="presentation"
-  [attr.aria-hidden]="shell.isOpen() ? null : 'true'" [attr.inert]="shell.isOpen() ? null : ''"
-  (mouseenter)="shell.undim()">
-  <div #panel class="tutor-overlay__panel-wrap" [class.tutor-overlay__panel-wrap--dragging]="dragging()"
+<div
+  #overlayRoot
+  class="tutor-overlay"
+  role="presentation"
+  [class.tutor-overlay--custom-size]="hasCustomHudSize()"
+  [attr.aria-hidden]="shell.isOpen() ? null : 'true'"
+  [attr.inert]="shell.isOpen() ? null : ''"
+  (mouseenter)="shell.undim()"
+>
+  <div
+    #panel
+    class="tutor-overlay__panel-wrap"
+    [class.tutor-overlay__panel-wrap--dragging]="dragging()"
     [class.tutor-overlay__panel-wrap--resizing]="resizing()"
     [class.tutor-overlay__panel-wrap--custom-size]="hasCustomHudSize()"
-    [class.tutor-overlay__panel-wrap--success]="shell.isSuccessCelebration()" [style.transform]="hudTransform()"
-    [ngStyle]="hudPanelSizeStyle()">
-    <div class="tutor-overlay__drag-bar" role="toolbar" aria-label="Painel da tutora ADA"
-      (pointermove)="onDragPointerMove($event)" (pointerup)="onDragPointerUp($event)"
-      (pointercancel)="onDragPointerUp($event)">
-      <button type="button" class="tutor-overlay__drag-grip" aria-label="Mover painel"
-        (pointerdown)="onDragPointerDown($event)">
+    [class.tutor-overlay__panel-wrap--success]="shell.isSuccessCelebration()"
+    [style.transform]="hudTransform()"
+    [ngStyle]="hudPanelSizeStyle()"
+  >
+    <div
+      class="tutor-overlay__drag-bar"
+      role="toolbar"
+      aria-label="Painel da tutora ADA"
+      (pointermove)="onDragPointerMove($event)"
+      (pointerup)="onDragPointerUp($event)"
+      (pointercancel)="onDragPointerUp($event)"
+    >
+      <button
+        type="button"
+        class="tutor-overlay__drag-grip"
+        aria-label="Mover painel"
+        (pointerdown)="onDragPointerDown($event)"
+      >
         <svg-icon src="assets/mdi/cursor-move.svg" aria-hidden="true" focusable="false" />
       </button>
       <div class="tutor-overlay__drag-identity" aria-hidden="true">
@@ -19,54 +39,96 @@
       </div>
       <span class="tutor-overlay__drag-spacer"></span>
       @if (activeContext()) {
-      <div class="tutor-overlay__drag-actions" (pointerdown)="$event.stopPropagation()">
-        @if (agentChat()?.showImmersiveHistoryToggle()) {
-        <button mat-button type="button" class="tutor-overlay__history-btn" matTooltip="Ver mensagens anteriores"
-          (click)="onExpandImmersiveHistory($event)">
-          Ver histórico
-        </button>
-        }
-        @if (agentChat()?.baseUrlConfigured && agentChat()?.hasHistory) {
-        <button mat-icon-button type="button" class="tutor-overlay__drag-icon"
-          [disabled]="agentChat()?.streamingAssistant" matTooltip="Apagar mensagens desta conversa"
-          aria-label="Limpar conversa" (click)="onHudClearConversation($event)">
-          <svg-icon src="assets/mdi/eraser.svg" aria-hidden="true" focusable="false" />
-        </button>
-        }
-        <button mat-icon-button type="button" class="tutor-overlay__drag-icon" matTooltip="Fechar tutor (Esc)"
-          aria-label="Fechar tutor" (click)="onHudClose($event)">
-          <svg-icon src="assets/mdi/close.svg" aria-hidden="true" focusable="false" />
-        </button>
-      </div>
+        <div class="tutor-overlay__drag-actions" (pointerdown)="$event.stopPropagation()">
+          @if (agentChat()?.showImmersiveHistoryToggle()) {
+            <button
+              mat-button
+              type="button"
+              class="tutor-overlay__history-btn"
+              matTooltip="Ver mensagens anteriores"
+              (click)="onExpandImmersiveHistory($event)"
+            >
+              Ver histórico
+            </button>
+          }
+          @if (agentChat()?.baseUrlConfigured && agentChat()?.hasHistory) {
+            <button
+              mat-icon-button
+              type="button"
+              class="tutor-overlay__drag-icon"
+              matTooltip="Apagar mensagens desta conversa"
+              aria-label="Limpar conversa"
+              [disabled]="agentChat()?.streamingAssistant"
+              (click)="onHudClearConversation($event)"
+            >
+              <svg-icon src="assets/mdi/eraser.svg" aria-hidden="true" focusable="false" />
+            </button>
+          }
+          <button
+            mat-icon-button
+            type="button"
+            class="tutor-overlay__drag-icon"
+            matTooltip="Fechar tutor (Esc)"
+            aria-label="Fechar tutor"
+            (click)="onHudClose($event)"
+          >
+            <svg-icon src="assets/mdi/close.svg" aria-hidden="true" focusable="false" />
+          </button>
+        </div>
       }
-      <button mat-icon-button type="button" class="tutor-overlay__drag-reset"
+      <button
+        mat-icon-button
+        type="button"
+        class="tutor-overlay__drag-reset"
         matTooltip="Repor posição e tamanho do painel (não apaga a conversa)"
-        aria-label="Repor posição e tamanho do painel" (pointerdown)="$event.stopPropagation()"
-        (click)="resetHudPosition($event)">
+        aria-label="Repor posição e tamanho do painel"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="resetHudPosition($event)"
+      >
         <svg-icon src="assets/mdi/backup-restore.svg" aria-hidden="true" focusable="false" />
       </button>
     </div>
-    <div class="tutor-overlay__panel hud-socratico" role="complementary" aria-label="Tutora socrática ADA"
-      (click)="$event.stopPropagation()" (focusin)="shell.undim()">
+    <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events --
+         O clique apenas contém a propagação; o painel não é um controlo. -->
+    <div
+      class="tutor-overlay__panel hud-socratico"
+      role="complementary"
+      aria-label="Tutora socrática ADA"
+      (click)="$event.stopPropagation()"
+      (focusin)="shell.undim()"
+    >
       <div class="tutor-overlay__inner">
         @if (activeContext(); as ctx) {
-        <div class="tutor-overlay__body">
-          <app-agent-chat [immersiveLayout]="true" [editorCode]="ctx.getEditorCode()"
-            [editorCodeSnapshot]="ctx.getEditorCodeSnapshot" [compilerErrorsResolver]="ctx.getCompilerErrors"
-            [compilerErrorLinesResolver]="compilerLinesResolver" [cursorLineResolver]="cursorLineResolver"
-            [cursorColumnResolver]="cursorColumnResolver" [astSummaryResolver]="astSummaryResolver"
-            [dataFlowContextResolver]="dataFlowContextResolver" [tabKeyResolver]="tabKeyResolver" />
-        </div>
+          <div class="tutor-overlay__body">
+            <app-agent-chat
+              [immersiveLayout]="true"
+              [editorCode]="ctx.getEditorCode()"
+              [editorCodeSnapshot]="ctx.getEditorCodeSnapshot"
+              [compilerErrorsResolver]="ctx.getCompilerErrors"
+              [compilerErrorLinesResolver]="compilerLinesResolver"
+              [cursorLineResolver]="cursorLineResolver"
+              [cursorColumnResolver]="cursorColumnResolver"
+              [astSummaryResolver]="astSummaryResolver"
+              [dataFlowContextResolver]="dataFlowContextResolver"
+              [tabKeyResolver]="tabKeyResolver"
+            />
+          </div>
         } @else {
-        <div class="tutor-overlay__empty" role="status">
-          <p>Abra ou selecione uma <strong>aba de editor</strong> para conversar com a tutora.</p>
-          <button mat-stroked-button type="button" color="primary" (click)="close()">Fechar</button>
-        </div>
+          <div class="tutor-overlay__empty" role="status">
+            <p>Abra ou selecione uma <strong>aba de editor</strong> para conversar com a tutora.</p>
+            <button mat-stroked-button type="button" color="primary" (click)="close()">Fechar</button>
+          </div>
         }
       </div>
     </div>
-    <div class="tutor-overlay__resize-handle" role="separator" aria-label="Redimensionar painel" aria-orientation="both"
-      (pointerdown)="onResizePointerDown($event)" (pointermove)="onResizePointerMove($event)"
-      (pointerup)="onResizePointerUp($event)" (pointercancel)="onResizePointerUp($event)"></div>
+    <div
+      class="tutor-overlay__resize-handle"
+      role="separator"
+      aria-label="Redimensionar painel"
+      (pointerdown)="onResizePointerDown($event)"
+      (pointermove)="onResizePointerMove($event)"
+      (pointerup)="onResizePointerUp($event)"
+      (pointercancel)="onResizePointerUp($event)"
+    ></div>
   </div>
 </div>

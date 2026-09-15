@@ -231,10 +231,12 @@ export class AgentChatComponent implements AfterViewInit {
   /** Faixa de estado do HUD (PT), derivada do TutorOverlayService. */
   immersiveStateLabel(): string {
     switch (this.tutorOverlay.uiState()) {
-      case "observer":
+      case "observer": {
         return "A observar a sua edição";
-      default:
+      }
+      default: {
         return "";
+      }
     }
   }
 
@@ -270,11 +272,11 @@ export class AgentChatComponent implements AfterViewInit {
       firstLine == null
         ? this.hudPlaceholders
         : [
-          `Na linha ${firstLine}, minha hipótese é...`,
-          `Ao observar a linha ${firstLine}, eu percebo...`,
-          ident ? `Quero revisar como ${ident} está sendo usado...` : "Quero revisar o trecho destacado...",
-          `Se eu ajustar minha leitura da linha ${firstLine}, então...`,
-        ];
+            `Na linha ${firstLine}, minha hipótese é...`,
+            `Ao observar a linha ${firstLine}, eu percebo...`,
+            ident ? `Quero revisar como ${ident} está sendo usado...` : "Quero revisar o trecho destacado...",
+            `Se eu ajustar minha leitura da linha ${firstLine}, então...`,
+          ];
     const idx = this.immersivePlaceholderIndex % contextual.length;
     return contextual[idx] ?? this.hudPlaceholders[0];
   }
@@ -450,11 +452,8 @@ export class AgentChatComponent implements AfterViewInit {
     if (!el) {
       return;
     }
-    const distanceFromBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight;
-    this.threadPinnedToBottom.set(
-      distanceFromBottom < AgentChatComponent.THREAD_SCROLL_BOTTOM_THRESHOLD_PX,
-    );
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.threadPinnedToBottom.set(distanceFromBottom < AgentChatComponent.THREAD_SCROLL_BOTTOM_THRESHOLD_PX);
   }
 
   private shouldAutoScroll(): boolean {
@@ -534,14 +533,14 @@ export class AgentChatComponent implements AfterViewInit {
     if (!scrollEl) {
       return;
     }
-    const rows = scrollEl.querySelectorAll<HTMLElement>(".agent-chat__row");
+    const rows = [...scrollEl.querySelectorAll<HTMLElement>(".agent-chat__row")];
     const scrollRect = scrollEl.getBoundingClientRect();
     const visibleBottom = scrollRect.bottom;
     const fullBandPx = 280;
     const minOpacity = 0.35;
     const fadeRangePx = 420;
     const next: number[] = [];
-    rows.forEach(row => {
+    for (const row of rows) {
       const rowRect = row.getBoundingClientRect();
       const d = visibleBottom - rowRect.bottom;
       let opacity: number;
@@ -553,7 +552,7 @@ export class AgentChatComponent implements AfterViewInit {
         opacity = 1 - t * (1 - minOpacity);
       }
       next.push(opacity);
-    });
+    }
     this.rowOpacityValues = next;
     this.cdr.markForCheck();
   }
@@ -680,7 +679,8 @@ export class AgentChatComponent implements AfterViewInit {
     if (!raw?.length) {
       return undefined;
     }
-    const lines = [...new Set(raw.map(n => Math.trunc(Number(n))).filter(n => Number.isFinite(n) && n >= 1))];
+    const lines = [...new Set(raw.map(n => Math.trunc(n)).filter(n => Number.isFinite(n) && n >= 1))];
+    // eslint-disable-next-line unicorn/no-array-sort -- toSorted exige lib ES2023; `lines` já é cópia local.
     return lines.length > 0 ? lines.sort((a, b) => a - b) : undefined;
   }
 
@@ -909,7 +909,7 @@ export class AgentChatComponent implements AfterViewInit {
           this.preparingResponse = false;
           this.streamingAssistant = false;
           this.streamingText = "";
-          if (this.history.length > 0 && this.history[this.history.length - 1]?.role === "user") {
+          if (this.history.length > 0 && this.history.at(-1)?.role === "user") {
             this.history.pop();
           }
           this.syncChatSession();

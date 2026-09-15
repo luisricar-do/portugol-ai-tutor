@@ -17,6 +17,8 @@ export default defineConfig(
       "@angular-eslint/template/i18n": "off",
       "@angular-eslint/template/cyclomatic-complexity": "warn",
       "@angular-eslint/template/no-call-expression": "off",
+      // Opacidade por linha e transform do HUD são valores contínuos: classe não resolve.
+      "@angular-eslint/template/no-inline-styles": ["error", { allowNgStyle: true, allowBindToStyle: true }],
     },
   },
   {

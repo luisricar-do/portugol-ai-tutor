@@ -31,6 +31,7 @@ export class TutorCompileTriggerService {
 
     const hash = errors
       .map(e => `${e.startLine}:${e.startCol}:${e.message}`)
+      // eslint-disable-next-line unicorn/no-array-sort -- toSorted exige lib ES2023; o map já devolve cópia.
       .sort()
       .join("|");
     const now = Date.now();
@@ -47,9 +48,7 @@ export class TutorCompileTriggerService {
 
     const focusLine = errors[0]?.startLine;
     this.immersion.setFocusMode(true);
-    this.tutorOverlay.show(
-      typeof focusLine === "number" && focusLine >= 1 ? { focusLine } : undefined,
-    );
+    this.tutorOverlay.show(typeof focusLine === "number" && focusLine >= 1 ? { focusLine } : undefined);
     this.telemetry.log({ type: "compile_trigger_fired" });
     this.tutorAutoTrigger.emitUserMessage(TUTOR_COMPILE_RUN_PROMPT);
   }

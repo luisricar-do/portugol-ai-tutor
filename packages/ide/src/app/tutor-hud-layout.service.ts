@@ -15,7 +15,7 @@ const VIEWPORT_MARGIN_PX = 12;
  * Após arrastar o HUD manualmente, `nudgeHudAwayFromLine` não altera o offset durante este intervalo.
  * Limiar pedagógico (8s): evita “lutar” com o aluno que acabou de posicionar o painel.
  */
-export const TUTOR_HUD_DRAG_NUDGE_SUPPRESS_MS = 8_000;
+export const TUTOR_HUD_DRAG_NUDGE_SUPPRESS_MS = 8000;
 
 /** Retângulo do painel HUD em coordenadas do viewport (getBoundingClientRect). */
 export interface TutorHudPanelViewport {
@@ -45,7 +45,7 @@ export interface TutorHudPixelSize {
 export class TutorHudLayoutService {
   private readonly panelViewportSignal = signal<TutorHudPanelViewport | null>(null);
 
-  private readonly hudOffsetSignal = signal<TutorHudPixelOffset>({ dx: 0, dy: 0 });
+  private readonly hudOffsetSignal = signal({ dx: 0, dy: 0 });
 
   private readonly hudSizeSignal = signal<TutorHudPixelSize | null>(null);
 
@@ -72,10 +72,7 @@ export class TutorHudLayoutService {
     const margin = VIEWPORT_MARGIN_PX;
     return {
       width: Math.max(TUTOR_HUD_MIN_WIDTH_PX, Math.round(Math.min(vw * 0.92, vw - margin * 2))),
-      height: Math.max(
-        TUTOR_HUD_MIN_HEIGHT_PX,
-        Math.round(Math.min(vh * 0.9, vh - margin * 2 - 48)),
-      ),
+      height: Math.max(TUTOR_HUD_MIN_HEIGHT_PX, Math.round(Math.min(vh * 0.9, vh - margin * 2 - 48))),
     };
   }
 
@@ -120,12 +117,7 @@ export class TutorHudLayoutService {
         return;
       }
       const p = JSON.parse(raw) as Partial<TutorHudPixelOffset>;
-      if (
-        typeof p.dx !== "number" ||
-        typeof p.dy !== "number" ||
-        !Number.isFinite(p.dx) ||
-        !Number.isFinite(p.dy)
-      ) {
+      if (typeof p.dx !== "number" || typeof p.dy !== "number" || !Number.isFinite(p.dx) || !Number.isFinite(p.dy)) {
         this.clearStoredOffset();
         return;
       }

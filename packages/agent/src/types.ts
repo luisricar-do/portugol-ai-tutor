@@ -76,7 +76,8 @@ export interface EditorAction {
 /** Metadados de política de conversa (ex.: sugestão de encerramento após resolução). */
 export interface TutorTutorMeta {
   suggestedConversationEnd?: boolean;
-  endReason?: "bug_resolved" | "none" | string;
+  /** Rótulo do encerramento: `bug_resolved`, `none` ou outro emitido pelo tutor. */
+  endReason?: string;
   /** Rótulo do roteador: `DEBUG`, `THEORY`, `CASUAL` ou `OUT_OF_SCOPE`. */
   intent?: string;
   /**

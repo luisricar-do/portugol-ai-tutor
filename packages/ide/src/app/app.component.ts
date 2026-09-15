@@ -68,7 +68,7 @@ export class AppComponent implements OnInit, OnDestroy {
       command: () => {
         const lines = this.tutorEditorContext.getActive()?.getCompilerErrorLines?.() ?? [];
         const focus = lines.length > 0 ? Math.min(...lines) : undefined;
-        this.tutorOverlay.toggle(focus !== undefined ? { focusLine: focus } : undefined);
+        this.tutorOverlay.toggle(focus === undefined ? undefined : { focusLine: focus });
       },
     },
     {
@@ -77,7 +77,7 @@ export class AppComponent implements OnInit, OnDestroy {
       command: () => {
         const lines = this.tutorEditorContext.getActive()?.getCompilerErrorLines?.() ?? [];
         const focus = lines.length > 0 ? Math.min(...lines) : undefined;
-        this.tutorOverlay.toggle(focus !== undefined ? { focusLine: focus } : undefined);
+        this.tutorOverlay.toggle(focus === undefined ? undefined : { focusLine: focus });
       },
     },
   ];

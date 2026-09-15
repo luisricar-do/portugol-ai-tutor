@@ -94,4 +94,4 @@ import { TutorTelemetryService } from "./tutor-telemetry.service";
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule { }
+export class AppModule {}

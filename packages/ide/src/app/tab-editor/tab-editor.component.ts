@@ -171,7 +171,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       const pending = this.immersion.pendingBrokenVar();
       const conns = this.immersion.dataFlowConnections();
       if (!pending && conns.length === 0) {
-        return undefined;
+        return;
       }
       const parts: string[] = [];
       if (pending) {
@@ -214,6 +214,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     for (const m of markers) {
       lines.add(m.startLineNumber);
     }
+    // eslint-disable-next-line unicorn/no-array-sort -- toSorted exige lib ES2023; o spread já cria a cópia.
     return [...lines].sort((a, b) => a - b);
   }
 
@@ -229,8 +230,8 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       return undefined;
     }
     const markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: "owner" });
-    const onLine = markers.filter(m => m.startLineNumber === line);
-    return onLine[0]?.message;
+    const onLine = markers.find(m => m.startLineNumber === line);
+    return onLine?.message;
   }
 
   /** Clique no ? da margem: abre HUD, foca linha e envia pedido de ajuda ao tutor. */
@@ -275,10 +276,10 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   /** Expõe linha-alvo ao alternar o HUD com ⌘⇧A / Ctrl+Shift+A (prioriza erro do compilador). */
   private tutorToggleFromEditor(): void {
     const focus = this.firstCompilerMarkerLine();
-    if (focus !== undefined) {
-      this.tutorOverlay.toggle({ focusLine: focus });
-    } else {
+    if (focus === undefined) {
       this.tutorOverlay.toggle();
+    } else {
+      this.tutorOverlay.toggle({ focusLine: focus });
     }
   }
 
@@ -290,10 +291,10 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
     ev?.stopPropagation();
     ev?.preventDefault();
     const focus = this.firstCompilerMarkerLine();
-    if (focus !== undefined) {
-      this.tutorOverlay.show({ focusLine: focus });
-    } else {
+    if (focus === undefined) {
       this.tutorOverlay.show();
+    } else {
+      this.tutorOverlay.show({ focusLine: focus });
     }
   }
 
@@ -501,12 +502,12 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
           }
           const pending = this.tutorOverlay.takePendingFocusLine();
           const line = pending ?? this.firstCompilerMarkerLine();
-          if (line !== undefined) {
+          if (line === undefined) {
+            this.immersion.setHudLinkLine(null);
+          } else {
             this.scrollEditorLineForHud(line);
             this.nudgeHudAwayFromEditorLine(line);
             this.immersion.setHudLinkLine(line);
-          } else {
-            this.immersion.setHudLinkLine(null);
           }
           this.scheduleFlowSvgLayout();
         },
@@ -572,10 +573,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
       path.setAttribute("d", d);
       path.setAttribute("fill", "none");
-      path.setAttribute(
-        "stroke",
-        c.status === "ok" ? "rgb(34 197 94 / 0.85)" : "rgb(245 158 11 / 0.9)",
-      );
+      path.setAttribute("stroke", c.status === "ok" ? "rgb(34 197 94 / 0.85)" : "rgb(245 158 11 / 0.9)");
       path.setAttribute("stroke-width", "2");
       path.setAttribute("stroke-dasharray", c.status === "ok" ? "6 4" : "4 6");
       path.setAttribute("stroke-linecap", "round");
@@ -583,7 +581,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
         "class",
         c.status === "ok" ? "tutor-flow-path tutor-flow-path--ok" : "tutor-flow-path tutor-flow-path--broken",
       );
-      svg.appendChild(path);
+      svg.append(path);
     }
     const hudLine = this.immersion.hudLinkLine();
     const hudPanel = this.tutorHudLayout.panelViewport();
@@ -599,17 +597,14 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
         const endY = editorRect2.top - rect.top + pT.top + pT.height / 2;
         const pathHud = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const midY = (startY + endY) / 2;
-        pathHud.setAttribute(
-          "d",
-          `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`,
-        );
+        pathHud.setAttribute("d", `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`);
         pathHud.setAttribute("fill", "none");
         pathHud.setAttribute("stroke", "rgb(34 211 238 / 0.95)");
         pathHud.setAttribute("stroke-width", "2");
         pathHud.setAttribute("stroke-dasharray", "8 6");
         pathHud.setAttribute("stroke-linecap", "round");
         pathHud.setAttribute("class", "tutor-flow-path tutor-hud-cord");
-        svg.appendChild(pathHud);
+        svg.append(pathHud);
       }
     }
 
@@ -621,7 +616,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
       label.setAttribute("fill", "var(--pws-text-300, #94a3b8)");
       label.setAttribute("font-size", "10");
       label.textContent = "Fluxo de dados (tutor)";
-      svg.appendChild(label);
+      svg.append(label);
     }
   }
 
@@ -954,9 +949,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
           const merged = result.errors.concat(result.parseErrors);
           this.setEditorErrors(merged);
           this.lastAstSummary = `erros:${merged.length};parse_ok:${merged.length === 0}`;
-          const msgs = merged.map(
-            e => `Linha ${e.startLine}, coluna ${e.startCol + 1}: ${e.message}`,
-          );
+          const msgs = merged.map(e => `Linha ${e.startLine}, coluna ${e.startCol + 1}: ${e.message}`);
           this.logCheckResult(result.errors, result.parseErrors);
           this.tutorRealtimeValidator.onErrorsUpdated(msgs);
           this.tutorProactivity.resetWatch(merged.length > 0);

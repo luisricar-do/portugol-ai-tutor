@@ -3,8 +3,6 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
-  HostBinding,
-  HostListener,
   Injector,
   OnDestroy,
   PLATFORM_ID,
@@ -30,16 +28,15 @@ const VIEWPORT_MARGIN_PX = 12;
 
 @Component({
   selector: "app-tutor-overlay",
+  imports: [AgentChatComponent, MatButtonModule, MatTooltipModule, AngularSvgIconModule, NgStyle],
   standalone: true,
-  imports: [
-    AgentChatComponent,
-    MatButtonModule,
-    MatTooltipModule,
-    AngularSvgIconModule,
-    NgStyle,
-  ],
   templateUrl: "./tutor-overlay.component.html",
   styleUrl: "./tutor-overlay.component.scss",
+  host: {
+    "[attr.aria-hidden]": "ariaHiddenAttr",
+    "(window:resize)": "onWindowResize()",
+    "(document:keydown.escape)": "onEscape()",
+  },
 })
 export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   private readonly tutorContext = inject(TutorEditorContextService);
@@ -54,7 +51,6 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   private readonly hostRef = inject(ElementRef<HTMLElement>);
 
   /** Semântica: tutor ausente ao leitor de ecrã quando o HUD está fechado. */
-  @HostBinding("attr.aria-hidden")
   get ariaHiddenAttr(): true | null {
     return this.shell.isOpen() ? null : true;
   }
@@ -117,7 +113,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     }
     const el = this.hostRef.nativeElement;
     if (el.parentElement !== this.doc.body) {
-      this.doc.body.appendChild(el);
+      this.doc.body.append(el);
     }
   }
 
@@ -176,7 +172,9 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     };
     update();
     this.clampPanelToViewport();
-    this.panelResizeObserver = new ResizeObserver(() => update());
+    this.panelResizeObserver = new ResizeObserver(() => {
+      update();
+    });
     this.panelResizeObserver.observe(el);
   }
 
@@ -187,7 +185,6 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  @HostListener("window:resize")
   onWindowResize(): void {
     if (!this.shell.isOpen() || !isPlatformBrowser(this.platformId)) {
       return;
@@ -269,7 +266,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  onDragPointerUp(ev: PointerEvent): void {
+  onDragPointerUp(_ev: PointerEvent): void {
     if (this.dragCaptureBar !== null && this.dragCapturePointerId !== null) {
       try {
         this.dragCaptureBar.releasePointerCapture(this.dragCapturePointerId);
@@ -331,7 +328,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  onResizePointerUp(ev: PointerEvent): void {
+  onResizePointerUp(_ev: PointerEvent): void {
     if (this.resizeCaptureEl !== null && this.resizeCapturePointerId !== null) {
       try {
         this.resizeCaptureEl.releasePointerCapture(this.resizeCapturePointerId);
@@ -408,7 +405,6 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     this.shell.hide();
   }
 
-  @HostListener("document:keydown.escape")
   onEscape(): void {
     if (this.shell.isOpen()) {
       this.close();

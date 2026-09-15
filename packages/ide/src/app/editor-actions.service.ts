@@ -410,8 +410,7 @@ export class EditorActionsService {
           range: new monaco.Range(clamped, 1, clamped, 1),
           options: {
             glyphMarginClassName: glyphOk,
-            glyphMarginHoverMessage:
-              c.status === "broken" ? { value: TUTOR_GLYPH_HOVER_MESSAGE } : undefined,
+            glyphMarginHoverMessage: c.status === "broken" ? { value: TUTOR_GLYPH_HOVER_MESSAGE } : undefined,
             isWholeLine: false,
           },
         });

@@ -90,8 +90,7 @@ function dispatchSseBlock(
 
       case "done": {
         state.sawDone = true;
-        const payload =
-          data && typeof data === "object" ? (data as TutorStreamDonePayload) : undefined;
+        const payload = data && typeof data === "object" ? (data as TutorStreamDonePayload) : undefined;
         handlers.onDone?.(payload);
         break;
       }

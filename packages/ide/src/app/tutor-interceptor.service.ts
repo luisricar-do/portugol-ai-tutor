@@ -18,8 +18,6 @@ export class TutorInterceptorService {
     }
     this.immersion.setFocusMode(true);
     this.tutorOverlay.show();
-    this.tutorAutoTrigger.emitUserMessage(
-      "O programa falhou ao executar. Pode me ajudar a entender o que aconteceu?",
-    );
+    this.tutorAutoTrigger.emitUserMessage("O programa falhou ao executar. Pode me ajudar a entender o que aconteceu?");
   }
 }
