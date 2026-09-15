@@ -3,6 +3,16 @@ export type TutorHistoryRole = "user" | "assistant";
 export interface TutorHistoryItem {
   role: TutorHistoryRole;
   content: string;
+  /**
+   * Estado do código no momento deste turno. Só nos turnos `user`, e o serviço só o aproveita
+   * quando **todos** eles o trazem: com o histórico completo ele reclassifica cada transição e
+   * deriva a estagnação acumulada desde o último progresso, que é o gatilho do escalonamento da
+   * dica. Faltando em algum turno, o serviço degrada para o turno corrente e declara-o em
+   * `meta.stagnationSource`.
+   */
+  code?: string;
+  /** Erros do compilador neste turno, par de `code`. */
+  errors?: string[];
 }
 
 export interface TutorHelpRequest {

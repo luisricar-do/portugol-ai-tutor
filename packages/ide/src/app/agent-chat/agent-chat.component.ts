@@ -811,6 +811,15 @@ export class AgentChatComponent implements AfterViewInit {
     this.previousRequestCode = requestCode;
     this.previousRequestErrors = errors;
 
+    // O estado do código acompanha a fala do estudante. É dele que o serviço deriva a estagnação
+    // acumulada desde o último progresso — o contador que governa o escalonamento da dica e que
+    // zera quando o estudante avança. Só aqui ele existe: no momento do push o worker ainda não
+    // tinha devolvido os erros.
+    const ultimo = this.history.at(-1);
+    if (ultimo?.role === "user") {
+      this.history.splice(-1, 1, { ...ultimo, code: requestCode, errors });
+    }
+
     void client
       .helpStream(
         {
