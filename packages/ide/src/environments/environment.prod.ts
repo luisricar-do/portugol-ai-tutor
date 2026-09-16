@@ -5,6 +5,9 @@ export const environment = {
   commitSha: buildVersion.commitSha,
   buildDate: buildVersion.buildDate,
   enableTutorTelemetry: true,
+  enableAnalytics: true,
+  analyticsMeasurementId: "G-ZKM28VG4G5",
+  enableShare: true,
   /** Defina no build (substituição de arquivo) ou ajuste antes do deploy. */
   agentApiBaseUrl: "",
   firebase: {

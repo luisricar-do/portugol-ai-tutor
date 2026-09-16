@@ -119,6 +119,31 @@
               ],
               "outputHashing": "all"
             },
+            "study": {
+              "index": {
+                "input": "packages/ide/src/index.study.html",
+                "output": "index.html"
+              },
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "5MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "16kB"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "packages/ide/src/environments/environment.ts",
+                  "with": "packages/ide/src/environments/environment.study.ts"
+                }
+              ],
+              "outputHashing": "all"
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
@@ -132,6 +157,9 @@
           "configurations": {
             "production": {
               "buildTarget": "ide:build:production"
+            },
+            "study": {
+              "buildTarget": "ide:build:study"
             },
             "development": {
               "buildTarget": "ide:build:development"

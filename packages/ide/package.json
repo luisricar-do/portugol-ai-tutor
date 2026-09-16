@@ -28,7 +28,13 @@
     "prebuild": "node scripts/inject-version.mjs",
     "prerelease": "node scripts/inject-version.mjs",
     "start": "ng serve",
+    "prestart:study": "node scripts/inject-version.mjs",
+    "start:study": "ng serve --configuration study",
     "release": "ng build",
+    "prebuild:study": "node scripts/inject-version.mjs",
+    "build:study": "ng build --configuration study",
+    "postbuild:study": "node scripts/audit-study-build.mjs",
+    "audit:study": "node scripts/audit-study-build.mjs",
     "watch": "ng build --watch --configuration development",
     "lint": "ng lint"
   },

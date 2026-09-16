@@ -5,6 +5,8 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { ShortcutInput } from "ng-keyboard-shortcuts";
 import { GoogleAnalyticsService } from "ngx-google-analytics";
 import { Subscription } from "rxjs";
+
+import { environment } from "../environments/environment";
 import { DialogConfirmCloseTabComponent } from "./dialog-confirm-close-tab/dialog-confirm-close-tab.component";
 import { DialogRenameTabComponent } from "./dialog-rename-tab/dialog-rename-tab.component";
 import { DialogSettingsComponent } from "./dialog-settings/dialog-settings.component";
@@ -90,7 +92,9 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     void (async () => {
-      if (window.location.hash.startsWith("#share=")) {
+      // Na build de coleta o Compartilhar não existe, e um `#share=` colado no URL não
+      // deve chamar o Firebase nem mostrar erro.
+      if (environment.enableShare && window.location.hash.startsWith("#share=")) {
         this.snack.open("Carregando código compartilhado…", undefined, { duration: -1 });
 
         const hash = window.location.hash.slice(7);

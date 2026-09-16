@@ -33,6 +33,12 @@ mat-dialog-content {
   }
 }
 
+.upstream-link {
+  font-size: 0.875rem;
+  color: inherit;
+  text-decoration: underline;
+}
+
 .links {
   display: flex;
   flex-direction: row;

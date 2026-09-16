@@ -21,7 +21,7 @@ import { provideHotToastConfig } from "@ngxpert/hot-toast";
 import { AngularSplitModule } from "angular-split";
 import { AngularSvgIconModule } from "angular-svg-icon";
 import { KeyboardShortcutsModule } from "ng-keyboard-shortcuts";
-import { NgxGoogleAnalyticsModule } from "ngx-google-analytics";
+import { GoogleAnalyticsService, NgxGoogleAnalyticsModule } from "ngx-google-analytics";
 import { MarkdownModule } from "ngx-markdown";
 import { provideNgxWebstorage, withNgxWebstorageConfig } from "ngx-webstorage";
 
@@ -31,6 +31,7 @@ import { AgentChatComponent } from "./agent-chat/agent-chat.component";
 import { AppComponent } from "./app.component";
 import { DialogOpenExampleComponent } from "./dialog-open-example/dialog-open-example.component";
 import { MonacoService } from "./monaco.service";
+import { NoopGoogleAnalyticsService } from "./noop-google-analytics.service";
 import { PwaService } from "./pwa.service";
 import { StudySessionBarComponent } from "./study-session-bar/study-session-bar.component";
 import { TabEditorComponent } from "./tab-editor/tab-editor.component";
@@ -51,7 +52,12 @@ import { TutorTelemetryService } from "./tutor-telemetry.service";
     AngularSplitModule,
     MonacoEditorModule,
     KeyboardShortcutsModule.forRoot(),
-    NgxGoogleAnalyticsModule.forRoot("G-ZKM28VG4G5"),
+    // Ponto único do Google Analytics. `forRoot` é o que registra o APP_INITIALIZER que
+    // injeta o `gtag.js`: sem ele o pacote não faz pedido nenhum, e o módulo simples
+    // entra só para as diretivas `gaEvent` dos templates continuarem a compilar.
+    ...(environment.enableAnalytics
+      ? [NgxGoogleAnalyticsModule.forRoot(environment.analyticsMeasurementId)]
+      : [NgxGoogleAnalyticsModule]),
     MarkdownModule.forRoot(),
     AngularSvgIconModule.forRoot(),
     MatSnackBarModule,
@@ -74,6 +80,9 @@ import { TutorTelemetryService } from "./tutor-telemetry.service";
   declarations: [AppComponent, TabEditorComponent, TabStartComponent, TabHelpComponent, DialogOpenExampleComponent],
   providers: [
     provideZoneChangeDetection(),
+    // Com a flag desligada, quem injetar `GoogleAnalyticsService` recebe o no-op: as
+    // diretivas de template pedem-no por tipo e não veriam a flag de outra forma.
+    ...(environment.enableAnalytics ? [] : [{ provide: GoogleAnalyticsService, useClass: NoopGoogleAnalyticsService }]),
     provideFirebaseApp(() => initializeApp(environment.firebase)),
     provideStorage(() => getStorage()),
     provideHttpClient(withInterceptorsFromDi()),

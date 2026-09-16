@@ -25,6 +25,7 @@ import { encode } from "iconv-lite";
 import { ShortcutInput } from "ng-keyboard-shortcuts";
 import { GoogleAnalyticsService } from "ngx-google-analytics";
 import { Subscription, combineLatest, debounceTime, fromEventPattern, switchMap, tap } from "rxjs";
+import { environment } from "../../environments/environment";
 import { GraphicsRenderer, IGraphicsRendererComponent } from "../../renderer";
 import { IExtendedWindowApi } from "../../types";
 import { DialogRendererComponent } from "../dialog-renderer/dialog-renderer.component";
@@ -66,6 +67,8 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   private worker = inject(WorkerService);
   private fileService = inject(FileService);
   private shareService = inject(ShareService);
+  /** Controla o botão Compartilhar; desligado na build de coleta. */
+  readonly shareEnabled = environment.enableShare;
   private themeService = inject(ThemeService);
   private settingsService = inject(SettingsService);
   private dialog = inject(MatDialog);
@@ -1044,7 +1047,7 @@ export class TabEditorComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   async shareFile() {
-    if (!this.code) {
+    if (!this.shareEnabled || !this.code) {
       return;
     }
 

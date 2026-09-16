@@ -10,6 +10,20 @@ export const environment = {
   buildDate: buildVersion.buildDate,
   /** Registo estruturado de eventos do tutor (dissertação); desligar em demos públicas se necessário. */
   enableTutorTelemetry: true,
+  /**
+   * Carrega o Google Analytics (gtag) e liga as chamadas ao `GoogleAnalyticsService`.
+   * Falso substitui o serviço por um no-op e nunca injeta o script: nenhum pedido sai
+   * para `googletagmanager.com`. Ver `app.module.ts` e `environment.study.ts`.
+   */
+  enableAnalytics: true,
+  /** Propriedade do GA. Vazia nas builds que não medem, para o id não entrar no pacote. */
+  analyticsMeasurementId: "G-ZKM28VG4G5",
+  /**
+   * Botão Compartilhar código. Liga o `ShareService`, que envia o programa do estudante
+   * para o Firebase Storage (Google). Falso oculta o botão, ignora o `#share=` do URL e
+   * neutraliza o serviço: o Storage deixa de receber qualquer coisa.
+   */
+  enableShare: true,
   /** Base URL da API Azure Functions (inclua `/api`). Ex.: http://localhost:7071/api */
   agentApiBaseUrl: "http://localhost:7071/api",
   firebase: {

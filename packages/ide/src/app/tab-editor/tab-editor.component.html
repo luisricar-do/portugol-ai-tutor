@@ -147,21 +147,23 @@
     <input #fileInput type="file" hidden accept=".por,text/plain" (change)="openFile($event)" />
   </button>
 
-  <button
-    mat-ripple
-    type="button"
-    class="sidebar-button"
-    matTooltip="Compartilhar código"
-    [disabled]="sharing"
-    (click)="shareFile()"
-  >
-    <svg-icon
-      src="assets/mdi/share-variant-outline.svg"
-      svgClass="text-secondary"
-      aria-hidden="true"
-      focusable="false"
-    />
-  </button>
+  @if (shareEnabled) {
+    <button
+      mat-ripple
+      type="button"
+      class="sidebar-button"
+      matTooltip="Compartilhar código"
+      [disabled]="sharing"
+      (click)="shareFile()"
+    >
+      <svg-icon
+        src="assets/mdi/share-variant-outline.svg"
+        svgClass="text-secondary"
+        aria-hidden="true"
+        focusable="false"
+      />
+    </button>
+  }
 
   <div class="sidebar-divider"></div>
 
