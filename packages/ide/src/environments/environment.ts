@@ -29,6 +29,11 @@ export const environment = {
    */
   enableShare: true,
   /**
+   * Formulário de matrícula ao abrir a IDE (sessão de pesquisa por padrão). Desligado aqui e na
+   * build pública: a barra só aparece com `?pid=` ou `?study=1`. Ver `environment.study.ts`.
+   */
+  studyGate: false,
+  /**
    * Base URL da API Azure Functions (inclua `/api`). Ex.: http://localhost:7071/api
    */
   agentApiBaseUrl: "http://localhost:7071/api",

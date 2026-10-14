@@ -119,7 +119,8 @@ como NDJSON no Azure Blob Storage (ver README do **maieutica**).
   Sem `agentApiBaseUrl` configurado, nada é registado.
 - **Identificação:** o navegador gera um `installId` persistente (`localStorage`) e um
   `sessionId` por aba (`sessionStorage`). Nenhum dado pessoal é registado.
-- **Atribuição do participante:** abra a IDE com `?pid=P07&cond=turma-2026-1`. O `cond` é um
+- **Atribuição do participante:** na build de coleta, pelo formulário de matrícula (abaixo). Fora
+  dela, ou para o pesquisador forçar um código, abra a IDE com `?pid=P07&cond=turma-2026-1`. O `cond` é um
   rótulo livre da **etapa de coleta** (normalizado como _slug_), não um braço experimental — o
   desenho não tem grupos. Os valores persistem na sessão, sobrevivendo a recarregamentos da aba.
 - **Envio:** lotes de 50 eventos a cada 10 s, mais um envio em `pagehide` e ao ocultar
@@ -132,12 +133,35 @@ como NDJSON no Azure Blob Storage (ver README do **maieutica**).
   `dumpTutorTelemetry()`, `flushTutorTelemetry()` e `downloadTutorTelemetry()`
   (baixa um JSON com todas as sessões deste navegador).
 
+#### Formulário de matrícula e modo teste
+
+A esteira publica a **build de coleta** (`npm run build:study`), que abre a IDE com o formulário
+**Antes de começar**. A auditoria `postbuild:study` falha a esteira se o pacote voltar a ter
+Google Analytics, a configuração do Firebase ou script de terceiro.
+
+- **Começar:** o estudante digita a matrícula. O navegador calcula o pseudônimo
+  `m-` + 12 hex de SHA-256(`maieutica:uso-real:v1:` + matrícula sem pontuação, em maiúsculas), e
+  só ele vai para a telemetria. A matrícula não é gravada nem enviada; a barra mostra `…1234`
+  para o estudante conferir. A coleta só começa neste clique.
+- **Só estou testando:** nada é coletado (a fila de telemetria nem é criada) e a barra fica cinza,
+  com «Modo teste: nada é registrado». O `sessionId` passa a `teste-…`: os turnos que o serviço do
+  tutor grava caem em `interactions/teste-…/`, fora das trajetórias.
+- **Encerrar sessão** (ou **Sair do teste**): envia o que falta, apaga a identidade da aba e volta
+  ao formulário, para a próxima pessoa no mesmo computador.
+- **Revincular** pseudônimo e matrícula, do lado do pesquisador, com a lista da planilha:
+  `npm run build:agent && node packages/agent/scripts/pseudonimos.mjs matriculas.txt > vinculo.csv`.
+  O sal é público; o conjunto que se publica é repseudonimizado antes.
+
+Fora da build de coleta (`npm start`, build pública), a barra só aparece com `?pid=` ou
+`?study=1`, e a IDE fica inalterada.
+
 #### Barra de sessão e timebox
 
-Com `?pid=` (ou `?study=1`, que mostra o formulário de atribuição) aparece uma barra no
-topo da IDE para conduzir a sessão: seletor de tarefa, botão **Iniciar**, cronómetro do
-_timebox_ e botões **Concluí** / **Interromper**. Fora de uma sessão de pesquisa a barra
-não é renderizada e a IDE fica inalterada.
+A barra no topo tem o seletor de tarefa, o botão **Iniciar**, o cronómetro do _timebox_ e os
+botões **Concluí** / **Interromper**. Os seis cenários aparecem na **ordem sorteada para o
+participante** (`studyTaskOrder`, com semente no pseudônimo: a mesma ordem em cada recarga e
+refeita na análise). Ao fim de cada tarefa o seletor passa à seguinte, e a barra conta «N de 3
+feitas».
 
 Timeboxes conforme o apêndice de enunciados: **10 min** em T1–T2 e **15 min** em T3–T6 (não há
 pré-teste nem tarefa de transferência). Esgotado o tempo, a tarefa é encerrada automaticamente com
@@ -150,7 +174,9 @@ reavaliado quando a aba volta ao primeiro plano.
 
 | Evento                         | Quando                                                                          | Campos próprios                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `session_start` / `app_reload` | Arranque da aplicação (o segundo quando o `sessionId` já tinha eventos)         | —                                                                                       |
+| `session_start` / `app_reload` | Arranque da coleta (o segundo quando o `sessionId` já tinha eventos)            | —                                                                                       |
+| `study_assigned`               | **Começar** no formulário de matrícula                                          | `taskOrder`                                                                             |
+| `session_end`                  | **Encerrar sessão**                                                             | —                                                                                       |
 | `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`                                                                |
 | `task_end`                     | **Concluí**, **Interromper** ou fim do timebox                                  | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns`               |
 | `code_edit`                    | Alteração no editor (antes do debounce, para preservar a ordem face aos turnos) | `codeLength`, `codeLines`                                                               |

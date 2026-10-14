@@ -3,12 +3,13 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { createTelemetryQueue } from "@luisricar-do/agent";
 import type { TelemetryEnvelope, TelemetryQueue } from "@luisricar-do/agent";
 import { GoogleAnalyticsService } from "ngx-google-analytics";
+import type { Subscription } from "rxjs";
 
 import { environment } from "../environments/environment";
 import { TutorChatSessionService } from "./tutor-chat-session.service";
 import { TutorEditorContextService } from "./tutor-editor-context.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
-import { TutorStudySessionService } from "./tutor-study-session.service";
+import { STUDY_TEST_MODE_KEY, TutorStudySessionService } from "./tutor-study-session.service";
 
 /**
  * Pseudónimo do navegador: persiste entre sessões (não identifica a pessoa).
@@ -24,6 +25,12 @@ const SESSION_ID_KEY = "pws:tutor:sessionId";
 const PARTICIPANT_ID_KEY = "pws:tutor:participantId";
 const CONDITION_KEY = "pws:tutor:condition";
 
+/**
+ * Prefixo do `sessionId` no modo teste. O serviço do tutor grava os turnos sob esse id, e o
+ * prefixo põe-nos numa pasta própria (`interactions/teste-…/`), fora das trajetórias.
+ */
+export const TEST_SESSION_PREFIX = "teste";
+
 const FLUSH_INTERVAL_MS = 10_000;
 
 /**
@@ -33,6 +40,8 @@ const FLUSH_INTERVAL_MS = 10_000;
 export type TutorTelemetryEventType =
   | "session_start"
   | "app_reload"
+  | "study_assigned"
+  | "session_end"
   | "task_start"
   | "task_end"
   | "code_edit"
@@ -92,23 +101,29 @@ export class TutorTelemetryService {
   private readonly lifetime = inject(DestroyRef);
 
   private readonly envelope: TelemetryEnvelope;
-  private readonly queue: TelemetryQueue | undefined;
+  private queue: TelemetryQueue | undefined;
   private flushTimer: ReturnType<typeof setInterval> | undefined;
+  private stopFlushLoop: (() => void) | undefined;
+  private taskLifecycleSubscription: Subscription | undefined;
 
   constructor() {
-    this.envelope = this.buildEnvelope();
-    this.queue = this.createQueue();
+    const testMode = this.readStorage(sessionStorage, STUDY_TEST_MODE_KEY) === "1";
+    this.envelope = this.buildEnvelope(testMode);
 
     this.studySession.setParticipant(this.envelope.participantId, this.envelope.condition);
 
-    if (this.queue) {
-      // O `sessionId` sobrevive ao recarregamento da aba: sem esta distinção, a
-      // sessão apareceria no dataset com vários `session_start`.
-      this.log({ type: this.queue.lastSeq() > 0 ? "app_reload" : "session_start" });
-      this.observeTaskLifecycle();
-      this.startFlushLoop();
-      this.exposeDebugHooks();
+    // Com o formulário de matrícula, nada é registado antes de a pessoa se identificar: a fila
+    // nasce em `setParticipant`. No modo teste, nunca.
+    if (!testMode && (!environment.studyGate || this.envelope.participantId !== undefined)) {
+      this.startCollecting();
     }
+  }
+
+  /**
+   * `true` quando a fila existe, isto é, quando o que acontece nesta aba vai para o dataset.
+   */
+  get isCollecting(): boolean {
+    return this.queue !== undefined;
   }
 
   /**
@@ -208,6 +223,71 @@ export class TutorTelemetryService {
       this.envelope.condition = normalizedCondition;
       this.writeStorage(sessionStorage, CONDITION_KEY, normalizedCondition);
     }
+    if (normalizedId && !this.queue && !this.studySession.isTestMode()) {
+      this.startCollecting();
+    }
+  }
+
+  /**
+   * Registo da atribuição feita no formulário, com a ordem sorteada: a análise não precisa de
+   * a recalcular para saber o que o estudante viu.
+   */
+  logAssignment(taskOrder: readonly number[]): void {
+    this.log({ type: "study_assigned", taskOrder: [...taskOrder] });
+    void this.queue?.flush();
+  }
+
+  /**
+   * "Só estou testando": a aba deixa de coletar e o `sessionId` passa a `teste-…`, para os
+   * turnos que o serviço do tutor grava ficarem separados das trajetórias.
+   */
+  enterTestMode(): void {
+    this.stopCollecting();
+    this.envelope.sessionId = `${TEST_SESSION_PREFIX}-${this.randomId()}`;
+    this.writeStorage(sessionStorage, SESSION_ID_KEY, this.envelope.sessionId);
+    this.writeStorage(sessionStorage, STUDY_TEST_MODE_KEY, "1");
+  }
+
+  /**
+   * Fim da sessão deste participante: regista, envia o que falta e apaga a identidade da aba,
+   * para a próxima pessoa no mesmo computador começar do formulário. Quem chama recarrega.
+   */
+  async endSession(): Promise<void> {
+    this.log({ type: "session_end" });
+    await this.flush();
+    this.stopCollecting();
+    for (const key of [SESSION_ID_KEY, PARTICIPANT_ID_KEY, CONDITION_KEY]) {
+      this.removeStorage(sessionStorage, key);
+    }
+    this.studySession.clearSession();
+  }
+
+  private startCollecting(): void {
+    if (this.queue) {
+      return;
+    }
+    this.queue = this.createQueue();
+    if (!this.queue) {
+      return;
+    }
+    // O `sessionId` sobrevive ao recarregamento da aba: sem esta distinção, a
+    // sessão apareceria no dataset com vários `session_start`.
+    this.log({ type: this.queue.lastSeq() > 0 ? "app_reload" : "session_start" });
+    this.observeTaskLifecycle();
+    this.startFlushLoop();
+    this.exposeDebugHooks();
+  }
+
+  /**
+   * Larga a fila desta aba. O que o servidor confirmou fica lá; o que estiver pendente fica no
+   * `localStorage`, sob o `sessionId` antigo, e sai em `downloadTutorTelemetry()`.
+   */
+  private stopCollecting(): void {
+    this.stopFlushLoop?.();
+    this.stopFlushLoop = undefined;
+    this.taskLifecycleSubscription?.unsubscribe();
+    this.taskLifecycleSubscription = undefined;
+    this.queue = undefined;
   }
 
   private createQueue(): TelemetryQueue | undefined {
@@ -225,7 +305,7 @@ export class TutorTelemetryService {
     });
   }
 
-  private buildEnvelope(): TelemetryEnvelope {
+  private buildEnvelope(testMode: boolean): TelemetryEnvelope {
     const params = this.queryParams();
     const participantFromUrl = params.get("pid")?.trim();
     const conditionFromUrl = this.normalizeCondition(params.get("cond") ?? undefined);
@@ -239,7 +319,7 @@ export class TutorTelemetryService {
 
     return {
       installId: this.ensureId(localStorage, INSTALL_ID_KEY, "inst"),
-      sessionId: this.ensureId(sessionStorage, SESSION_ID_KEY, "sess"),
+      sessionId: this.ensureId(sessionStorage, SESSION_ID_KEY, testMode ? TEST_SESSION_PREFIX : "sess"),
       participantId: this.readStorage(sessionStorage, PARTICIPANT_ID_KEY),
       condition: this.readStorage(sessionStorage, CONDITION_KEY),
       buildSha: environment.commitSha,
@@ -251,30 +331,32 @@ export class TutorTelemetryService {
    * `timeout` automático do timebox também fica registado.
    */
   private observeTaskLifecycle(): void {
-    this.studySession.lifecycle$.pipe(takeUntilDestroyed(this.lifetime)).subscribe(event => {
-      if (event.kind === "started") {
+    this.taskLifecycleSubscription = this.studySession.lifecycle$
+      .pipe(takeUntilDestroyed(this.lifetime))
+      .subscribe(event => {
+        if (event.kind === "started") {
+          this.log({
+            type: "task_start",
+            task: event.task.index,
+            taskLabel: event.task.label,
+            timeboxMs: event.task.timeboxMs,
+          });
+          return;
+        }
+
         this.log({
-          type: "task_start",
+          type: "task_end",
           task: event.task.index,
           taskLabel: event.task.label,
           timeboxMs: event.task.timeboxMs,
+          taskElapsedMs: event.elapsedMs,
+          outcome: event.outcome,
+          studentTurns: event.studentTurns,
         });
-        return;
-      }
-
-      this.log({
-        type: "task_end",
-        task: event.task.index,
-        taskLabel: event.task.label,
-        timeboxMs: event.task.timeboxMs,
-        taskElapsedMs: event.elapsedMs,
-        outcome: event.outcome,
-        studentTurns: event.studentTurns,
+        // Fecha a tarefa também no servidor: evita perder o desfecho se a sessão
+        // terminar logo depois.
+        void this.queue?.flush();
       });
-      // Fecha a tarefa também no servidor: evita perder o desfecho se a sessão
-      // terminar logo depois.
-      void this.queue?.flush();
-    });
   }
 
   private startFlushLoop(): void {
@@ -295,13 +377,15 @@ export class TutorTelemetryService {
     window.addEventListener("pagehide", onPageHide);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    this.lifetime.onDestroy(() => {
+    this.stopFlushLoop = () => {
       if (this.flushTimer !== undefined) {
         clearInterval(this.flushTimer);
+        this.flushTimer = undefined;
       }
       window.removeEventListener("pagehide", onPageHide);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-    });
+    };
+    this.lifetime.onDestroy(() => this.stopFlushLoop?.());
   }
 
   private exposeDebugHooks(): void {
@@ -366,6 +450,14 @@ export class TutorTelemetryService {
       return store.getItem(key)?.trim() || undefined;
     } catch {
       return undefined;
+    }
+  }
+
+  private removeStorage(store: Storage, key: string): void {
+    try {
+      store.removeItem(key);
+    } catch {
+      // modo privado
     }
   }
 

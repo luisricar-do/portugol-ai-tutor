@@ -14,7 +14,10 @@ export type ShareResult = { ok: true; value: string } | { ok: false; reason: str
 
 @Service()
 export class ShareService {
-  storage = inject(Storage);
+  /**
+   * Ausente quando o Firebase não é provido (build de coleta).
+   */
+  storage = inject(Storage, { optional: true });
 
   /**
    * Falso na build de coleta: o Firebase Storage é serviço de terceiro, e o que subiria
@@ -23,7 +26,7 @@ export class ShareService {
   private readonly enabled = environment.enableShare;
 
   async share(code: string): Promise<ShareResult> {
-    if (!this.enabled) {
+    if (!this.enabled || !this.storage) {
       return { ok: false, reason: "desativado" };
     }
 
@@ -47,7 +50,7 @@ export class ShareService {
   }
 
   async load(shareId: string): Promise<ShareResult> {
-    if (!this.enabled) {
+    if (!this.enabled || !this.storage) {
       return { ok: false, reason: "desativado" };
     }
 

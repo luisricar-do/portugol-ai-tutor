@@ -192,6 +192,14 @@ export class WorkspaceStorageService {
     }
   }
 
+  clearSessionWorkspaceId() {
+    try {
+      this.session?.removeItem(SESSION_KEY);
+    } catch (error) {
+      console.warn("Failed to clear the session workspace id", error);
+    }
+  }
+
   deleteWorkspaces(workspaceIds: string[]) {
     for (const workspaceId of workspaceIds) {
       this.deleteWorkspace(workspaceId);

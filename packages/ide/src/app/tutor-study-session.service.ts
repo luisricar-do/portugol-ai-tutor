@@ -1,4 +1,5 @@
 import { DestroyRef, Service, computed, inject, signal } from "@angular/core";
+import { studyTaskOrder } from "@luisricar-do/agent";
 import { Subject } from "rxjs";
 
 /**
@@ -11,6 +12,18 @@ import { Subject } from "rxjs";
  */
 
 const STATE_KEY = "pws:tutor:study:state";
+/**
+ * `"1"` quando quem abriu a IDE escolheu "Só estou testando": nada é coletado nesta aba.
+ */
+export const STUDY_TEST_MODE_KEY = "pws:tutor:study:testMode";
+/**
+ * Matrícula mascarada (`…1234`), só para o estudante conferir na barra. Não sai do navegador.
+ */
+const LABEL_KEY = "pws:tutor:study:label";
+/**
+ * Cenários já encerrados nesta sessão, para a barra propor o seguinte da ordem sorteada.
+ */
+const COMPLETED_KEY = "pws:tutor:study:completed";
 const TICK_INTERVAL_MS = 1000;
 
 /**
@@ -88,6 +101,10 @@ export class TutorStudySessionService {
   private readonly taskIndexSignal = signal<number | undefined>(undefined);
   private readonly startedAtSignal = signal<number | undefined>(undefined);
 
+  private readonly testModeSignal = signal(this.readFlag(STUDY_TEST_MODE_KEY));
+  private readonly participantLabelSignal = signal<string | undefined>(this.readText(LABEL_KEY));
+  private readonly completedSignal = signal<readonly number[]>(this.readCompleted());
+
   private readonly studentTurnsSignal = signal(0);
   private readonly helpRequestedSignal = signal(false);
   private readonly nowSignal = signal(Date.now());
@@ -112,6 +129,42 @@ export class TutorStudySessionService {
    * Uma sessão de pesquisa só existe quando há participante atribuído.
    */
   readonly isStudySession = computed(() => this.participantIdSignal() !== undefined);
+
+  /**
+   * Aba aberta em "Só estou testando": a barra funciona, mas a telemetria não é criada.
+   */
+  readonly isTestMode = this.testModeSignal.asReadonly();
+
+  /**
+   * O que a barra mostra no lugar do pseudônimo (`…1234`); ausente com `?pid=`.
+   */
+  readonly participantLabel = this.participantLabelSignal.asReadonly();
+
+  readonly completedTasks = this.completedSignal.asReadonly();
+
+  /**
+   * Ordem dos seis cenários para este participante, sorteada a partir do identificador: estável
+   * entre recarregamentos e refeita na análise com `studyTaskOrder`. Sem participante (modo
+   * teste), a ordem do apêndice.
+   */
+  readonly taskOrder = computed<readonly StudyTask[]>(() => {
+    const participantId = this.participantIdSignal();
+    if (participantId === undefined) {
+      return STUDY_TASKS;
+    }
+    return studyTaskOrder(
+      participantId,
+      STUDY_TASKS.map(task => task.index),
+    ).flatMap(index => STUDY_TASKS.filter(task => task.index === index));
+  });
+
+  /**
+   * Primeiro cenário da ordem ainda não encerrado.
+   */
+  readonly nextTask = computed<StudyTask | undefined>(() => {
+    const done = new Set(this.completedSignal());
+    return this.taskOrder().find(task => !done.has(task.index));
+  });
 
   readonly activeTask = computed<StudyTask | undefined>(() => {
     const index = this.taskIndexSignal();
@@ -156,6 +209,27 @@ export class TutorStudySessionService {
     this.conditionSignal.set(condition);
   }
 
+  setParticipantLabel(label: string | undefined): void {
+    this.participantLabelSignal.set(label);
+    this.writeText(LABEL_KEY, label);
+  }
+
+  enterTestMode(): void {
+    this.testModeSignal.set(true);
+    this.writeText(STUDY_TEST_MODE_KEY, "1");
+  }
+
+  /**
+   * Apaga o estado da sessão desta aba (participante seguinte no mesmo computador). Quem chama
+   * recarrega a página.
+   */
+  clearSession(): void {
+    this.stopTick();
+    for (const key of [STATE_KEY, STUDY_TEST_MODE_KEY, LABEL_KEY, COMPLETED_KEY]) {
+      this.writeText(key, undefined);
+    }
+  }
+
   startTask(index: number): void {
     const task = STUDY_TASKS.find(candidate => candidate.index === index);
     if (task === undefined || this.isRunning()) {
@@ -192,6 +266,8 @@ export class TutorStudySessionService {
     this.taskIndexSignal.set(undefined);
     this.startedAtSignal.set(undefined);
     this.clearPersisted();
+    this.completedSignal.update(done => (done.includes(task.index) ? done : [...done, task.index]));
+    this.writeText(COMPLETED_KEY, JSON.stringify(this.completedSignal()));
 
     this.lifecycleSubject.next({ kind: "ended", task, startedAt, elapsedMs, outcome, studentTurns });
   }
@@ -341,6 +417,39 @@ export class TutorStudySessionService {
           helpRequested: this.helpRequestedSignal(),
         } satisfies PersistedState),
       );
+    } catch {
+      // quota esgotada ou modo privado
+    }
+  }
+
+  private readFlag(key: string): boolean {
+    return this.readText(key) === "1";
+  }
+
+  private readCompleted(): readonly number[] {
+    try {
+      const parsed = JSON.parse(this.readText(COMPLETED_KEY) ?? "[]") as unknown;
+      return Array.isArray(parsed) ? parsed.filter((value): value is number => typeof value === "number") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private readText(key: string): string | undefined {
+    try {
+      return sessionStorage.getItem(key) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private writeText(key: string, value: string | undefined): void {
+    try {
+      if (value === undefined) {
+        sessionStorage.removeItem(key);
+      } else {
+        sessionStorage.setItem(key, value);
+      }
     } catch {
       // quota esgotada ou modo privado
     }

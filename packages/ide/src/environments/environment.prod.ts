@@ -9,6 +9,7 @@ export const environment = {
   enableAnalytics: true,
   analyticsMeasurementId: "G-ZKM28VG4G5",
   enableShare: true,
+  studyGate: false,
   /**
    * Vem de `AGENT_API_BASE_URL` no build (variable do repositório na esteira); inclua `/api`.
    */

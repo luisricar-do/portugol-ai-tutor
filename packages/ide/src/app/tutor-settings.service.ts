@@ -75,6 +75,27 @@ export class TutorSettingsService {
   }
 
   /**
+   * Volta ao estado de quem nunca abriu o tutor neste navegador: sem nome, nível de dica 1 e
+   * boas-vindas por mostrar. No fim de uma sessão de pesquisa, para o participante seguinte
+   * começar com a mesma configuração que os outros. Não regista `hint_level_changed`: não foi
+   * o estudante que mudou.
+   */
+  forgetParticipant(): void {
+    this.nameSignal.set(null);
+    this.hintLevelSignal.set(1);
+    try {
+      const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+      for (const key of keys) {
+        if (key === STORAGE_KEY_NAME || key === STORAGE_KEY_HINT || key?.startsWith(WELCOME_PREFIX)) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
    * Boas-vindas já mostradas para esta aba do editor Portugol (`tab.id` em AppComponent).
    * Persiste em localStorage — sobrevive a reload da página (não é sessionStorage do browser).
    */

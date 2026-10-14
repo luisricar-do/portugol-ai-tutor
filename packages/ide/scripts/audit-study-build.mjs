@@ -40,6 +40,12 @@ const PROIBIDO = [
     porque: "sem id não há pedido a googletagmanager.com; enableAnalytics=false e measurementId omitido",
   },
   {
+    nome: "configuração do projeto Firebase",
+    padrao: /AIza[\w-]{35}|portugol-webstudio\.(firebaseapp\.com|appspot\.com)/,
+    porque:
+      "firebase: null no environment.study.ts; o app.config.ts só inicializa o Firebase com o Compartilhar ligado",
+  },
+  {
     nome: "script externo no index.html",
     padrao: /<script[^>]+src=["']https?:\/\//,
     porque: "o index da build de coleta não carrega nada de fora",

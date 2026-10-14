@@ -76,6 +76,11 @@ export class WorkspaceService {
   private persistedMeta = "";
   private persistTimer?: ReturnType<typeof setTimeout>;
 
+  /**
+   * Ligado por `forgetAll`: daí até a página recarregar, esta janela não grava nada.
+   */
+  private forgotten = false;
+
   readonly tabs = signal<Tab[]>([]);
   readonly activeTabId = signal<string | null>(null);
 
@@ -250,6 +255,19 @@ export class WorkspaceService {
     return restored.length;
   }
 
+  /**
+   * Apaga todas as áreas de trabalho deste navegador, inclusive as recuperáveis, e para de
+   * gravar. É o fim de uma sessão de pesquisa: o próximo estudante no mesmo computador não pode
+   * herdar o código de quem saiu. Quem chama recarrega a página.
+   */
+  forgetAll() {
+    this.forgotten = true;
+    clearTimeout(this.persistTimer);
+    this.storage.deleteWorkspaces(this.storage.listWorkspaceIds());
+    this.storage.clearSessionWorkspaceId();
+    this.recoverable.set([]);
+  }
+
   discard(workspaceId: string) {
     this.storage.deleteWorkspace(workspaceId);
     this.recoverable.update(workspaces => workspaces.filter(workspace => workspace.id !== workspaceId));
@@ -381,6 +399,10 @@ export class WorkspaceService {
   }
 
   private release() {
+    if (this.forgotten) {
+      return;
+    }
+
     const heartbeat = this.storage.readHeartbeat(this.workspaceId);
 
     if (heartbeat && heartbeat.ownerId !== this.sessionId) {
@@ -395,6 +417,10 @@ export class WorkspaceService {
   }
 
   private heartbeat() {
+    if (this.forgotten) {
+      return;
+    }
+
     const heartbeat = this.storage.readHeartbeat(this.workspaceId);
 
     if (heartbeat && heartbeat.ownerId !== this.sessionId) {
@@ -495,7 +521,7 @@ export class WorkspaceService {
   }
 
   private persistNow() {
-    if (!this.storage.available) {
+    if (!this.storage.available || this.forgotten) {
       return;
     }
 

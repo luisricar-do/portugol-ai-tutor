@@ -38,11 +38,13 @@ jobs:
       - name: Build code 🚚
         run: npm run build
 
-      - name: Release front-end 🎢
+      # Publica a build de coleta: abre no formulário de matrícula, sem Google Analytics nem
+      # Firebase. O `postbuild:study` audita o artefacto e falha a esteira se algum voltar.
+      - name: Release front-end (build de coleta) 🎢
         run: |
           sed -i -e 's/%COMMIT_SHA%/'"${GITHUB_SHA}"'/g' -e 's/%BUILD_DATE%/'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'/g' packages/ide/src/app/version.ts
           ./packages/ide/cleanup-icons.sh
-          npm run release
+          npm run build:study --workspace=@luisricar-do/ide
 
       - name: Upload Pages artifact 📤
         uses: actions/upload-pages-artifact@v4

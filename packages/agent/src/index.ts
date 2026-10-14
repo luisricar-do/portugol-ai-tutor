@@ -6,6 +6,13 @@ export {
 } from "./client.js";
 export type { CreateTutorAgentClientOptions, TutorAgentClient } from "./client.js";
 export { createTelemetryQueue, telemetryStorageKey } from "./telemetry.js";
+export {
+  STUDY_PSEUDONYM_SALT,
+  maskMatricula,
+  normalizeMatricula,
+  pseudonymFromMatricula,
+  studyTaskOrder,
+} from "./study.js";
 export { classifyErrorMessage, summarizeErrorClasses } from "./telemetry-error-class.js";
 export type { TelemetryErrorClass } from "./telemetry-error-class.js";
 export type {
