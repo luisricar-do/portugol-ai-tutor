@@ -19,3 +19,4 @@ packages/ide/src/index.html
 packages/ide/src/index.study.html
 packages/resources/assets/
 packages/ide/src/app/changelog.gerado.md
+packages/ide/src/app/study-tasks.gerado.ts

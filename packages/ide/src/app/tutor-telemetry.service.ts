@@ -9,6 +9,7 @@ import { environment } from "../environments/environment";
 import { TutorChatSessionService } from "./tutor-chat-session.service";
 import { TutorEditorContextService } from "./tutor-editor-context.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
+import { STUDY_TASK_MATERIAL } from "./study-tasks.gerado";
 import { STUDY_TEST_MODE_KEY, TutorStudySessionService } from "./tutor-study-session.service";
 
 /**
@@ -335,11 +336,14 @@ export class TutorTelemetryService {
       .pipe(takeUntilDestroyed(this.lifetime))
       .subscribe(event => {
         if (event.kind === "started") {
+          // Item do banco e hash do código aberto: ligam a trajetória ao estado `s0` da bancada.
           this.log({
             type: "task_start",
             task: event.task.index,
             taskLabel: event.task.label,
             timeboxMs: event.task.timeboxMs,
+            bankItem: STUDY_TASK_MATERIAL[event.task.index]?.bankItem,
+            codeSha256: STUDY_TASK_MATERIAL[event.task.index]?.codeSha256,
           });
           return;
         }

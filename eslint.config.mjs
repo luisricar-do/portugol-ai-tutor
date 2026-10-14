@@ -89,6 +89,7 @@ export default defineConfig(
       // Arquivos gerados:
       "packages/antlr/src/Portugol*.ts",
       "packages/parser/src/bibliotecas/*.gerado.ts",
+      "packages/ide/src/app/study-tasks.gerado.ts",
       "packages/resources/bibliotecas/index.d.ts",
       "packages/ide/src/index.html",
       "packages/ide/src/index.study.html",

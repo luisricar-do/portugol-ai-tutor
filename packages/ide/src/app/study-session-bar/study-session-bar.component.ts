@@ -15,6 +15,7 @@ import { FormsModule } from "@angular/forms";
 import { maskMatricula, pseudonymFromMatricula } from "@luisricar-do/agent";
 
 import { environment } from "../../environments/environment";
+import { STUDY_TASK_MATERIAL } from "../study-tasks.gerado";
 import { TutorSettingsService } from "../tutor-settings.service";
 import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { TutorStudySessionService } from "../tutor-study-session.service";
@@ -30,6 +31,11 @@ const WARNING_THRESHOLD_MS = 2 * 60_000;
  * Quantos cenários cada estudante faz (dois quando restarem menos de trinta minutos).
  */
 const TASKS_PER_PARTICIPANT = 3;
+
+/**
+ * Aba aberta por **Iniciar**, para fechá-la no fim da tarefa mesmo depois de recarregar.
+ */
+const TASK_TAB_KEY = "pws:tutor:study:taskTab";
 
 const OUTCOME_LABELS: Record<TaskOutcome, string> = {
   solved: "concluída",
@@ -89,6 +95,14 @@ export class StudySessionBarComponent {
 
   readonly needsAssignment = computed(() => this.participantId() === undefined && !this.isTestMode());
 
+  /**
+   * Enunciado e código do cenário em curso.
+   */
+  readonly activeMaterial = computed(() => {
+    const task = this.activeTask();
+    return task === undefined ? undefined : STUDY_TASK_MATERIAL[task.index];
+  });
+
   readonly completedCount = computed(() => this.studySession.completedTasks().length);
 
   readonly remainingLabel = computed(() => {
@@ -127,6 +141,7 @@ export class StudySessionBarComponent {
       if (event.kind !== "ended" || event.outcome === undefined) {
         return;
       }
+      this.closeTaskTab();
       this.lastOutcome.set({
         label: `${event.task.label}: ${OUTCOME_LABELS[event.outcome]}`,
         outcome: event.outcome,
@@ -196,9 +211,21 @@ export class StudySessionBarComponent {
     event.preventDefault();
   }
 
+  /**
+   * Inicia o cronómetro e abre o programa defeituoso numa aba própria, idêntico ao estado
+   * inicial da bancada. Cada tarefa tem a sua aba, e com ela a sua conversa com o tutor.
+   */
   startTask(): void {
     this.lastOutcome.set(undefined);
     this.studySession.startTask(this.selectedTaskIndex());
+    const task = this.activeTask();
+    const material = task === undefined ? undefined : STUDY_TASK_MATERIAL[task.index];
+    if (task === undefined || material === undefined) {
+      return;
+    }
+    const tabId = this.workspace.addTab(task.label, material.code);
+    this.workspace.requestFocus(tabId);
+    this.writeTaskTab(tabId);
   }
 
   finishTask(): void {
@@ -216,6 +243,29 @@ export class StudySessionBarComponent {
 
   isCompleted(index: number): boolean {
     return this.studySession.completedTasks().includes(index);
+  }
+
+  /**
+   * Fim da tarefa: a aba sai, para o estudante não continuar a editar fora do tempo.
+   */
+  private closeTaskTab(): void {
+    try {
+      const tabId = sessionStorage.getItem(TASK_TAB_KEY);
+      sessionStorage.removeItem(TASK_TAB_KEY);
+      if (tabId) {
+        this.workspace.closeTab(tabId);
+      }
+    } catch {
+      // modo privado
+    }
+  }
+
+  private writeTaskTab(tabId: string): void {
+    try {
+      sessionStorage.setItem(TASK_TAB_KEY, tabId);
+    } catch {
+      // quota esgotada ou modo privado
+    }
   }
 
   private closeGate(): void {

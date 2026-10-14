@@ -163,6 +163,13 @@ participante** (`studyTaskOrder`, com semente no pseudônimo: a mesma ordem em c
 refeita na análise). Ao fim de cada tarefa o seletor passa à seguinte, e a barra conta «N de 3
 feitas».
 
+**Iniciar** abre o programa defeituoso numa aba própria, com o enunciado na barra enquanto o
+tempo corre; no fim da tarefa a aba fecha. O código é o `bug_code` do item do banco da bancada,
+igual ao estado `s0`, e o `task_start` leva `bankItem` e `codeSha256` para o confirmar. O
+enunciado fica fora do código de propósito: em uso real a IDE não envia enunciado ao tutor
+(contrato da API), e um comentário no programa o faria chegar pelo `code`. Depois de mudar o
+banco, regenerar com `node packages/ide/scripts/importar-cenarios.mjs`.
+
 Timeboxes conforme o apêndice de enunciados: **10 min** em T1–T2 e **15 min** em T3–T6 (não há
 pré-teste nem tarefa de transferência). Esgotado o tempo, a tarefa é encerrada automaticamente com
 `outcome: "timeout"`. O início da tarefa persiste em `sessionStorage`: recarregar a aba
@@ -177,7 +184,7 @@ reavaliado quando a aba volta ao primeiro plano.
 | `session_start` / `app_reload` | Arranque da coleta (o segundo quando o `sessionId` já tinha eventos)            | —                                                                                       |
 | `study_assigned`               | **Começar** no formulário de matrícula                                          | `taskOrder`                                                                             |
 | `session_end`                  | **Encerrar sessão**                                                             | —                                                                                       |
-| `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`                                                                |
+| `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`, `bankItem`, `codeSha256`                                      |
 | `task_end`                     | **Concluí**, **Interromper** ou fim do timebox                                  | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns`               |
 | `code_edit`                    | Alteração no editor (antes do debounce, para preservar a ordem face aos turnos) | `codeLength`, `codeLines`                                                               |
 | `compile`                      | Verificação estática concluída                                                  | `errorCount`, `errorClass`, `errorClassCounts`, `errorLines`, `trigger`                 |

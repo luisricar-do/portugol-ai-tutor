@@ -59,6 +59,15 @@
   background: rgba(var(--pws-fg-muted-rgb), 0.22);
 }
 
+// Linha própria, abaixo dos controles: o enunciado fica à vista enquanto a tarefa corre, fora do
+// código (ver `scripts/importar-cenarios.mjs`).
+.study-bar__statement {
+  flex-basis: 100%;
+  max-width: 72rem;
+  font-size: var(--pws-text-ui);
+  line-height: 1.5;
+}
+
 .study-bar__end {
   margin-left: auto;
 }

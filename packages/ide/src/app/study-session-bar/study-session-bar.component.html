@@ -59,6 +59,10 @@
 
         <button type="button" class="btn btn-primary btn-sm" (click)="finishTask()">Concluí</button>
         <button type="button" class="btn btn-sm" (click)="abortTask()">Interromper</button>
+
+        @if (activeMaterial(); as material) {
+          <p class="study-bar__statement"><strong>Enunciado:</strong> {{ material.statement }}</p>
+        }
       } @else {
         <label class="study-bar__label" for="study-task">Tarefa</label>
         <select
