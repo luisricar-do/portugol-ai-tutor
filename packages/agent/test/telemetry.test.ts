@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 
 import { createTelemetryQueue, telemetryStorageKey } from "../src/telemetry.js";
 import type { TelemetryStorage } from "../src/telemetry.js";
@@ -282,7 +282,7 @@ test("flush concorrente não duplica o lote", async () => {
   let calls = 0;
   const fetchMock: typeof fetch = async () => {
     calls += 1;
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await new Promise(resolve => setTimeout(resolve, 5));
     return new Response("{}", { status: 200 });
   };
   const { queue } = makeQueue({ fetch: fetchMock });

@@ -6,13 +6,12 @@
  */
 import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
+import process from "node:process";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const outPath = join(__dirname, "../src/environments/environment.version.ts");
+const outPath = path.join(import.meta.dirname, "../src/environments/environment.version.ts");
 
-let commitSha = "dev";
+let commitSha;
 try {
   commitSha = execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
 } catch {
@@ -24,7 +23,7 @@ const buildDate = new Date().toLocaleString("pt-BR", {
   timeStyle: "medium",
 });
 
-const contents = `/** Gerado por scripts/inject-version.mjs — não editar manualmente. */
+const contents = `// Gerado por scripts/inject-version.mjs — não editar manualmente.
 export const buildVersion = {
   commitSha: ${JSON.stringify(commitSha)},
   buildDate: ${JSON.stringify(buildDate)},
@@ -34,10 +33,10 @@ export const buildVersion = {
 writeFileSync(outPath, contents, "utf8");
 console.log(`Wrote ${outPath} (${commitSha})`);
 
-const buildPath = join(__dirname, "../src/environments/environment.build.ts");
+const buildPath = path.join(import.meta.dirname, "../src/environments/environment.build.ts");
 const agentApiBaseUrl = (process.env.AGENT_API_BASE_URL ?? "").trim();
 
-const buildContents = `/** Gerado por scripts/inject-version.mjs a partir de AGENT_API_BASE_URL — não editar manualmente. */
+const buildContents = `// Gerado por scripts/inject-version.mjs a partir de AGENT_API_BASE_URL — não editar manualmente.
 export const buildConfig = {
   agentApiBaseUrl: ${JSON.stringify(agentApiBaseUrl)},
 };

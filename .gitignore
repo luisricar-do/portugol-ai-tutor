@@ -34,7 +34,7 @@ chrome-profiler-events*.json
 /.angular/cache
 /.sass-cache
 /connect.lock
-/coverage
+coverage/
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
@@ -47,3 +47,6 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# Saída do pacote resources antigo (antes de o upstream trazer os recursos para o monorepo)
+packages/resources/assets/

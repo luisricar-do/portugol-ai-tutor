@@ -26,7 +26,7 @@
           (ngModelChange)="draftCondition.set($event)"
         />
 
-        <button mat-stroked-button type="submit" [disabled]="!draftParticipantId().trim()">Atribuir</button>
+        <button type="submit" class="btn btn-sm" [disabled]="!draftParticipantId().trim()">Atribuir</button>
       </form>
     } @else {
       <span class="study-bar__chip">{{ participantId() }} · {{ conditionLabel() }}</span>
@@ -42,8 +42,8 @@
           <span class="study-bar__turns">{{ studentTurns() }} turno(s)</span>
         }
 
-        <button mat-flat-button color="primary" type="button" (click)="finishTask()">Concluí</button>
-        <button mat-stroked-button type="button" (click)="abortTask()">Interromper</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="finishTask()">Concluí</button>
+        <button type="button" class="btn btn-sm" (click)="abortTask()">Interromper</button>
       } @else {
         <label class="study-bar__label" for="study-task">Tarefa</label>
         <select
@@ -57,7 +57,7 @@
           }
         </select>
 
-        <button mat-flat-button color="primary" type="button" (click)="startTask()">Iniciar</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="startTask()">Iniciar</button>
 
         @if (lastOutcome(); as outcome) {
           <span class="study-bar__outcome" aria-live="polite" [class.study-bar__outcome--timeout]="isTimeoutOutcome()">

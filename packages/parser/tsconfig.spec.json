@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true,
+    "lib": ["ESNext", "dom"],
+    "rootDir": "."
+  },
+  "include": ["tests/**/*.ts", "src/**/*.ts", "tools/**/*.mjs"]
+}

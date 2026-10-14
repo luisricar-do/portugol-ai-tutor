@@ -2,7 +2,6 @@ import { PortugolJsRuntime } from "@luisricar-do/runtime";
 import { Subject, Subscription } from "rxjs";
 
 import { IPortugolRunner, PortugolEvent, PortugolMessage } from "./IPortugolRunner.js";
-import { buildProgramBootstrap } from "./programBootstrap.js";
 
 export class PortugolWebWorkersRunner extends IPortugolRunner {
   private worker: Worker;
@@ -25,7 +24,74 @@ export class PortugolWebWorkersRunner extends IPortugolRunner {
   constructor(public byteCode: string) {
     super(byteCode);
 
-    const runCode = buildProgramBootstrap(this.byteCode);
+    const runCode = /* javascript */ `
+      const exec = ${this.byteCode};
+
+      self.addEventListener("message", async (message) => {
+        try {
+          if (message.data.type === "start") {
+            self.postMessage({ type: "started" });
+
+            await exec({
+              functions: {
+                __debug: async (...args) => {
+                  for (const arg of args) {
+                    console.debug("➡️ DEBUG", arg);
+                  }
+                },
+
+                limpa: async () => {
+                  self.postMessage({ type: "clear" });
+                },
+
+                leia: async (...args) => {
+                  for (const arg of args) {
+                    const controller = new AbortController();
+                    const signal = controller.signal;
+
+                    const result = await new Promise((resolve) => {
+                      self.addEventListener("message", (message) => {
+                        if (message.data.type === "stdIn") {
+                          controller.abort();
+                          resolve(message.data.content);
+                        }
+                      }, { signal });
+
+                      self.postMessage({ type: "stdIn" });
+                    });
+
+                    self.runtime.assign([self.runtime.reference(arg), self.runtime.readValue(arg.type, result)]);
+                  }
+                },
+
+                escreva: (...args) => {
+                  let str = "";
+
+                  for (const arg of args) {
+                    if (typeof arg === "object") {
+                      if (typeof arg.value !== "undefined") {
+                        str += arg.stringValue();
+                      }
+                    } else {
+                      throw new Error("Argumento inválido");
+                    }
+                  }
+
+                  self.postMessage({ type: "stdOut", content: str });
+                },
+              },
+            });
+          }
+        } catch (error) {
+          self.postMessage({ type: "error", error: {
+            message: error.message,
+            stack: error.stack,
+          }});
+        } finally {
+          self.postMessage({ type: "finish" });
+        }
+      }, { once: true });
+    `;
 
     this.worker = new Worker(
       URL.createObjectURL(
@@ -108,10 +174,6 @@ export class PortugolWebWorkersRunner extends IPortugolRunner {
 
   run() {
     this.startedAt = new Date();
-
-    this.stdIn.subscribe(stdIn => {
-      this.worker.postMessage({ type: "stdin", content: stdIn });
-    });
 
     this.worker.postMessage({ type: "start" });
 

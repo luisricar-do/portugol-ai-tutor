@@ -1,14 +1,11 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 
 import { classifyErrorMessage, summarizeErrorClasses } from "../src/telemetry-error-class.js";
 
 test("classifica variável não declarada", () => {
   assert.equal(classifyErrorMessage("Variável não declarada: soma"), "undeclared_identifier");
-  assert.equal(
-    classifyErrorMessage("Linha 4, coluna 5: Variável não declarada: media"),
-    "undeclared_identifier",
-  );
+  assert.equal(classifyErrorMessage("Linha 4, coluna 5: Variável não declarada: media"), "undeclared_identifier");
 });
 
 test("classifica incompatibilidade de tipos", () => {
@@ -31,10 +28,7 @@ test("classifica erros estruturais e do parser como sintaxe", () => {
 });
 
 test("mensagem semântica mantém a classe mesmo vinda do parser", () => {
-  assert.equal(
-    classifyErrorMessage("Variável não declarada: x", { parseError: true }),
-    "undeclared_identifier",
-  );
+  assert.equal(classifyErrorMessage("Variável não declarada: x", { parseError: true }), "undeclared_identifier");
 });
 
 test("mensagem vazia ou desconhecida não inventa classe", () => {
@@ -69,9 +63,42 @@ test("summarize sem erros devolve classe indefinida", () => {
 });
 
 test("summarize sem sintaxe promove declaração antes de tipo", () => {
-  const result = summarizeErrorClasses([
-    "Não foi possível resolver o tipo da expressão",
-    "Variável não declarada: n",
-  ]);
+  const result = summarizeErrorClasses(["Não foi possível resolver o tipo da expressão", "Variável não declarada: n"]);
   assert.equal(result.errorClass, "undeclared_identifier");
+});
+
+test("classifica as mensagens do Portugol Studio", () => {
+  assert.equal(classifyErrorMessage('A variável "media" não foi declarada neste escopo.'), "undeclared_identifier");
+  assert.equal(classifyErrorMessage('O vetor "notas" não foi declarado neste escopo.'), "undeclared_identifier");
+  assert.equal(
+    classifyErrorMessage(
+      'Tipos incompatíveis! Não é possível atribuir uma expressão do tipo "cadeia" à uma expressão do tipo "inteiro".',
+    ),
+    "type_mismatch",
+  );
+});
+
+test("o código do diagnóstico decide antes do texto", () => {
+  assert.equal(
+    classifyErrorMessage('A função "raiz" não existe na biblioteca "Matematica"', {
+      code: "ErroSemantico.ErroSimboloNaoDeclarado",
+    }),
+    "undeclared_identifier",
+  );
+  assert.equal(
+    classifyErrorMessage("texto qualquer", { code: "ErroSemantico.ErroTipoParametroIncompativel" }),
+    "type_mismatch",
+  );
+  assert.equal(classifyErrorMessage("texto qualquer", { code: "ErroSintatico.ErroParentesis" }), "syntax");
+  // Código sem classe no protocolo: cai para o texto, e sem texto reconhecível fica desconhecido.
+  assert.equal(classifyErrorMessage("texto qualquer", { code: "ErroSemantico.ErroBlocoInvalido" }), "unknown");
+});
+
+test("summarize aceita diagnósticos com código", () => {
+  const result = summarizeErrorClasses(
+    [{ message: 'A variável "x" não foi declarada neste escopo.', code: "ErroSemantico.ErroSimboloNaoDeclarado.3" }],
+    [{ message: "Era esperado um ')'", code: "ErroSintatico.ErroParentesis" }],
+  );
+  assert.deepEqual(result.errorClassCounts, { syntax: 1, undeclared_identifier: 1 });
+  assert.equal(result.errorClass, "syntax");
 });

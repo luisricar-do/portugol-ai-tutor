@@ -1,22 +1,24 @@
-import { Injectable, inject } from "@angular/core";
-import { MatSnackBar } from "@angular/material/snack-bar";
+import { Service, inject } from "@angular/core";
 import { TutorOverlayService } from "./tutor-overlay.service";
+import { TutorToastService } from "./tutor-toast.service";
 
 const DEFAULT_MS = 180_000; // 3 min
 
 /**
- * Proatividade leve: após inatividade com erros no editor, abre o tutor e sugere ajuda (sem chamar a API sozinha).
+ *  *  * Proatividade leve: após inatividade com erros no editor, abre o tutor e sugere ajuda (sem chamar a API sozinha).
  */
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorProactivityService {
   private readonly tutorOverlay = inject(TutorOverlayService);
-  private readonly snack = inject(MatSnackBar);
+  private readonly toast = inject(TutorToastService);
 
   private timerId: ReturnType<typeof setTimeout> | null = null;
 
   private lastHasErrors = false;
 
-  /** Reinicia o temporizador quando o utilizador edita ou muda o estado de erros. */
+  /**
+   *  *  * Reinicia o temporizador quando o utilizador edita ou muda o estado de erros.
+   */
   resetWatch(hasCompilerErrors: boolean): void {
     this.clearTimer();
     this.lastHasErrors = hasCompilerErrors;
@@ -26,10 +28,9 @@ export class TutorProactivityService {
     this.timerId = setTimeout(() => {
       this.timerId = null;
       if (this.lastHasErrors && !this.tutorOverlay.isOpen()) {
-        this.snack.open(
+        this.toast.show(
           "Ainda há erros no código. A tutora ADA pode ajudar com perguntas — sem entregar a solução pronta.",
-          "OK",
-          { duration: 7000, panelClass: ["tutor-snack", "tutor-snack--nudge"] },
+          { duration: 7000, variant: "nudge" },
         );
         this.tutorOverlay.show();
       }

@@ -11,13 +11,16 @@
  * script remoto — e não a presença da palavra.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import path from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const raiz = fileURLToPath(new URL("..", import.meta.url));
-const dist = join(raiz, "dist");
+const dist = path.join(raiz, "dist");
 
-/** Extensões que o navegador busca e executa. `.map` fica de fora: não é servido. */
+/**
+ * Extensões que o navegador busca e executa. `.map` fica de fora: não é servido.
+ */
 const CARREGAVEIS = /\.(html|js|mjs|css|webmanifest)$/;
 
 const PROIBIDO = [
@@ -47,7 +50,7 @@ const PROIBIDO = [
 function ficheiros(dir) {
   const saida = [];
   for (const nome of readdirSync(dir)) {
-    const caminho = join(dir, nome);
+    const caminho = path.join(dir, nome);
     if (statSync(caminho).isDirectory()) {
       saida.push(...ficheiros(caminho));
     } else if (CARREGAVEIS.test(nome)) {
@@ -59,42 +62,50 @@ function ficheiros(dir) {
   return saida;
 }
 
-let listados;
-try {
-  listados = ficheiros(dist);
-} catch {
-  console.error(`auditoria: ${relative(raiz, dist)} não existe — corra a build antes.`);
-  process.exit(1);
-}
-
-const achados = [];
-for (const caminho of listados) {
-  const rel = relative(dist, caminho);
-  let texto;
+/**
+ * Devolve o código de saída: 0 limpa, 1 com achados ou sem build.
+ */
+function auditar() {
+  let listados;
   try {
-    texto = readFileSync(caminho, "utf8");
+    listados = ficheiros(dist);
   } catch {
-    continue;
+    console.error(`auditoria: ${path.relative(raiz, dist)} não existe — corra a build antes.`);
+    return 1;
   }
-  for (const regra of PROIBIDO) {
-    if (regra.apenas && !regra.apenas.test(rel)) {
+
+  const achados = [];
+  for (const caminho of listados) {
+    const rel = path.relative(dist, caminho);
+    let texto;
+    try {
+      texto = readFileSync(caminho, "utf8");
+    } catch {
       continue;
     }
-    const encontrado = texto.match(regra.padrao);
-    if (encontrado) {
-      achados.push({ rel, regra, amostra: encontrado[0] });
+    for (const regra of PROIBIDO) {
+      if (regra.apenas && !regra.apenas.test(rel)) {
+        continue;
+      }
+      const encontrado = texto.match(regra.padrao);
+      if (encontrado) {
+        achados.push({ rel, regra, amostra: encontrado[0] });
+      }
     }
   }
-}
 
-if (achados.length > 0) {
-  console.error("auditoria da build de coleta: FALHOU\n");
-  for (const { rel, regra, amostra } of achados) {
-    console.error(`  ${rel}`);
-    console.error(`    ${regra.nome}: ${amostra}`);
-    console.error(`    ${regra.porque}\n`);
+  if (achados.length > 0) {
+    console.error("auditoria da build de coleta: FALHOU\n");
+    for (const { rel, regra, amostra } of achados) {
+      console.error(`  ${rel}`);
+      console.error(`    ${regra.nome}: ${amostra}`);
+      console.error(`    ${regra.porque}\n`);
+    }
+    return 1;
   }
-  process.exit(1);
+
+  console.log(`auditoria da build de coleta: limpa (${listados.length} ficheiros, ${PROIBIDO.length} regras)`);
+  return 0;
 }
 
-console.log(`auditoria da build de coleta: limpa (${listados.length} ficheiros, ${PROIBIDO.length} regras)`);
+process.exitCode = auditar();

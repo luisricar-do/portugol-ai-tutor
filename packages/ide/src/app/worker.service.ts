@@ -1,7 +1,23 @@
-import { Injectable } from "@angular/core";
-import { PortugolCodeError } from "@luisricar-do/antlr";
+import { Service } from "@angular/core";
+import { IPortugolCodeDiagnostic } from "@luisricar-do/antlr";
+import { WORKER_FILE_NAME } from "@luisricar-do/worker/lib/worker-manifest";
 
-@Injectable({ providedIn: "root" })
+export interface CheckCodeResult {
+  diagnostics: IPortugolCodeDiagnostic[];
+  parseErrors: IPortugolCodeDiagnostic[];
+}
+
+export interface TranspileCodeResult extends CheckCodeResult {
+  js: string;
+  times: { check: number; transpile: number };
+}
+
+/**
+ * Fork: a checagem ao vivo e a transpilação correm em workers separados, com teto de espera. A
+ * checagem a cada tecla não fica na fila de uma transpilação longa, e o tutor, que também pede
+ * checagens, recebe erro em vez de esperar para sempre por um worker travado.
+ */
+@Service()
 export class WorkerService {
   private checkWorker?: Worker;
   private transpileWorker?: Worker;
@@ -10,11 +26,13 @@ export class WorkerService {
   private static readonly CHECK_TIMEOUT_MS = 15_000;
   private static readonly TRANSPILE_TIMEOUT_MS = 120_000;
 
-  /** Garante uma transpilação de cada vez (evita fila no worker + timeout falso). */
+  /**
+   *  * Garante uma transpilação de cada vez (evita fila no worker + timeout falso).
+   */
   private transpileTail: Promise<unknown> = Promise.resolve();
 
   private createWorker(): Worker {
-    return new Worker("assets/portugol-worker/worker.js");
+    return new Worker(`assets/portugol-worker/${WORKER_FILE_NAME}`);
   }
 
   private ensureCheckWorker(): Worker {
@@ -31,10 +49,7 @@ export class WorkerService {
     return this.transpileWorker;
   }
 
-  async checkCode(code: string): Promise<{
-    errors: PortugolCodeError[];
-    parseErrors: PortugolCodeError[];
-  }> {
+  async checkCode(code: string): Promise<CheckCodeResult> {
     const worker = this.ensureCheckWorker();
     return new Promise((resolve, reject) => {
       const id = Math.random().toString(36).slice(2, 9);
@@ -68,27 +83,14 @@ export class WorkerService {
     });
   }
 
-  async transpileCode(code: string): Promise<{
-    js: string;
-    errors: PortugolCodeError[];
-    parseErrors: PortugolCodeError[];
-    times: { parse: number; check: number; transpile: number };
-  }> {
-    const run = this.doTranspile(code);
-    const next = this.transpileTail.then(() => run);
-    this.transpileTail = next.then(
-      () => {},
-      () => {},
-    );
-    return next;
+  async transpileCode(code: string): Promise<TranspileCodeResult> {
+    const run = this.transpileTail.then(async () => this.doTranspile(code));
+    // A fila só espera a vez: a falha de uma transpilação não trava as seguintes.
+    this.transpileTail = run.catch(() => {});
+    return run;
   }
 
-  private doTranspile(code: string): Promise<{
-    js: string;
-    errors: PortugolCodeError[];
-    parseErrors: PortugolCodeError[];
-    times: { parse: number; check: number; transpile: number };
-  }> {
+  private doTranspile(code: string): Promise<TranspileCodeResult> {
     const worker = this.ensureTranspileWorker();
     this.busy = true;
 

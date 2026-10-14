@@ -8,7 +8,9 @@ import type {
   TutorStreamDonePayload,
 } from "./types.js";
 
-/** Código mínimo quando não há fonte do editor — exige campo não vazio na API. */
+/**
+ *  * Código mínimo quando não há fonte do editor — exige campo não vazio na API.
+ */
 export const TUTOR_CHAT_PLACEHOLDER_CODE = "// (sem código do editor — conversa de exemplo)\nprograma\n{\n}\n";
 
 export class TutorAgentError extends Error {
@@ -30,7 +32,9 @@ interface SseStreamState {
   sawError: boolean;
 }
 
-/** Executa `fn` dentro do runner opcional (ex.: NgZone.run no Angular). */
+/**
+ *  * Executa `fn` dentro do runner opcional (ex.: NgZone.run no Angular).
+ */
 function runInZoneOptional(runInZone: ((fn: () => void) => void) | undefined, fn: () => void): void {
   if (runInZone) {
     runInZone(fn);
@@ -169,7 +173,9 @@ export interface TutorAgentClient {
 }
 
 export interface CreateTutorAgentClientOptions {
-  /** Ex.: `http://localhost:7071/api` (Azure Functions). */
+  /**
+   *  * Ex.: `http://localhost:7071/api` (Azure Functions).
+   */
   baseUrl: string;
   fetch?: typeof fetch;
   /**
@@ -236,7 +242,7 @@ export function createTutorAgentClient(options: CreateTutorAgentClientOptions): 
           const errJson = (await response.json()) as TutorHelpErrorBody;
           message = errJson.error ?? message;
         } catch {
-          /* ignore */
+          // ignore
         }
 
         throw new TutorAgentError(response.status, message);

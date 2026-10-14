@@ -1,0 +1,25 @@
+:host {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tutor-toast__message {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+// Antes `.tutor-snack--celebrate .mdc-snackbar__label`
+:host(.tutor-toast--celebrate) .tutor-toast__message {
+  font-weight: 500;
+}
+
+// Antes `.tutor-snack--escalate .mdc-snackbar__label`
+:host(.tutor-toast--escalate) .tutor-toast__message {
+  max-width: 56ch;
+}
+
+.tutor-toast__action {
+  flex-shrink: 0;
+  color: var(--pws-accent-fg);
+}

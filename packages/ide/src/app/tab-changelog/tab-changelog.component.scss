@@ -1,0 +1,11 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow: auto;
+}
+
+markdown {
+  max-width: 50rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+}

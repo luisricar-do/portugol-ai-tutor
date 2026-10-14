@@ -4,7 +4,7 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.375rem 0.75rem;
-  border-bottom: 1px solid var(--divider-color, rgb(0 0 0 / 12%));
+  border-bottom: 1px solid var(--pws-border-strong);
   background: var(--study-bar-bg, rgb(255 193 7 / 12%));
   font-size: 0.8125rem;
   line-height: 1.4;
@@ -25,7 +25,7 @@
 .study-bar__input,
 .study-bar__select {
   padding: 0.25rem 0.375rem;
-  border: 1px solid var(--divider-color, rgb(0 0 0 / 24%));
+  border: 1px solid var(--pws-border-control);
   border-radius: 4px;
   background: transparent;
   color: inherit;
@@ -69,6 +69,6 @@
 }
 
 .study-bar__outcome--timeout {
-  color: rgb(198 40 40);
+  color: var(--pws-danger-fg);
   font-weight: 600;
 }

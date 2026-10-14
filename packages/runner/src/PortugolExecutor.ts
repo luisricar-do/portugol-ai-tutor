@@ -1,9 +1,8 @@
-import { PortugolCodeError, PortugolErrorListener } from "@luisricar-do/antlr";
-import { PortugolErrorChecker } from "@luisricar-do/parser";
-import { PortugolJs } from "@luisricar-do/runtime";
+import { PortugolDiagnosticSeverity } from "@luisricar-do/antlr";
 import { Subject, Subscription } from "rxjs";
 
 import { IPortugolRunner, PortugolEvent, PortugolMessage } from "./runners/IPortugolRunner.js";
+import type { PortugolTranspiledCode } from "./transpile.js";
 
 export class PortugolExecutor {
   private _runner?: IPortugolRunner;
@@ -35,7 +34,18 @@ export class PortugolExecutor {
 
   stdOut = "";
   stdOut$ = new Subject<string>();
+
+  /**
+   * Com `false`, a saída de uma execução fica abaixo da anterior, separada por
+   * uma linha em branco, em vez de começar do zero.
+   */
+  clearStdOutOnRun = true;
   private _stdOut$?: Subscription;
+
+  /**
+   * Com `false`, o aviso de fim da execução não diz quanto tempo ela levou.
+   */
+  showExecutionTime = true;
 
   waitingForInput = false;
   waitingForInput$ = new Subject<boolean>();
@@ -46,98 +56,44 @@ export class PortugolExecutor {
   private _running$?: Subscription;
 
   events = new Subject<PortugolEvent>();
-  errorListener = new PortugolErrorListener();
-
-  run(code: string) {
-    let errors: PortugolCodeError[] = [];
-    let parseErrors: PortugolCodeError[] = [];
-    let js = "";
-    let checkStart = 0;
-    let checkEnd = 0;
-    let transpileStart = 0;
-    let transpileEnd = 0;
-
-    try {
-      checkStart = performance.now();
-      const checkResult = PortugolErrorChecker.checkCode(code);
-
-      errors = checkResult.errors;
-      parseErrors = checkResult.parseErrors;
-
-      checkEnd = performance.now();
-
-      transpileStart = performance.now();
-      js = new PortugolJs().visit(checkResult.tree)!;
-      transpileEnd = performance.now();
-    } catch {}
-
-    this.runTranspiled({
-      code,
-      js,
-      errors,
-      parseErrors,
-      times: {
-        check: checkEnd - checkStart,
-        transpile: transpileEnd - transpileStart,
-      },
-    });
-  }
-
   #printTimes(_times: { check: number; transpile: number; execution?: number }) {}
 
-  runTranspiled({
-    code,
-    js,
-    errors,
-    parseErrors,
-    times,
-  }: {
-    code: string;
-    js: string;
-    errors: PortugolCodeError[];
-    parseErrors: PortugolCodeError[];
-    times: { check: number; transpile: number };
-  }) {
+  runTranspiled({ js, diagnostics, parseErrors, times }: PortugolTranspiledCode) {
     try {
-      this.reset();
+      this.reset(this.clearStdOutOnRun);
 
-      if (parseErrors.length > 0) {
-        throw new Error("Parse errors");
+      if (this.stdOut.length > 0) {
+        this.stdOut += this.stdOut.endsWith("\n") ? "\n" : "\n\n";
       }
 
+      /**
+       * Como o Portugol Studio: código com erro de compilação não executa. Os erros vão para
+       * a saída porque nem todo cliente do runner tem um editor que os mostre. Erro de
+       * sintaxe vem primeiro: se o arquivo nem analisou, o resto é consequência.
+       */
+      const errors = [
+        ...parseErrors,
+        ...diagnostics.filter(diagnostic => diagnostic.severity === PortugolDiagnosticSeverity.Error),
+      ];
+
       if (errors.length > 0) {
-        const argueAboutAlgolIfNeeded = () => {
-          if (
-            ["fimalgoritmo", "fimenquanto", "fimpara", "fimse", "fimfuncao"].some(keyword => code.includes(keyword))
-          ) {
-            this.stdOut += `\n`;
-            this.stdOut += `╔═════════════════════════════════════╗\n`;
-            this.stdOut += `║               ATENÇÃO               ║\n`;
-            this.stdOut += `║                                     ║\n`;
-            this.stdOut += `║ Foi detectado que o seu código está ║\n`;
-            this.stdOut += `║ usando o Portugol no formato Algol. ║\n`;
-            this.stdOut += `║ O Portugol Webstudio dá suporte ao  ║\n`;
-            this.stdOut += `║ Portugol no formato definido pela   ║\n`;
-            this.stdOut += `║ UNIVALI. Por favor, leia mais sobre ║\n`;
-            this.stdOut += `║ na seção Ajuda.                     ║\n`;
-            this.stdOut += `╚═════════════════════════════════════╝\n\n`;
-          }
-        };
+        const plural = errors.length > 1 ? "s" : "";
 
-        argueAboutAlgolIfNeeded();
+        this.stdOut += `⛔ O seu código possui ${errors.length} erro${plural} de compilação e não foi executado:\n\n`;
 
-        this.stdOut += `⛔ O seu código possui ${errors.length} erro${errors.length > 1 ? "s" : ""} de compilação:\n`;
+        // A coluna do diagnóstico começa em 0; a mostrada começa em 1, como no editor.
         this.stdOut += errors
-          .map(error => `   - ${error.message} (linha ${error.startLine}, posição ${error.startCol})\n`)
+          .map(error => `ERRO: ${error.message} (linha ${error.startLine}, coluna ${error.startCol + 1})\n`)
           .join("");
 
-        this.stdOut +=
-          "\n⚠️ Estamos aprimorando a detecção de erros. Seu código será executado mesmo com erros, mas se não forem corrigidos, a execução pode exibir mensagens de erro em inglês ou sem explicação.\n";
-
-        argueAboutAlgolIfNeeded();
-
-        this.stdOut += "- O seu programa irá iniciar abaixo -\n";
         this.stdOut$.next(this.stdOut);
+        this.#printTimes(times);
+        this.reset(false);
+        // Todos os erros que barraram a execução, não só os sintáticos: quem ouve precisa
+        // saber por que o programa não rodou.
+        this.events.next({ type: "parseError", errors });
+
+        return;
       }
 
       // @ts-expect-error
@@ -168,11 +124,10 @@ export class PortugolExecutor {
         next: event => {
           switch (event.type) {
             case "finish": {
-              if (event.stopped) {
-                this.stdOut += `\nO programa foi interrompido! Tempo de execução: ${event.time} milissegundos\n`;
-              } else {
-                this.stdOut += `\nPrograma finalizado. Tempo de execução: ${event.time} milissegundos\n`;
-              }
+              const message = event.stopped ? "O programa foi interrompido!" : "Programa finalizado.";
+              const time = this.showExecutionTime ? ` Tempo de execução: ${event.time} milissegundos` : "";
+
+              this.stdOut += `\n${message}${time}\n`;
 
               this.#printTimes({ ...times, execution: event.time });
               this.stdOut$.next(this.stdOut);

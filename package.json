@@ -24,42 +24,67 @@
     "url": "https://github.com/luisricar-do/portugol-ai-tutor/issues"
   },
   "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
-  "packageManager": "npm@11.11.0+sha512.f36811c4aae1fde639527368ae44c571d050006a608d67a191f195a801a52637a312d259186254aa3a3799b05335b7390539cf28656d18f0591a1125ba35f973",
+  "packageManager": "npm@12.2.0+sha512.66c2632a94e796649738b2d7894d710c2cc2e1696893823066687f6b0d8a52e5f2b54eeaeaa32ffdc513ecca1e49ff794a5c2ec3f9515d879f1b3182b291cf35",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
     "lint": "sherif && npm run eslint:check",
-    "eslint:fix": "eslint --fix 'packages/**/*.{ts,js,html}'",
-    "eslint:check": "eslint 'packages/**/*.{ts,js,html}'",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "eslint:fix": "eslint --fix .",
+    "eslint:check": "eslint .",
+    "typecheck": "lerna run typecheck",
     "start": "lerna run start --scope=@luisricar-do/ide",
     "build": "lerna run build",
     "build:w": "lerna run --parallel build:w",
+    "changelog:entry": "node .github/scripts/changelog.mjs new",
     "build:agent": "lerna run build --scope=@luisricar-do/agent",
     "build:parser": "lerna run build --scope=@luisricar-do/parser",
     "build:runner": "lerna run build --scope=@luisricar-do/runner",
     "build:runtime": "lerna run build --scope=@luisricar-do/runtime",
     "test:parser": "lerna run test --scope=@luisricar-do/parser",
+    "test:runner": "lerna run test --scope=@luisricar-do/runner",
     "release": "lerna run release",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test": "vitest"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.3",
-    "angular-eslint": "^21.2.0",
-    "eslint": "^9.39.3",
+    "@eslint/js": "^10.0.1",
+    "angular-eslint": "^22.5.0",
+    "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "eslint-plugin-unicorn": "^63.0.0",
-    "lerna": "^9.0.5",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-unicorn": "^77.0.0",
+    "lerna": "^10.1.0",
     "patch-package": "^8.0.1",
-    "sherif": "^1.10.0",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.56.1"
+    "sherif": "^1.13.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.1"
   },
   "overrides": {
+    "@angular/build": "^22.1.5",
+    "@angular/common": "^22.1.5",
+    "@angular/core": "^22.1.5",
+    "@angular/platform-browser": "^22.1.5",
+    "@angular/fire": {
+      "typescript": "$typescript"
+    },
     "@nx/devkit": {
       "minimatch": "^10.2.3"
     },
-    "tmp": "^0.2.5"
+    "tmp": "^0.2.5",
+    "vitest": "^5.0.0"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.3": true,
+    "@parcel/watcher@2.6.0": true,
+    "@swc/core@1.16.2": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true,
+    "lmdb@3.5.6": true,
+    "msgpackr-extract@3.0.4": true,
+    "nx@23.2.0": true,
+    "protobufjs@7.6.6": true
   }
 }

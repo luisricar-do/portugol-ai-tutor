@@ -1,5 +1,5 @@
-import { SubtracaoContext } from "@luisricar-do/antlr";
+import { AdicaoSubtracaoContext } from "@luisricar-do/antlr";
 
 import { ExpressãoMatemática } from "./ExpressãoMatemática.js";
 
-export class SubtraçãoExpr extends ExpressãoMatemática<SubtracaoContext> {}
+export class SubtraçãoExpr extends ExpressãoMatemática<AdicaoSubtracaoContext> {}

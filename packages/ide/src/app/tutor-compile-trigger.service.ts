@@ -1,5 +1,5 @@
-import { Injectable, inject } from "@angular/core";
-import type { PortugolCodeError } from "@luisricar-do/antlr";
+import { Service, inject } from "@angular/core";
+import type { IPortugolCodeDiagnostic } from "@luisricar-do/antlr";
 
 import { TutorAutoTriggerService } from "./tutor-auto-trigger.service";
 import { TutorChatSessionService } from "./tutor-chat-session.service";
@@ -11,9 +11,9 @@ import { TutorTelemetryService } from "./tutor-telemetry.service";
 const COOLDOWN_MS = 60_000;
 
 /**
- * Reação a erros de compilação após o aluno executar o programa (não a cada keystroke).
+ *  *  * Reação a erros de compilação após o aluno executar o programa (não a cada keystroke).
  */
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorCompileTriggerService {
   private readonly immersion = inject(TutorImmersionService);
   private readonly tutorOverlay = inject(TutorOverlayService);
@@ -24,7 +24,7 @@ export class TutorCompileTriggerService {
   private lastErrorHash = "";
   private lastTriggeredAt = 0;
 
-  onRunWithCompileErrors(errors: PortugolCodeError[], isActiveTab: boolean): void {
+  onRunWithCompileErrors(errors: IPortugolCodeDiagnostic[], isActiveTab: boolean): void {
     if (!isActiveTab || errors.length === 0) {
       return;
     }
@@ -32,7 +32,7 @@ export class TutorCompileTriggerService {
     const hash = errors
       .map(e => `${e.startLine}:${e.startCol}:${e.message}`)
       // eslint-disable-next-line unicorn/no-array-sort -- toSorted exige lib ES2023; o map já devolve cópia.
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
       .join("|");
     const now = Date.now();
     if (hash === this.lastErrorHash && now - this.lastTriggeredAt < COOLDOWN_MS) {

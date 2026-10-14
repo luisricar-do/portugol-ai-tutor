@@ -1,6 +1,8 @@
-import { Injectable, signal } from "@angular/core";
+import { Service, signal } from "@angular/core";
 
-/** Uma conexão de fluxo de dados (corda fantasma) entre duas linhas. */
+/**
+ * Uma conexão de fluxo de dados (corda fantasma) entre duas linhas.
+ */
 export interface TutorDataFlowConnection {
   fromLine: number;
   fromVar: string;
@@ -9,24 +11,36 @@ export interface TutorDataFlowConnection {
   status: "ok" | "broken";
 }
 
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorImmersionService {
-  /** Modo foco: escurece o editor (dimming). */
+  /**
+   * Modo foco: escurece o editor (dimming).
+   */
   private readonly focusModeSignal = signal(false);
 
-  /** Linha com contorno pulsante (erro / atenção). */
+  /**
+   * Linha com contorno pulsante (erro / atenção).
+   */
   private readonly pulsingLineSignal = signal<number | null>(null);
 
-  /** Conexões para o mapa visual de fluxo. */
+  /**
+   * Conexões para o mapa visual de fluxo.
+   */
   private readonly dataFlowConnectionsSignal = signal<TutorDataFlowConnection[]>([]);
 
-  /** Variável ainda “quebrada” no fluxo (para validação em tempo real). */
+  /**
+   * Variável ainda “quebrada” no fluxo (para validação em tempo real).
+   */
   private readonly pendingBrokenVarSignal = signal<string | null>(null);
 
-  /** Linhas fantasmas mais suaves (HUD em retirada estratégica). */
+  /**
+   * Linhas fantasmas mais suaves (HUD em retirada estratégica).
+   */
   private readonly ghostLinesMutedSignal = signal(false);
 
-  /** Linha-alvo para a corda HUD ↔ código ( Corda fantasma ), 1-based. */
+  /**
+   * Linha-alvo para a corda HUD ↔ código ( Corda fantasma ), 1-based.
+   */
   private readonly hudLinkLineSignal = signal<number | null>(null);
 
   readonly focusMode = this.focusModeSignal.asReadonly();
@@ -67,7 +81,9 @@ export class TutorImmersionService {
     this.hudLinkLineSignal.set(line === null ? null : Math.trunc(line));
   }
 
-  /** Chamado quando o aluno corrige o fluxo (ex.: adicionou leia). */
+  /**
+   * Chamado quando o aluno corrige o fluxo (ex.: adicionou leia).
+   */
   resolvePendingFlow(): void {
     const conns = this.dataFlowConnectionsSignal().map(c =>
       c.status === "broken" ? { ...c, status: "ok" as const } : c,

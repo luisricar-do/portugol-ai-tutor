@@ -1,7 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "ts-node": {
-    "swc": true,
-  },
-  "files": ["src/atualizar.ts"]
-}

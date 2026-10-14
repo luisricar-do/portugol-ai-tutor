@@ -1,4 +1,6 @@
-/** Glifos ? clicáveis na margem do editor (abrem a tutora). */
+/**
+ * Glifos ? clicáveis na margem do editor (abrem a tutora).
+ */
 export const TUTOR_CLICKABLE_GLYPH_CLASSES = ["tutor-glyph-compile-issue", "tutor-glyph-flow-broken"] as const;
 
 export const TUTOR_GLYPH_HOVER_MESSAGE = "Pedir ajuda da tutora nesta linha";
@@ -15,7 +17,9 @@ export function lineHasClickableTutorGlyph(
   });
 }
 
-/** Mensagem automática ao clicar no ? da margem. */
+/**
+ * Mensagem automática ao clicar no ? da margem.
+ */
 export function buildGlyphClickMessage(line: number, compilerMarkerMessage?: string): string {
   const trimmed = compilerMarkerMessage?.trim();
   if (trimmed) {

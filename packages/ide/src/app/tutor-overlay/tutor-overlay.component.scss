@@ -13,14 +13,22 @@
   width: auto;
   height: auto;
   pointer-events: none;
-  /* Acima de painéis Material / Monaco */
+  /* Acima dos painéis e do Monaco */
   z-index: 10050;
   overflow: visible;
 }
 
+/*
+ * Com o diálogo "Limpar conversa" aberto, o HUD desce para trás do overlay do CDK
+ * (z-index 1000), senão o cartão cobriria o diálogo e o fundo escurecido.
+ */
+:host(.tutor-overlay-host--behind-dialog) {
+  z-index: 999;
+}
+
 /* Brilho ciano derivado do primário do tema */
-$tutor-hud-glow: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 55%, transparent);
-$tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, transparent);
+$tutor-hud-glow: color-mix(in srgb, var(--pws-accent, #22d3ee) 55%, transparent);
+$tutor-hud-glow-soft: color-mix(in srgb, var(--pws-accent, #22d3ee) 28%, transparent);
 
 /* Shell: ancora o cartão na base central */
 .tutor-overlay {
@@ -76,11 +84,11 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   pointer-events: auto;
   box-sizing: border-box;
   border-radius: 1.125rem;
-  border: 1px solid color-mix(in srgb, $tutor-hud-glow-soft 65%, var(--pws-border-color));
-  background: var(--pws-bg-200);
+  border: 1px solid color-mix(in srgb, $tutor-hud-glow-soft 65%, var(--pws-border-strong));
+  background: var(--pws-bg-elevated);
   box-shadow:
     0 12px 40px -14px rgb(0 0 0 / 0.35),
-    0 0 0 1px color-mix(in srgb, var(--pws-text-100) 8%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--pws-fg-strong) 8%, transparent),
     0 0 40px -8px $tutor-hud-glow,
     0 0 72px -16px $tutor-hud-glow-soft;
   overflow: hidden;
@@ -108,10 +116,12 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   min-height: 2rem;
   padding: 0.2rem 0.2rem 0.2rem 0.25rem;
   row-gap: 0.15rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--pws-text-100) 8%, var(--pws-border-color));
-  background: linear-gradient(180deg,
-      color-mix(in srgb, var(--pws-color-primary) 18%, transparent) 0%,
-      color-mix(in srgb, var(--pws-bg-200) 96%, var(--pws-bg-300)) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--pws-fg-strong) 8%, var(--pws-border-strong));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--pws-accent) 18%, transparent) 0%,
+    color-mix(in srgb, var(--pws-bg-elevated) 96%, var(--pws-bg-chrome)) 100%
+  );
 }
 
 .tutor-overlay__drag-grip {
@@ -126,7 +136,7 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   border: none;
   border-radius: 0.35rem;
   background: transparent;
-  color: color-mix(in srgb, var(--pws-text-300) 88%, transparent);
+  color: color-mix(in srgb, var(--pws-fg-muted) 88%, transparent);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -137,8 +147,8 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   }
 
   &:hover {
-    color: var(--pws-text-100);
-    background: color-mix(in srgb, var(--pws-text-100) 6%, transparent);
+    color: var(--pws-fg-strong);
+    background: color-mix(in srgb, var(--pws-fg-strong) 6%, transparent);
   }
 
   ::ng-deep svg-icon {
@@ -168,13 +178,13 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--pws-text-100);
+  color: var(--pws-fg-strong);
 }
 
 .tutor-overlay__drag-role {
   font-size: 0.62rem;
   font-weight: 500;
-  color: color-mix(in srgb, var(--pws-text-300) 90%, transparent);
+  color: color-mix(in srgb, var(--pws-fg-muted) 90%, transparent);
 }
 
 .tutor-overlay__drag-spacer {
@@ -190,20 +200,24 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   max-width: 100%;
 }
 
-.tutor-overlay__history-btn.mat-mdc-button {
+.tutor-overlay__history-btn {
   flex-shrink: 0;
   min-width: auto;
+  height: 1.75rem;
   padding: 0 0.35rem;
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1.25;
-  color: color-mix(in srgb, var(--pws-text-200) 92%, transparent);
+  color: color-mix(in srgb, var(--pws-fg) 92%, transparent);
 }
 
 .tutor-overlay__drag-icon {
   flex-shrink: 0;
-  color: color-mix(in srgb, var(--pws-text-300) 90%, transparent);
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: color-mix(in srgb, var(--pws-fg-muted) 90%, transparent);
 
   ::ng-deep svg-icon {
     display: inline-flex;
@@ -218,21 +232,17 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   }
 
   &:hover:not(:disabled) {
-    color: var(--pws-text-100);
-  }
-
-  &.mat-mdc-icon-button {
-    --mdc-icon-button-state-layer-size: 1.75rem;
-    padding: 0;
-    width: 1.75rem;
-    height: 1.75rem;
+    color: var(--pws-fg-strong);
   }
 }
 
 .tutor-overlay__drag-reset {
   flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
   margin-right: 0.05rem;
-  color: color-mix(in srgb, var(--pws-text-300) 90%, transparent);
+  color: color-mix(in srgb, var(--pws-fg-muted) 90%, transparent);
 
   ::ng-deep svg-icon {
     display: inline-flex;
@@ -246,11 +256,8 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
     fill: currentColor;
   }
 
-  &.mat-mdc-icon-button {
-    --mdc-icon-button-state-layer-size: 1.75rem;
-    width: 1.75rem;
-    height: 1.75rem;
-    padding: 0;
+  &:hover:not(:disabled) {
+    color: var(--pws-fg-strong);
   }
 }
 
@@ -267,10 +274,10 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
     transform: scale(0.98);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    background: color-mix(in srgb, var(--pws-bg-200) 72%, transparent);
+    background: color-mix(in srgb, var(--pws-bg-elevated) 72%, transparent);
     box-shadow:
       0 8px 32px -12px rgb(0 0 0 / 0.28),
-      0 0 0 1px color-mix(in srgb, var(--pws-text-100) 8%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--pws-fg-strong) 8%, transparent),
       0 0 28px -8px $tutor-hud-glow-soft;
   }
 
@@ -279,16 +286,15 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
     transform: scale(1);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: var(--pws-bg-200);
+    background: var(--pws-bg-elevated);
     box-shadow:
       0 12px 40px -14px rgb(0 0 0 / 0.35),
-      0 0 0 1px color-mix(in srgb, var(--pws-text-100) 10%, var(--pws-border-color)),
+      0 0 0 1px color-mix(in srgb, var(--pws-fg-strong) 10%, var(--pws-border-strong)),
       0 0 36px -6px $tutor-hud-glow;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .tutor-overlay--open.tutor-overlay--dimmed .tutor-overlay__panel {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -300,10 +306,10 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   transform: scale(1);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  background: var(--pws-bg-200);
+  background: var(--pws-bg-elevated);
   box-shadow:
     0 12px 40px -14px rgb(0 0 0 / 0.35),
-    0 0 0 1px color-mix(in srgb, var(--pws-text-100) 10%, var(--pws-border-color)),
+    0 0 0 1px color-mix(in srgb, var(--pws-fg-strong) 10%, var(--pws-border-strong)),
     0 0 36px -6px $tutor-hud-glow;
 }
 
@@ -320,7 +326,7 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   border: none;
   border-radius: 0;
   box-shadow: none;
-  background: var(--pws-bg-200);
+  background: var(--pws-bg-elevated);
   overflow: hidden;
   transition:
     opacity 0.2s ease-out,
@@ -332,7 +338,7 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
 
 /* Celebração discreta: borda verde estática, sem animação pulsante (M09). */
 .tutor-overlay__panel-wrap--success {
-  border-color: color-mix(in srgb, #22c55e 50%, var(--pws-border-color));
+  border-color: color-mix(in srgb, #22c55e 50%, var(--pws-border-strong));
   box-shadow:
     0 12px 40px -14px rgb(0 0 0 / 0.35),
     0 0 0 2px color-mix(in srgb, #22c55e 40%, transparent);
@@ -373,7 +379,7 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   gap: 1rem;
   padding: 2rem 0 1.25rem;
   text-align: center;
-  color: var(--pws-text-200);
+  color: var(--pws-fg);
   font-size: 0.92rem;
 }
 
@@ -389,28 +395,32 @@ $tutor-hud-glow-soft: color-mix(in srgb, var(--pws-color-primary, #22d3ee) 28%, 
   user-select: none;
   -webkit-user-select: none;
   border-bottom-right-radius: 1.125rem;
-  background: linear-gradient(135deg,
-      transparent 0%,
-      transparent 42%,
-      color-mix(in srgb, var(--pws-text-300) 55%, transparent) 42%,
-      color-mix(in srgb, var(--pws-text-300) 55%, transparent) 48%,
-      transparent 48%,
-      transparent 58%,
-      color-mix(in srgb, var(--pws-text-300) 55%, transparent) 58%,
-      color-mix(in srgb, var(--pws-text-300) 55%, transparent) 64%,
-      transparent 64%);
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 42%,
+    color-mix(in srgb, var(--pws-fg-muted) 55%, transparent) 42%,
+    color-mix(in srgb, var(--pws-fg-muted) 55%, transparent) 48%,
+    transparent 48%,
+    transparent 58%,
+    color-mix(in srgb, var(--pws-fg-muted) 55%, transparent) 58%,
+    color-mix(in srgb, var(--pws-fg-muted) 55%, transparent) 64%,
+    transparent 64%
+  );
 
   &:hover,
   &:active {
-    background: linear-gradient(135deg,
-        transparent 0%,
-        transparent 42%,
-        color-mix(in srgb, var(--pws-color-primary) 70%, transparent) 42%,
-        color-mix(in srgb, var(--pws-color-primary) 70%, transparent) 48%,
-        transparent 48%,
-        transparent 58%,
-        color-mix(in srgb, var(--pws-color-primary) 70%, transparent) 58%,
-        color-mix(in srgb, var(--pws-color-primary) 70%, transparent) 64%,
-        transparent 64%);
+    background: linear-gradient(
+      135deg,
+      transparent 0%,
+      transparent 42%,
+      color-mix(in srgb, var(--pws-accent) 70%, transparent) 42%,
+      color-mix(in srgb, var(--pws-accent) 70%, transparent) 48%,
+      transparent 48%,
+      transparent 58%,
+      color-mix(in srgb, var(--pws-accent) 70%, transparent) 58%,
+      color-mix(in srgb, var(--pws-accent) 70%, transparent) 64%,
+      transparent 64%
+    );
   }
 }

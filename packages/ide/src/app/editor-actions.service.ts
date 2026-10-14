@@ -1,10 +1,10 @@
-import { Injectable, NgZone, inject } from "@angular/core";
-import { MatSnackBar } from "@angular/material/snack-bar";
+import { Service, NgZone, inject } from "@angular/core";
 import type { EditorAction } from "@luisricar-do/agent";
 
 import { TUTOR_GLYPH_HOVER_MESSAGE } from "./tutor-glyph-click.util";
 import { TutorHudLayoutService } from "./tutor-hud-layout.service";
 import { TutorImmersionService, type TutorDataFlowConnection } from "./tutor-immersion.service";
+import { TutorToastService } from "./tutor-toast.service";
 
 function escapeRegExp(s: string): string {
   return s.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`);
@@ -15,9 +15,9 @@ function escapeRegExp(s: string): string {
  * As ações são enfileiradas e aplicadas no próximo frame para não bloquear o thread principal
  * durante o SSE (evita competir com o worker de transpilação / Zone).
  */
-@Injectable({ providedIn: "root" })
+@Service()
 export class EditorActionsService {
-  private readonly snack = inject(MatSnackBar);
+  private readonly toast = inject(TutorToastService);
 
   private readonly ngZone = inject(NgZone);
 
@@ -27,15 +27,21 @@ export class EditorActionsService {
 
   private editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
-  /** Reaplica marcadores do compilador após mudança da linha primária (registado pelo editor). */
+  /**
+   *  *  * Reaplica marcadores do compilador após mudança da linha primária (registado pelo editor).
+   */
   private refreshCompilerMarkersFn: (() => void) | null = null;
 
   private decorationIds: string[] = [];
 
-  /** Comentários inline do tutor por linha (substitui o anterior na mesma linha). */
+  /**
+   *  *  * Comentários inline do tutor por linha (substitui o anterior na mesma linha).
+   */
   private inlineCommentByLine = new Map<number, string>();
 
-  /** Glifos ❓ de erro de compilação (independentes das decorações pedagógicas do tutor). */
+  /**
+   *  *  * Glifos ❓ de erro de compilação (independentes das decorações pedagógicas do tutor).
+   */
   private compilerGlyphIds: string[] = [];
 
   private runCodeFn: (() => void | Promise<void>) | null = null;
@@ -47,7 +53,7 @@ export class EditorActionsService {
   private flushRaf: number | null = null;
 
   /**
-   * Chamado quando o editor de código principal é criado ou destruído.
+   *  *  * Chamado quando o editor de código principal é criado ou destruído.
    */
   setEditor(editor: monaco.editor.IStandaloneCodeEditor | null): void {
     if (this.editor !== null && editor !== this.editor) {
@@ -58,13 +64,15 @@ export class EditorActionsService {
   }
 
   /**
-   * Necessário para `run_code_with_watch` (executa o código na IDE).
+   *  *  * Necessário para `run_code_with_watch` (executa o código na IDE).
    */
   setRunCode(fn: (() => void | Promise<void>) | null): void {
     this.runCodeFn = fn;
   }
 
-  /** Para pausar execução (loops / playback didático). */
+  /**
+   *  *  * Para pausar execução (loops / playback didático).
+   */
   setStopCode(fn: (() => void) | null): void {
     this.stopCodeFn = fn;
   }
@@ -81,13 +89,15 @@ export class EditorActionsService {
     return this.decorationIds.length;
   }
 
-  /** Indica se há destaques/comentários do tutor aplicados no editor. */
+  /**
+   *  *  * Indica se há destaques/comentários do tutor aplicados no editor.
+   */
   hasActiveTutorDecorations(): boolean {
     return this.decorationIds.length > 0;
   }
 
   /**
-   * Remove todos os destaques e comentários inline do tutor (equivalente à tool `clear_highlights`).
+   *  *  * Remove todos os destaques e comentários inline do tutor (equivalente à tool `clear_highlights`).
    */
   clearTutorDecorations(): void {
     this.cancelPendingFlush();
@@ -95,7 +105,9 @@ export class EditorActionsService {
     this.immersion.clearImmersion();
   }
 
-  /** Glifos ❓ nas linhas com erro do compilador (estado atual). */
+  /**
+   *  *  * Glifos ❓ nas linhas com erro do compilador (estado atual).
+   */
   setCompilerIssueLines(lines: number[]): void {
     const ed = this.editor;
     const model = ed?.getModel();
@@ -111,18 +123,22 @@ export class EditorActionsService {
     if (uniq.length === 0) {
       return;
     }
-    const decs = uniq.map(ln => ({
-      range: new monaco.Range(ln, 1, ln, 1),
-      options: {
-        glyphMarginClassName: "tutor-glyph-compile-issue",
-        glyphMarginHoverMessage: { value: TUTOR_GLYPH_HOVER_MESSAGE },
-        isWholeLine: false,
-      },
-    }));
+    const decs = uniq.map(ln => {
+      return {
+        range: new monaco.Range(ln, 1, ln, 1),
+        options: {
+          glyphMarginClassName: "tutor-glyph-compile-issue",
+          glyphMarginHoverMessage: { value: TUTOR_GLYPH_HOVER_MESSAGE },
+          isWholeLine: false,
+        },
+      };
+    });
     this.compilerGlyphIds = ed.deltaDecorations([], decs);
   }
 
-  /** Pulsa ✔️ quando uma linha deixa de ter erro de compilação. */
+  /**
+   *  *  * Pulsa ✔️ quando uma linha deixa de ter erro de compilação.
+   */
   flashResolvedCompilerLines(lines: number[]): void {
     const ed = this.editor;
     const model = ed?.getModel();
@@ -133,13 +149,15 @@ export class EditorActionsService {
     if (uniq.length === 0) {
       return;
     }
-    const decs = uniq.map(ln => ({
-      range: new monaco.Range(ln, 1, ln, 1),
-      options: {
-        glyphMarginClassName: "tutor-glyph-compile-fixed",
-        isWholeLine: false,
-      },
-    }));
+    const decs = uniq.map(ln => {
+      return {
+        range: new monaco.Range(ln, 1, ln, 1),
+        options: {
+          glyphMarginClassName: "tutor-glyph-compile-fixed",
+          isWholeLine: false,
+        },
+      };
+    });
     const ids = ed.deltaDecorations([], decs);
     window.setTimeout(() => {
       ed.deltaDecorations(ids, []);
@@ -230,9 +248,9 @@ export class EditorActionsService {
       case "mark_bug_resolved": {
         this.clearHighlightsInternal();
         this.immersion.clearImmersion();
-        this.snack.open("Ótimo — parece que você encontrou o caminho sozinho(a). Continue assim!", "OK", {
+        this.toast.show("Ótimo — parece que você encontrou o caminho sozinho(a). Continue assim!", {
           duration: 6000,
-          panelClass: ["tutor-snack", "tutor-snack--celebrate"],
+          variant: "celebrate",
         });
         break;
       }
@@ -242,9 +260,9 @@ export class EditorActionsService {
           typeof payload.reason === "string" && payload.reason.trim().length > 0
             ? payload.reason.trim()
             : "Vamos tentar uma dica mais direta no chat.";
-        this.snack.open(`Próximo passo: ${reason}`, "OK", {
+        this.toast.show(`Próximo passo: ${reason}`, {
           duration: 8000,
-          panelClass: ["tutor-snack", "tutor-snack--escalate"],
+          variant: "escalate",
         });
         break;
       }
@@ -285,9 +303,9 @@ export class EditorActionsService {
       case "pause_at_iteration":
       case "pause_execution": {
         this.stopCodeFn?.();
-        this.snack.open("Execução pausada para você observar o fluxo do programa.", "OK", {
+        this.toast.show("Execução pausada para você observar o fluxo do programa.", {
           duration: 6000,
-          panelClass: ["tutor-snack", "tutor-snack--escalate"],
+          variant: "escalate",
         });
         break;
       }
@@ -334,12 +352,12 @@ export class EditorActionsService {
     const eRaw = payload.end_line ?? payload.endLine;
     const startLine = typeof sRaw === "number" && Number.isFinite(sRaw) ? Math.trunc(sRaw) : undefined;
     const endLine = typeof eRaw === "number" && Number.isFinite(eRaw) ? Math.trunc(eRaw) : undefined;
-    if (startLine === undefined || startLine < 1 || endLine === undefined || endLine < 1) {
+    if (startLine === undefined || endLine === undefined || startLine < 1 || endLine < 1) {
       return;
     }
     const maxLine = model.getLineCount();
     const lo = Math.min(Math.max(Math.min(startLine, endLine), 1), maxLine);
-    const hi = Math.min(Math.max(Math.max(startLine, endLine), 1), maxLine);
+    const hi = Math.min(Math.max(startLine, endLine, 1), maxLine);
     const decs: monaco.editor.IModelDeltaDecoration[] = [];
     for (let ln = lo; ln <= hi; ln++) {
       decs.push({
@@ -433,7 +451,7 @@ export class EditorActionsService {
     const l2Raw = payload.line2;
     const line1 = typeof l1Raw === "number" && Number.isFinite(l1Raw) ? Math.trunc(l1Raw) : undefined;
     const line2 = typeof l2Raw === "number" && Number.isFinite(l2Raw) ? Math.trunc(l2Raw) : undefined;
-    if (line1 === undefined || line1 < 1 || line2 === undefined || line2 < 1) {
+    if (line1 === undefined || line2 === undefined || line1 < 1 || line2 < 1) {
       return;
     }
 
@@ -441,19 +459,23 @@ export class EditorActionsService {
     const ln1 = Math.min(Math.max(line1, 1), maxLine);
     const ln2 = Math.min(Math.max(line2, 1), maxLine);
 
-    const decs = [ln1, ln2].map((ln, idx) => ({
-      range: new monaco.Range(ln, 1, ln, Math.max(model.getLineMaxColumn(ln), 1)),
-      options: {
-        isWholeLine: true,
-        className: idx === 0 ? "tutor-line--compare-a" : "tutor-line--compare-b",
-      },
-    }));
+    const decs = [ln1, ln2].map((ln, idx) => {
+      return {
+        range: new monaco.Range(ln, 1, ln, Math.max(model.getLineMaxColumn(ln), 1)),
+        options: {
+          isWholeLine: true,
+          className: idx === 0 ? "tutor-line--compare-a" : "tutor-line--compare-b",
+        },
+      };
+    });
 
     const ids = ed.deltaDecorations([], decs);
     this.decorationIds.push(...ids);
   }
 
-  /** Tópicos válidos alinhados à tool `suggest_documentation` no backend. */
+  /**
+   *  *  * Tópicos válidos alinhados à tool `suggest_documentation` no backend.
+   */
   private suggestDocumentation(payload: Record<string, unknown>): void {
     const allowed = new Set([
       "variaveis",
@@ -473,9 +495,9 @@ export class EditorActionsService {
         ? `Documentação sugerida: ${topic.replaceAll("_", " ")}`
         : "Abra o painel de ajuda da IDE para revisar a sintaxe deste trecho.";
 
-    this.snack.open(label, "OK", {
+    this.toast.show(label, {
       duration: 6000,
-      panelClass: ["tutor-snack", "tutor-snack--escalate"],
+      variant: "escalate",
     });
   }
 
@@ -547,12 +569,14 @@ export class EditorActionsService {
       return;
     }
 
-    const newDecs = matches.map(m => ({
-      range: m.range,
-      options: {
-        className: "tutor-var-match",
-      },
-    }));
+    const newDecs = matches.map(m => {
+      return {
+        range: m.range,
+        options: {
+          className: "tutor-var-match",
+        },
+      };
+    });
 
     const ids = ed.deltaDecorations([], newDecs);
     this.decorationIds.push(...ids);
@@ -568,13 +592,16 @@ export class EditorActionsService {
     const lineRaw = payload.line;
     const line = typeof lineRaw === "number" && Number.isFinite(lineRaw) ? Math.trunc(lineRaw) : undefined;
     const comment = payload.comment;
-    if (line === undefined || line < 1 || typeof comment !== "string") {
+    if (line === undefined || typeof comment !== "string" || line < 1) {
       return;
     }
 
     const maxLine = model.getLineCount();
     const ln = Math.min(Math.max(line, 1), maxLine);
-    const safeComment = comment.replaceAll("\r\n", " ").replaceAll("\n", " ").replaceAll("\r", " ").trim();
+    const safeComment = comment
+      .replaceAll("\r\n", " ")
+      .replaceAll(/[\n\r]/g, " ")
+      .trim();
     if (safeComment.length === 0) {
       return;
     }
@@ -617,7 +644,7 @@ export class EditorActionsService {
         ? `Execução com observação: ${variables.join(", ")}`
         : "Execução com observação de variáveis";
 
-    this.snack.open(label, "OK", { duration: 5000 });
+    this.toast.show(label, { duration: 5000 });
 
     const run = this.runCodeFn;
     if (run) {

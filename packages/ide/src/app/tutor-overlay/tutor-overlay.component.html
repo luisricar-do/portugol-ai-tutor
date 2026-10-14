@@ -15,7 +15,7 @@
     [class.tutor-overlay__panel-wrap--custom-size]="hasCustomHudSize()"
     [class.tutor-overlay__panel-wrap--success]="shell.isSuccessCelebration()"
     [style.transform]="hudTransform()"
-    [ngStyle]="hudPanelSizeStyle()"
+    [style]="hudPanelSizeStyle()"
   >
     <div
       class="tutor-overlay__drag-bar"
@@ -42,10 +42,10 @@
         <div class="tutor-overlay__drag-actions" (pointerdown)="$event.stopPropagation()">
           @if (agentChat()?.showImmersiveHistoryToggle()) {
             <button
-              mat-button
               type="button"
-              class="tutor-overlay__history-btn"
-              matTooltip="Ver mensagens anteriores"
+              class="btn btn-ghost btn-sm tutor-overlay__history-btn"
+              appTooltip="Ver mensagens anteriores"
+              appTooltipPosition="above"
               (click)="onExpandImmersiveHistory($event)"
             >
               Ver histórico
@@ -53,10 +53,10 @@
           }
           @if (agentChat()?.baseUrlConfigured && agentChat()?.hasHistory) {
             <button
-              mat-icon-button
               type="button"
-              class="tutor-overlay__drag-icon"
-              matTooltip="Apagar mensagens desta conversa"
+              class="icon-btn tutor-overlay__drag-icon"
+              appTooltip="Apagar mensagens desta conversa"
+              appTooltipPosition="above"
               aria-label="Limpar conversa"
               [disabled]="agentChat()?.streamingAssistant"
               (click)="onHudClearConversation($event)"
@@ -65,10 +65,10 @@
             </button>
           }
           <button
-            mat-icon-button
             type="button"
-            class="tutor-overlay__drag-icon"
-            matTooltip="Fechar tutor (Esc)"
+            class="icon-btn tutor-overlay__drag-icon"
+            appTooltip="Fechar tutor (Esc)"
+            appTooltipPosition="above"
             aria-label="Fechar tutor"
             (click)="onHudClose($event)"
           >
@@ -77,10 +77,10 @@
         </div>
       }
       <button
-        mat-icon-button
         type="button"
-        class="tutor-overlay__drag-reset"
-        matTooltip="Repor posição e tamanho do painel (não apaga a conversa)"
+        class="icon-btn tutor-overlay__drag-reset"
+        appTooltip="Repor posição e tamanho do painel (não apaga a conversa)"
+        appTooltipPosition="above"
         aria-label="Repor posição e tamanho do painel"
         (pointerdown)="$event.stopPropagation()"
         (click)="resetHudPosition($event)"
@@ -88,13 +88,11 @@
         <svg-icon src="assets/mdi/backup-restore.svg" aria-hidden="true" focusable="false" />
       </button>
     </div>
-    <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events --
-         O clique apenas contém a propagação; o painel não é um controlo. -->
     <div
+      #panelBody
       class="tutor-overlay__panel hud-socratico"
       role="complementary"
       aria-label="Tutora socrática ADA"
-      (click)="$event.stopPropagation()"
       (focusin)="shell.undim()"
     >
       <div class="tutor-overlay__inner">
@@ -116,7 +114,7 @@
         } @else {
           <div class="tutor-overlay__empty" role="status">
             <p>Abra ou selecione uma <strong>aba de editor</strong> para conversar com a tutora.</p>
-            <button mat-stroked-button type="button" color="primary" (click)="close()">Fechar</button>
+            <button type="button" class="btn" (click)="close()">Fechar</button>
           </div>
         }
       </div>

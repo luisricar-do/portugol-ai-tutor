@@ -1,0 +1,347 @@
+# Histórico de atualizações
+
+<!--
+Obrigado por contribuir com o Portugol Webstudio!
+
+Não edite este arquivo para registrar a sua mudança: crie um arquivo em `changelog/`, com `npm run changelog:entry`.
+Veja como em `changelog/README.md`.
+
+Quando o beta chega na main, o deploy junta os arquivos de `changelog/` aqui, numa seção com a data do dia.
+-->
+
+As mudanças mais recentes do Portugol Webstudio aparecem primeiro.
+
+## 11/10/2026 – 13/10/2026
+
+**Novo em 13/10/2026:**
+
+A biblioteca Graficos ficou bem mais parecida com a do Portugol Studio:
+
+- Cada `renderizar` desenha a tela do zero, com fundo preto, e a cor volta a ser preta. Antes, a cor e os desenhos do quadro anterior continuavam valendo
+- A janela abre com 640x480, e chamar `iniciar_modo_grafico` de novo não abre outra janela
+- Os programas com `aguarde` rodam na mesma velocidade do Portugol Studio, em qualquer monitor. Com a aba escondida, o programa fica pausado
+- O modo tela cheia funciona: a janela ocupa a aba toda do navegador
+- `largura_texto` e `altura_texto` medem o texto com o tamanho e a fonte que acabaram de ser definidos, e o texto fica na mesma altura que no Portugol Studio
+- Linhas e contornos ficaram nítidos, e uma linha girada com `definir_rotacao` aparece no lugar certo
+- Usar a mesma matriz para desenhar vários polígonos antes do `renderizar` desenha todos eles, e não só o último
+- Um retângulo ou uma elipse com tamanho negativo não é desenhado, em vez de parar o programa com um erro
+- Esquecer o `renderizar` mostra o mesmo erro do Portugol Studio, em vez de deixar a janela vazia
+- Cores e desenhos podem ser definidos antes do `iniciar_modo_grafico`, como no Portugol Studio
+
+Obrigado a quem respondeu a pesquisa e contou que as cores se comportavam diferente!
+
+---
+
+A Ajuda ganhou um guia do Portugol Webstudio, com imagens: dos primeiros passos aos atalhos de teclado, passando pelas configurações e pelo uso sem internet.
+
+---
+
+Os erros de digitação no código ficaram mais fáceis de achar e de entender:
+
+- Só o trecho com o erro fica sublinhado em vermelho, e não mais o programa inteiro. [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/issues/468)
+- As mensagens dizem o que está errado e onde o código quebrou, como "Era esperada uma expressão", em vez de só "Código incompleto ou inválido"
+- Enganos comuns ganharam mensagens próprias, como em `se (x = 1)`, `senao (x > 1)` e `inteiro m[2,3]`
+- Números inteiros grandes demais e código depois do `}` que fecha o programa também são apontados como erro
+- A verificação de erros ficou bem mais rápida em programas grandes, e volta a acontecer logo depois de recarregar a página
+
+A verificação também ficou mais parecida com a do Portugol Studio:
+
+- `'\n'`, `(x(2))`, `(x) = 1` e `leia((x))` não são mais apontados como erro, e a função `sorteia` funciona sem incluir a biblioteca Util
+- Comparar duas cadeias com `>` ou `<` é apontado como erro já no editor, e um incremento dentro de uma conta, como `i++ + i++`, ganha um aviso
+- Dois `caso contrario`, ou o mesmo valor em dois `caso`, no mesmo `escolha` são apontados como erro já no editor
+- Deslocamentos seguidos, como `8 >> 1 << 2`, são calculados da esquerda para a direita
+- Números com zero à esquerda, como `012`, são lidos como decimais
+
+## 06/10/2026
+
+A interface foi redesenhada:
+
+- Uma barra de status, embaixo, mostra a linha e a coluna do cursor, a indentação e a quantidade de erros e avisos
+- As dicas dos botões mostram o atalho de teclado de cada ação
+- As cores do editor seguem as regras do Portugol: os operadores `e`, `ou` e `nao` ganharam cor, palavras como `se` e `para` não são mais coloridas como funções antes de um parêntese, e comentários, números e caracteres especiais (como `\n`) são reconhecidos como no Portugol Studio
+- Tudo pode ser usado só pelo teclado e com leitores de tela: as setas trocam de aba, Delete fecha a aba e F2 a renomeia, e Alt+N abre uma aba nova e Alt+W fecha a aba atual
+- Trocar de aba não interrompe mais o programa em execução, e abrir um arquivo sempre cria uma aba nova
+- No celular, a aba Inicial mostra só o ícone, deixando espaço para as outras abas, e no iPhone a página não dá mais zoom ao tocar no código ou num campo de texto
+
+O painel de baixo também mudou:
+
+- Mostra se o programa está "Executando" ou "Aguardando entrada", com botões para limpar e recolher a saída
+- Ganhou uma lista de "Problemas", que leva direto à linha de cada erro
+- Em celulares e tablets, um campo de texto aparece quando o programa espera uma entrada (`leia`)
+
+As configurações foram reorganizadas em seções (Aparência, Editor, Saída e Abas), com uma prévia do editor que mostra cada mudança na hora. Opções novas:
+
+- Desligar as sugestões ao digitar, ou mostrar os erros só ao executar
+- Destacar a linha atual, recolher blocos e fixar o bloco atual no topo
+- Desligar a quebra de linha da saída, esconder o tempo de execução e começar com o painel recolhido
+- Fechar abas sem confirmar, e começar cada janela nova sem as abas da última
+
+O diálogo "Abrir exemplo" foi redesenhado:
+
+- Os exemplos ficam numa lista agrupada por assunto, com uma busca que ignora acentos
+- Uma prévia mostra a descrição e o código do exemplo escolhido
+- Funciona só com o teclado: as setas escolhem o exemplo e o Enter abre
+
+O Webstudio também ficou mais leve e abre mais rápido. Depois da primeira visita, ele funciona sem internet, e a janela "Sobre" mostra se ele já está pronto para isso, a versão em uso e um botão para procurar atualizações. Instalado como aplicativo, ele acompanha o tema claro ou escuro, pode ser usado na horizontal no celular, ganhou atalhos no ícone e, no computador, abre arquivos `.por` direto pelo sistema.
+
+---
+
+Correções na execução do código Portugol:
+
+- Somar dois caracteres, como `'C' + 'a'`, resulta em um número inteiro (a soma dos códigos dos caracteres), e não em um texto. Agora o editor aponta um erro quando esse resultado é guardado numa variável do tipo `cadeia`; antes, o programa só falhava ao ser executado, sem nenhuma mensagem. A tabela da adição na Ajuda também foi corrigida
+
+Na biblioteca Graficos:
+
+- `encerrar_modo_grafico` fecha a janela e o programa continua, como no Portugol Studio. Antes, o programa era interrompido
+- `definir_rotacao` com ângulos negativos gira no sentido anti-horário. Antes, o desenho não girava
+- `altura_texto` retorna a altura do texto. Antes, não retornava nenhum valor
+- `desenhar_texto` usa a posição `y` como o topo do texto, como no Portugol Studio. Antes, um texto desenhado no topo da janela ficava cortado
+- Os gradientes `GRADIENTE_INFERIOR_ESQUERDO` e `GRADIENTE_SUPERIOR_ESQUERDO` estavam com as direções trocadas, e agora seguem o Portugol Studio
+
+---
+
+A seção Ajuda foi refeita:
+
+- Funciona também no tema claro, e as imagens e os fluxogramas acompanham o tema escolhido
+- Os exemplos de código têm as cores do editor e um botão para copiar, e o botão "Tente você mesmo" abre o exemplo numa aba nova
+- O conteúdo foi revisado: foram corrigidos erros de português, além de explicações e exemplos incorretos
+- Cada biblioteca tem uma página que mostra como incluí-la e lista as constantes e funções
+- Cada função tem a própria página, com a assinatura, os parâmetros, o retorno e como usá-la
+- As descrições das bibliotecas foram revisadas e corrigidas
+
+Os exemplos (em "Abrir exemplo") também foram revisados:
+
+- O código foi organizado, os textos e comentários corrigidos, e vários exemplos foram reescritos para explicar melhor cada conceito
+- Exemplos com erro foram consertados, como o "Quantos Dias", que não seguia todas as regras dos anos bissextos, e a "Minicalculadora", o "Tipo de Triângulo" e o "Vogal" avisam quando o que foi digitado não é válido
+- Há exemplos novos, como "Adivinhe o Número", "Jogo da Velha", "Pedra, Papel e Tesoura", "Ordenação (Bubble Sort)" e "Busca Binária"
+- Há exemplos de gráficos que funcionam no Webstudio, como "Bandeira do Brasil", "Bola Quicando" e "Relógio Analógico", e das bibliotecas Calendario, Objetos e Tipos
+
+## 02/10/2026
+
+Uma barra invertida `\` sozinha dentro de um texto agora é apontada como erro, como no Portugol Studio, com a dica de escrever `\\` para mostrar a barra. Antes, a barra sumia do que era escrito na tela, o que estragava desenhos como `/\_/\`. Contribuição de [@kwy404](https://github.com/kwy404). [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/pull/451)
+
+## 28/09/2026
+
+Uma função que chama a si mesma sem parar agora mostra o erro de estouro de pilha do Portugol Studio, em vez de uma mensagem técnica em inglês. Contribuição de [@kwy404](https://github.com/kwy404). [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/pull/452)
+
+---
+
+Novas opções do editor em Configurações:
+
+- Tamanho da tabulação (2, 4 ou 8) e indentação com espaços ou tabulações, que o programa de uma aba nova também segue
+- Números das linhas: exibir, relativos à linha atual ou ocultar
+- Minimapa, cores nos pares de chaves e parênteses, e guias de indentação podem ser desligados
+- Espaços em branco podem ser exibidos como pontos: nunca, só no texto selecionado ou sempre
+- Fechamento automático de chaves, parênteses e aspas pode ser desligado
+- Estilo do cursor: linha, bloco ou sublinhado
+
+Novas opções da saída do programa em Configurações:
+
+- Tamanho da fonte próprio, que até ser alterado acompanha o do editor
+- As linhas longas agora sempre quebram, mesmo com a quebra de linha do editor desativada
+- A saída de cada execução pode ficar abaixo da anterior, em vez de ser apagada
+- A saída pode parar de rolar sozinha até o fim, exceto quando o programa espera o que você vai digitar
+
+## 24/09/2026
+
+Funções de biblioteca que esperam um número inteiro, como `Util.aguarde` e `Texto.obter_caracter`, agora aceitam um número real e descartam as casas decimais, como no Portugol Studio. Antes, o programa parava com um erro de tipos incompatíveis. Contribuição de [@kwy404](https://github.com/kwy404). [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/pull/449)
+
+---
+
+`Objetos.criar_objeto_via_json` agora lê o objeto mesmo quando há outro texto depois dele, como no Portugol Studio. Antes, o resultado era um objeto vazio. Contribuição de [@kwy404](https://github.com/kwy404). [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/pull/448)
+
+---
+
+`Tipos.cadeia_e_inteiro`, `Tipos.cadeia_e_real` e `Tipos.cadeia_e_logico` agora aceitam um texto que termina com uma quebra de linha, como no Portugol Studio. Contribuição de [@kwy404](https://github.com/kwy404). [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/pull/447)
+
+---
+
+O código agora é salvo automaticamente no navegador enquanto você digita:
+
+- Se a aba do navegador for fechada sem querer, basta abrir o Portugol Webstudio de novo: as abas voltam como estavam
+- Cada janela do navegador tem as suas próprias abas, sem uma sobrescrever o código da outra
+- O código de outras janelas que foram fechadas pode ser restaurado ou descartado aqui na página inicial
+- O código fica guardado só neste navegador: para levá-lo a outro computador, continue salvando o arquivo
+
+---
+
+`Texto.substituir` agora copia o texto substituto exatamente como escrito, sem interpretar `$` como um caractere especial, como no Portugol Studio. Contribuição de [@kwy404](https://github.com/kwy404). [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/pull/446)
+
+## 14/09/2026
+
+Correção de acesso a variáveis e leitura de valores durante a execução do código. [Mais detalhes](https://github.com/dgadelha/Portugol-Webstudio/issues/432)
+
+## 10/09/2026
+
+A verificação de erros foi reescrita para seguir a do Portugol Studio:
+
+- As mensagens, posições e códigos de erro agora são os mesmos do Portugol Studio
+- Um programa com erro **não é mais executado**: os erros aparecem no console, como no Portugol Studio
+- Novos avisos de variável não utilizada, variável global ocultada e conversão de valor
+- O editor avisa quando o programa usa uma biblioteca que o Webstudio ainda não executa
+- Ao executar, o editor passa a marcar os erros do código que rodou, em vez de limpar as marcações
+
+## 06/09/2026
+
+Grande atualização de compatibilidade com o Portugol Studio. Alguns programas podem ter resultados diferentes de antes:
+
+- Números reais aparecem com casa decimal: `escreva(1.0)` imprime `1.0`
+- A divisão entre inteiros descarta as casas decimais: `7 / 2` dá `3`
+- Vetores e matrizes começam preenchidos (`0`, `0.0`, `falso`) e guardam alterações feitas em funções
+- O comando `leia` aceita mais formatos de número, como `.5`, `5.` e `1e3`
+- Correções nas bibliotecas `Matematica`, `Texto`, `Tipos` e `Calendario`
+- Nova biblioteca `Objetos`, para trabalhar com dados em JSON e XML
+
+[Encontrou algum problema? Relate aqui](https://github.com/dgadelha/Portugol-Webstudio/issues/new?template=bug.yml)
+
+## 11/04/2026
+
+Correção na precedência de operadores aritméticos (`*`, `/`, `%`, `+`, `-`).
+
+## 10/04/2026
+
+Correção de erro de cache no carregamento da IDE causado pela última atualização.
+
+## 30/03/2026
+
+Melhorias no verificador de erros. [Relate qualquer problema aqui](https://github.com/dgadelha/Portugol-Webstudio/issues/new?template=bug.yml)
+
+## 19/03/2026
+
+Validação de tamanho em atribuição de valores na declaração de vetores e matrizes ([PR #369](https://github.com/dgadelha/Portugol-Webstudio/pull/369), contribuído por [@maikvinicius](https://github.com/maikvinicius))
+
+## 18/02/2025
+
+Documentação de Bibliotecas na seção Ajuda
+
+## 09/02/2025
+
+Refatoração/correção de variáveis por referência.
+
+## 08/02/2025
+
+Implementação da biblioteca `Graficos` e correção na execução de operações lógicas.
+
+## 04/01/2025
+
+Configurações de exibição do editor de código adicionadas, agora é possível alterar o tamanho da fonte e a quebra de linha. Nova opção para escolher o local de salvar o arquivo (somente no Chrome ou Edge). Melhorias na exibição de erros.
+
+## 26/12/2024
+
+Adicionado o tema claro e a tela de configurações para escolher o tema da IDE, mais configurações vindo em breve.
+
+## 23/09/2024
+
+Ajuste na fonte da seção Ajuda para estar disponível offline, mantendo uma boa experiência sem depender de conexão com a internet.
+
+## 22/09/2024
+
+Novo modo de salvar arquivos sem manter compatibilidade com o Portugol Studio. Alteração do comportamento de atualizações do PWA.
+
+## 13/09/2024
+
+Melhorias no controle de abas: diálogos próprios para confirmação de renomear e fechar abas. Ação **Salvar como** com opções avançadas para salvar o código.
+
+## 26/07/2024
+
+Melhorias na exibição de erros de compilação e correção de checagem de uso de função antes da declaração
+
+## 24/07/2024
+
+Correção nas funções `maior_numero` e `menor_numero` da biblioteca `Matematica`
+
+## 02/05/2024
+
+Portugol Webstudio como PWA: funcionamento offline
+
+## 01/05/2024
+
+Correção de retorno em função vazia
+
+## 30/04/2024
+
+- Melhorias de acessibilidade e ajustes na tela inicial e ícones
+- Correção nas verificações de erros relacionados a escopo e tipos
+- Melhorias na experiência de erros e de estabilidade no geral
+
+## 10/03/2024
+
+Otimização de desempenho na análise semântica
+
+## 09/03/2024
+
+Novo domínio: **portugol.dev** e experimento com propagandas
+
+## 08/03/2024
+
+Melhorias de performance na interface da plataforma
+
+## 17/01/2024
+
+Melhorias nas verificações de erros (comparação lógica e bibliotecas)
+
+## 26/12/2023
+
+Melhorias nas verificações de erros (escopos e tipos)
+
+## 15/10/2023
+
+Correção de verificação simples de retorno de função
+
+## 11/10/2023
+
+Correção de quebra de linha após execução da função `leia()`
+
+## 28/09/2023
+
+Correção de uso excessivo de recursos ao usar atribuições.
+
+## 02/09/2023
+
+Verificação básica de erros no editor.
+
+## 10/08/2023
+
+- Atualização de dependências.
+- Colorir nome de funções ([PR #72](https://github.com/dgadelha/Portugol-Webstudio/pull/72), contribuído por [@6a8i](https://github.com/6a8i)).
+- Melhorias na experiência de renomear e fechar abas. Correção na aplicação de modificadores em variáveis.
+
+## 10/12/2022
+
+Correção no comportamento da concatenação.
+
+## 12/11/2022
+
+Correção na verificação de tipos de argumentos de funções.
+
+## 31/10/2022
+
+Rolagem automática no Console de Saída e implementação dos operadores de atribuição composta (`+=`, `-=`, `/=` e `*=`).
+
+## 30/10/2022
+
+Correção de problema ao utilizar retornos de funções como valores.
+
+## 27/10/2022
+
+Correção na declaração de variáveis do tipo _vetor_ e correção na concatenação de _cadeia_ e _caracter_.
+
+## 25/10/2022
+
+Correção na inicialização de variáveis no laço _para_.
+
+## 24/10/2022
+
+Implementação das operações de _Bitwise Shift_ (_Left Shift_ e _Right Shift_) e correção nas operações de Bitwise _AND_, _OR_ e _XOR_.
+
+## 20/10/2022
+
+Correção na atribuição de valores às variáveis para garantir as tipagens corretas e correção na exibição de erros em tempo de execução.
+
+## 19/10/2022
+
+Correção ao pressionar _backspace_ e suporte a múltiplos parâmetros na entrada de dados pela função `leia`.
+
+## 12/10/2022
+
+Melhorias internas de componentização e organização de código.

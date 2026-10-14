@@ -22,10 +22,10 @@ jobs:
       AGENT_API_BASE_URL: ${{ vars.AGENT_API_BASE_URL }}
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Node.js 📦
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: lts/*
 
@@ -40,6 +40,7 @@ jobs:
 
       - name: Release front-end 🎢
         run: |
+          sed -i -e 's/%COMMIT_SHA%/'"${GITHUB_SHA}"'/g' -e 's/%BUILD_DATE%/'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'/g' packages/ide/src/app/version.ts
           ./packages/ide/cleanup-icons.sh
           npm run release
 

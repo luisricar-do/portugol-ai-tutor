@@ -1,31 +1,49 @@
-import { Injectable } from "@angular/core";
+import { Service } from "@angular/core";
 
 /**
  * Contexto do editor da aba ativa, registado por {@link TabEditorComponent}
  * para o overlay do tutor usar o código e erros corretos.
  */
 export interface TutorEditorContextHandle {
-  /** Código espelhado da aba (sincroniza com o modelo Angular). */
+  /**
+   * Código espelhado da aba (sincroniza com o modelo Angular).
+   */
   getEditorCode: () => string;
-  /** Snapshot direto do Monaco no momento do envio. */
+  /**
+   * Snapshot direto do Monaco no momento do envio.
+   */
   getEditorCodeSnapshot: () => string;
-  /** Erros do compilador no momento do envio. */
+  /**
+   * Erros do compilador no momento do envio.
+   */
   getCompilerErrors: () => Promise<string[]>;
-  /** Linha 1-based do cursor (Monaco), se existir. */
+  /**
+   * Linha 1-based do cursor (Monaco), se existir.
+   */
   getCursorLine?: () => number | undefined;
-  /** Coluna 1-based do cursor (Monaco), se existir. */
+  /**
+   * Coluna 1-based do cursor (Monaco), se existir.
+   */
   getCursorColumn?: () => number | undefined;
-  /** Resumo textual curto para o backend (ex.: contagem de erros). */
+  /**
+   * Resumo textual curto para o backend (ex.: contagem de erros).
+   */
   getAstSummary?: () => string | undefined;
-  /** Contexto do mapa de fluxo (variável pendente, ligações desenhadas). */
+  /**
+   * Contexto do mapa de fluxo (variável pendente, ligações desenhadas).
+   */
   getDataFlowContext?: () => string | undefined;
-  /** Linhas 1-based com erro de compilação (marcadores Monaco / worker), para o payload e glifos. */
+  /**
+   * Linhas 1-based com erro de compilação (marcadores Monaco / worker), para o payload e glifos.
+   */
   getCompilerErrorLines?: () => number[];
-  /** Chave da aba do editor (`tab.id`), não do browser — boas-vindas e telemetria por ficheiro aberto. */
+  /**
+   * Chave da aba do editor (`tab.id`), não do browser — boas-vindas e telemetria por ficheiro aberto.
+   */
   getTabKey?: () => string;
 }
 
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorEditorContextService {
   private active: TutorEditorContextHandle | null = null;
 

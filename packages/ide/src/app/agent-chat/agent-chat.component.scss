@@ -12,7 +12,11 @@
   flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
-  background: linear-gradient(180deg, var(--pws-bg-200) 0%, color-mix(in srgb, var(--pws-bg-200) 92%, var(--pws-bg-300)) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--pws-bg-elevated) 0%,
+    color-mix(in srgb, var(--pws-bg-elevated) 92%, var(--pws-bg-chrome)) 100%
+  );
   font-family: var(--pws-font);
 }
 
@@ -30,7 +34,7 @@
   font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.03em;
-  color: color-mix(in srgb, var(--pws-text-300) 92%, transparent);
+  color: color-mix(in srgb, var(--pws-fg-muted) 92%, transparent);
   line-height: 1.35;
 }
 
@@ -54,7 +58,7 @@
   border-radius: 0.4rem;
   box-shadow:
     0 2px 14px -4px rgb(0 0 0 / 0.22),
-    0 0 0 1px color-mix(in srgb, var(--pws-text-100) 12%, var(--pws-border-color));
+    0 0 0 1px color-mix(in srgb, var(--pws-fg-strong) 12%, var(--pws-border-strong));
 }
 
 .agent-chat__row--immersive-streaming .agent-chat__bubble--immersive-hero {
@@ -68,15 +72,13 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.65rem 0.75rem 0.5rem;
-  border-bottom: 1px solid var(--pws-border-color);
-  background: linear-gradient(90deg,
-      color-mix(in srgb, var(--pws-color-primary) 22%, transparent) 0%,
-      transparent 55%);
+  border-bottom: 1px solid var(--pws-border-strong);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pws-accent) 22%, transparent) 0%, transparent 55%);
 
   &--inline {
     justify-content: flex-end;
     min-height: auto;
-    background: var(--pws-bg-200);
+    background: var(--pws-bg-elevated);
   }
 }
 
@@ -91,7 +93,7 @@
   font-size: 0.95rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: var(--pws-text-100);
+  color: var(--pws-fg-strong);
 }
 
 .agent-chat__role {
@@ -99,7 +101,7 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--pws-text-300);
+  color: var(--pws-fg-muted);
 }
 
 .agent-chat__clear {
@@ -155,7 +157,7 @@
     margin: 0;
     font-size: 0.72rem;
     line-height: 1.45;
-    color: var(--pws-text-300);
+    color: var(--pws-fg-muted);
   }
 
   code {
@@ -183,7 +185,7 @@
 .agent-chat__welcome-text {
   font-size: 1.2rem;
   font-weight: 300;
-  color: color-mix(in srgb, var(--pws-text-100) 90%, transparent);
+  color: color-mix(in srgb, var(--pws-fg-strong) 90%, transparent);
   letter-spacing: -0.02em;
 }
 
@@ -191,15 +193,15 @@
   margin-bottom: 0.65rem;
   padding: 0.55rem 0.65rem;
   border-radius: 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--pws-color-primary) 35%, var(--pws-border-color));
-  background: color-mix(in srgb, var(--pws-color-primary) 10%, var(--pws-bg-300));
+  border: 1px solid color-mix(in srgb, var(--pws-accent) 35%, var(--pws-border-strong));
+  background: color-mix(in srgb, var(--pws-accent) 10%, var(--pws-bg-chrome));
 }
 
 .agent-chat__banner-text {
   margin: 0 0 0.4rem;
   font-size: 0.78rem;
   line-height: 1.4;
-  color: var(--pws-text-100);
+  color: var(--pws-fg-strong);
 }
 
 .agent-chat__banner-actions {
@@ -207,7 +209,7 @@
   flex-wrap: wrap;
   gap: 0.25rem;
 
-  .mat-mdc-button {
+  .btn {
     min-width: auto;
     padding: 0 0.5rem;
     font-size: 0.72rem;
@@ -253,7 +255,7 @@
 .agent-chat__msg-label {
   font-size: 0.65rem;
   font-weight: 500;
-  color: var(--pws-text-300);
+  color: var(--pws-fg-muted);
   padding-inline: 0.2rem;
 }
 
@@ -265,23 +267,23 @@
 
   &--assistant {
     border-bottom-left-radius: 0.35rem;
-    background: var(--pws-bg-300);
-    color: var(--pws-text-100);
-    border: 1px solid color-mix(in srgb, var(--pws-border-color) 70%, transparent);
+    background: var(--pws-bg-chrome);
+    color: var(--pws-fg-strong);
+    border: 1px solid color-mix(in srgb, var(--pws-border-strong) 70%, transparent);
   }
 
   &--user {
     border-bottom-right-radius: 0.35rem;
-    background: color-mix(in srgb, var(--pws-color-primary) 28%, var(--pws-bg-300));
-    color: var(--pws-text-100);
-    border: 1px solid color-mix(in srgb, var(--pws-color-primary) 40%, transparent);
+    background: color-mix(in srgb, var(--pws-accent) 28%, var(--pws-bg-chrome));
+    color: var(--pws-fg-strong);
+    border: 1px solid color-mix(in srgb, var(--pws-accent) 40%, transparent);
   }
 
   &--streaming {
-    border-color: color-mix(in srgb, var(--pws-color-primary) 28%, var(--pws-border-color));
+    border-color: color-mix(in srgb, var(--pws-accent) 28%, var(--pws-border-strong));
     box-shadow:
       0 1px 2px rgb(0 0 0 / 0.12),
-      0 0 0 1px color-mix(in srgb, var(--pws-color-primary) 12%, transparent);
+      0 0 0 1px color-mix(in srgb, var(--pws-accent) 12%, transparent);
   }
 }
 
@@ -298,15 +300,15 @@
 }
 
 .agent-chat--immersive .agent-chat__bubble--assistant {
-  background: color-mix(in srgb, var(--pws-bg-300) 96%, var(--pws-bg-200));
-  border: 1px solid color-mix(in srgb, var(--pws-border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--pws-bg-chrome) 96%, var(--pws-bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--pws-border-strong) 70%, transparent);
   border-radius: 0.35rem;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pws-text-100) 4%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pws-fg-strong) 4%, transparent);
 }
 
 .agent-chat--immersive .agent-chat__bubble--user {
-  background: color-mix(in srgb, var(--pws-color-primary) 82%, var(--pws-bg-300));
-  color: var(--pws-text-100);
+  background: color-mix(in srgb, var(--pws-accent) 82%, var(--pws-bg-chrome));
+  color: var(--pws-on-accent);
 }
 
 .agent-chat--immersive .agent-chat__bubble-text {
@@ -326,7 +328,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--pws-color-primary);
+  background: var(--pws-accent);
   animation: agent-chat-dot-bounce 0.9s ease-in-out infinite;
 
   &:nth-child(2) {
@@ -339,7 +341,6 @@
 }
 
 @keyframes agent-chat-dot-bounce {
-
   0%,
   100% {
     transform: translateY(0);
@@ -354,12 +355,11 @@
   display: inline-block;
   margin-left: 1px;
   font-weight: 300;
-  color: var(--pws-color-primary);
+  color: var(--pws-accent-fg);
   animation: agent-chat-blink 0.9s step-end infinite;
 }
 
 @keyframes agent-chat-blink {
-
   0%,
   100% {
     opacity: 1;
@@ -376,7 +376,7 @@
   font-size: 0.75rem;
   line-height: 1.35;
   color: #fecaca;
-  background: color-mix(in srgb, #b91c1c 35%, var(--pws-bg-300));
+  background: color-mix(in srgb, #b91c1c 35%, var(--pws-bg-chrome));
   border-radius: 0.45rem;
   border: 1px solid color-mix(in srgb, #ef4444 45%, transparent);
 }
@@ -384,8 +384,8 @@
 .agent-chat__footer {
   flex-shrink: 0;
   padding: 0.5rem 0.65rem 0.55rem;
-  border-top: 1px solid var(--pws-border-color);
-  background: color-mix(in srgb, var(--pws-bg-200) 88%, var(--pws-bg-300));
+  border-top: 1px solid var(--pws-border-strong);
+  background: color-mix(in srgb, var(--pws-bg-elevated) 88%, var(--pws-bg-chrome));
 }
 
 .agent-chat__footer--hud {
@@ -421,11 +421,11 @@
   min-width: 0;
   border-radius: 1rem;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--pws-border-color) 45%, transparent);
-  background: var(--pws-bg-300);
+  border: 1px solid color-mix(in srgb, var(--pws-border-strong) 45%, transparent);
+  background: var(--pws-bg-chrome);
   box-shadow:
-    0 0 36px -14px color-mix(in srgb, var(--pws-color-primary) 14%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--pws-text-100) 4%, transparent);
+    0 0 36px -14px color-mix(in srgb, var(--pws-accent) 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--pws-fg-strong) 4%, transparent);
 
   &.agent-chat__composer--hud-slim {
     border-radius: 0.9rem;
@@ -438,10 +438,12 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg,
-        transparent,
-        color-mix(in srgb, var(--pws-color-primary) 30%, transparent),
-        transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--pws-accent) 30%, transparent),
+      transparent
+    );
     pointer-events: none;
     z-index: 1;
   }
@@ -480,10 +482,10 @@
   line-height: 1.4;
   resize: none;
   overflow-y: auto;
-  color: var(--pws-text-100);
+  color: var(--pws-fg-strong);
 
   &::placeholder {
-    color: color-mix(in srgb, var(--pws-text-300) 60%, transparent);
+    color: color-mix(in srgb, var(--pws-fg-muted) 60%, transparent);
   }
 
   &:focus {
@@ -508,26 +510,24 @@
   border: 1px solid transparent;
   border-radius: 50%;
   background: transparent;
-  color: var(--pws-text-300);
+  color: var(--pws-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   transition:
     color 0.15s ease,
     border-color 0.15s ease,
     background-color 0.15s ease;
 
-  &.mat-mdc-icon-button {
-    --mdc-icon-button-icon-size: 1.15rem;
-    --mat-icon-button-state-layer-color: var(--pws-color-primary);
-    --mat-icon-button-ripple-color: color-mix(in srgb, var(--pws-color-primary) 18%, transparent);
-  }
-
   &:not(:disabled):hover,
   &:not(:disabled):focus-visible {
-    background: color-mix(in srgb, var(--pws-color-primary) 12%, transparent);
+    background: color-mix(in srgb, var(--pws-accent) 12%, transparent);
   }
 
   &--ready:not(:disabled) {
-    color: var(--pws-color-primary);
-    border-color: color-mix(in srgb, var(--pws-color-primary) 55%, transparent);
+    color: var(--pws-accent-fg);
+    border-color: color-mix(in srgb, var(--pws-accent) 55%, transparent);
   }
 
   &:disabled {
@@ -547,23 +547,11 @@
       height: 100%;
     }
   }
-
-  &.mat-mdc-icon-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
 }
 
 .agent-chat__send--hud {
   width: 2.45rem;
   height: 2.45rem;
-
-  &.mat-mdc-icon-button {
-    width: 2.45rem;
-    height: 2.45rem;
-    padding: 0;
-  }
 
   svg-icon {
     width: 1.2rem;
@@ -574,22 +562,11 @@
 .agent-chat__send--panel {
   width: 2.4rem;
   height: 2.4rem;
-
-  &.mat-mdc-icon-button {
-    width: 2.4rem;
-    height: 2.4rem;
-    padding: 0;
-  }
 }
 
 .agent-chat__composer--hud-slim .agent-chat__send--hud {
   width: 2.2rem;
   height: 2.2rem;
-
-  &.mat-mdc-icon-button {
-    width: 2.2rem;
-    height: 2.2rem;
-  }
 
   svg-icon {
     width: 1.05rem;
@@ -607,11 +584,11 @@
 .agent-chat__composer--panel {
   border-radius: 0.85rem;
   padding: 0.4rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--pws-border-color) 65%, transparent);
-  background: color-mix(in srgb, var(--pws-bg-300) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pws-border-strong) 65%, transparent);
+  background: color-mix(in srgb, var(--pws-bg-chrome) 88%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 0 40px -12px color-mix(in srgb, var(--pws-color-primary) 16%, transparent);
+  box-shadow: 0 0 40px -12px color-mix(in srgb, var(--pws-accent) 16%, transparent);
 }
 
 .agent-chat__input {
@@ -624,13 +601,13 @@
   border-radius: 0.55rem;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--pws-text-100);
+  color: var(--pws-fg-strong);
   font-family: var(--pws-font);
   font-size: 0.85rem;
   line-height: 1.45;
 
   &::placeholder {
-    color: color-mix(in srgb, var(--pws-text-300) 65%, transparent);
+    color: color-mix(in srgb, var(--pws-fg-muted) 65%, transparent);
   }
 
   &:focus {
@@ -655,7 +632,7 @@
   margin: 0.35rem 0 0;
   font-size: 0.65rem;
   text-align: center;
-  color: color-mix(in srgb, var(--pws-text-300) 52%, transparent);
+  color: color-mix(in srgb, var(--pws-fg-muted) 52%, transparent);
   line-height: 1.35;
 }
 
@@ -687,16 +664,16 @@
 
 .agent-chat__suggest-btn {
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--pws-color-primary) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pws-accent) 30%, transparent);
   border-radius: 0.35rem;
-  color: var(--pws-color-primary);
+  color: var(--pws-accent-fg);
   font-size: 0.72rem;
   padding: 0.15rem 0.45rem;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--pws-color-primary) 10%, transparent);
+    background: color-mix(in srgb, var(--pws-accent) 10%, transparent);
   }
 
   &:disabled {

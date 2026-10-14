@@ -1,19 +1,31 @@
-import { ArquivoContext, PortugolVisitor } from "@luisricar-do/antlr";
-import { ParseTree, AbstractParseTreeVisitor } from "antlr4ng";
+import {
+  AdicaoSubtracaoContext,
+  ArquivoContext,
+  MultiplicacaoDivisaoModuloContext,
+  OperacaoShiftContext,
+  PortugolParser,
+  PortugolVisitor,
+} from "@luisricar-do/antlr";
+import { AbstractParseTreeVisitor, ParseTree } from "antlr4ng";
 
-import { Node, Arquivo, ContextNodeObj, UnhandledNode, Bypass } from "./nodes/index.js";
+import {
+  Arquivo,
+  Bypass,
+  ContextNodeObj,
+  DivisãoExpr,
+  MultiplicaçãoExpr,
+  MóduloExpr,
+  Node,
+  OperaçãoShiftLeftExpr,
+  OperaçãoShiftRightExpr,
+  SomaExpr,
+  SubtraçãoExpr,
+  UnhandledNode,
+} from "./nodes/index.js";
 
 export interface Empty {}
 
 export class PortugolNode extends AbstractParseTreeVisitor<Empty> implements PortugolVisitor<Empty> {
-  protected defaultResult(): Empty {
-    return {};
-  }
-
-  protected aggregateResult(_aggregate: Empty, _nextResult: Empty): Empty {
-    throw new Error("Shouldn't need to aggregate results");
-  }
-
   visitChildrenFromParent(ctx: ParseTree, parent: Node) {
     for (let i = 0; i < ctx.getChildCount(); i++) {
       const child = ctx.getChild(i);
@@ -27,7 +39,7 @@ export class PortugolNode extends AbstractParseTreeVisitor<Empty> implements Por
   }
 
   visitFromParent(ctx: ParseTree, parent: Node) {
-    const ctor = ContextNodeObj[ctx.constructor.name];
+    const ctor = ContextNodeObj[ctx.constructor.name] ?? this.resolveCompositeCtor(ctx);
     let obj;
 
     if (ctor) {
@@ -39,9 +51,49 @@ export class PortugolNode extends AbstractParseTreeVisitor<Empty> implements Por
     if (obj instanceof Bypass) {
       this.visitChildrenFromParent(ctx, parent);
     } else {
-      parent.addChild(obj);
       this.visitChildrenFromParent(ctx, obj);
+      parent.addChild(obj);
     }
+  }
+
+  private resolveCompositeCtor(ctx: ParseTree): (new (ctx: any) => Node) | undefined {
+    if (ctx instanceof MultiplicacaoDivisaoModuloContext) {
+      switch (ctx._op?.type) {
+        case PortugolParser.OP_MULTIPLICACAO: {
+          return MultiplicaçãoExpr;
+        }
+        case PortugolParser.OP_DIVISAO: {
+          return DivisãoExpr;
+        }
+        case PortugolParser.OP_MOD: {
+          return MóduloExpr;
+        }
+      }
+    }
+
+    if (ctx instanceof AdicaoSubtracaoContext) {
+      switch (ctx._op?.type) {
+        case PortugolParser.OP_ADICAO: {
+          return SomaExpr;
+        }
+        case PortugolParser.OP_SUBTRACAO: {
+          return SubtraçãoExpr;
+        }
+      }
+    }
+
+    if (ctx instanceof OperacaoShiftContext) {
+      switch (ctx._op?.type) {
+        case PortugolParser.OP_SHIFT_LEFT: {
+          return OperaçãoShiftLeftExpr;
+        }
+        case PortugolParser.OP_SHIFT_RIGHT: {
+          return OperaçãoShiftRightExpr;
+        }
+      }
+    }
+
+    return undefined;
   }
 
   visit(ctx: ParseTree) {

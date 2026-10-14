@@ -1,10 +1,12 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "rootDir": "./src",
     "outDir": "./lib",
     "declaration": true,
     "sourceMap": false,
-    "inlineSourceMap": true
+    "inlineSourceMap": true,
+    "types": ["node"]
   },
   "files": ["src/index.ts", "src/headless/index.ts", "src/headless/cli.ts"]
 }

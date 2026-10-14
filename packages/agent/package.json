@@ -36,10 +36,10 @@
   "scripts": {
     "build": "tsc",
     "build:w": "tsc -w",
-    "test": "node --import tsx --test test/*.test.ts"
+    "test": "vitest"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
-    "typescript": "~5.9.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
   }
 }

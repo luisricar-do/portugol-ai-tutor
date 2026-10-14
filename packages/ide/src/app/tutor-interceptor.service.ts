@@ -1,12 +1,12 @@
-import { Injectable, inject } from "@angular/core";
+import { Service, inject } from "@angular/core";
 import { TutorAutoTriggerService } from "./tutor-auto-trigger.service";
 import { TutorImmersionService } from "./tutor-immersion.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
 
 /**
- * Centraliza a reação a falhas de execução: imersão + painel do tutor + mensagem inicial ao grafo.
+ *  * Centraliza a reação a falhas de execução: imersão + painel do tutor + mensagem inicial ao grafo.
  */
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorInterceptorService {
   private readonly immersion = inject(TutorImmersionService);
   private readonly tutorOverlay = inject(TutorOverlayService);

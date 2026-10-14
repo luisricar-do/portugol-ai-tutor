@@ -1,0 +1,10 @@
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// Ação destrutiva, como o `color="warn"` do Material de antes.
+.warn {
+  color: var(--pws-danger-fg);
+}

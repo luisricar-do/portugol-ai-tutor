@@ -1,80 +1,45 @@
-<header mat-dialog-title>
-  <span>Configurações</span>
-  <s></s>
-  <button tabindex="-1" type="button" mat-dialog-close mat-icon-button aria-label="Fechar diálogo">
-    <svg-icon src="assets/mdi/close.svg" aria-hidden="true" focusable="false" />
-  </button>
-</header>
+<nav class="nav" aria-label="Seções das configurações">
+  <h2 id="dialogo-configuracoes-titulo" class="title">Configurações</h2>
 
-<mat-dialog-content>
-  <div class="preferences">
-    <div class="preference-section">
-      <div class="preference-section-header">
-        <span>Interface</span>
-      </div>
-
-      <div class="preference-list">
-        <div class="preference">
-          <mat-label id="setting-interface-appearance-label">Aparência</mat-label>
-
-          <mat-radio-group
-            aria-labelledby="setting-interface-appearance-label"
-            name="theme"
-            class="radio-group"
-            color="primary"
-            [(ngModel)]="theme"
-          >
-            <mat-radio-button value="auto">Automático (sistema)</mat-radio-button>
-            <mat-radio-button value="light">Claro</mat-radio-button>
-            <mat-radio-button value="dark">Escuro</mat-radio-button>
-          </mat-radio-group>
-        </div>
-      </div>
-    </div>
-
-    <div class="preference-section">
-      <div class="preference-section-header">
-        <span>Editor</span>
-      </div>
-
-      <div class="preference-list">
-        <div class="preference">
-          <mat-label id="setting-editor-font-size-label">Tamanho da fonte</mat-label>
-
-          <div class="preference-slider">
-            <mat-slider
-              aria-labelledby="setting-editor-font-size-label"
-              min="6"
-              max="48"
-              step="1"
-              showTickMarks
-              color="primary"
-            >
-              <input aria-labelledby="setting-editor-font-size-label" matSliderThumb [(ngModel)]="editorFontSize" />
-            </mat-slider>
-
-            <span class="slider-value slider-value-fix-width">{{ editorFontSize }}</span>
-          </div>
-        </div>
-
-        <div class="preference">
-          <mat-label id="setting-editor-word-wrap-label">Quebra de linha</mat-label>
-
-          <div class="preference-switch">
-            <mat-slide-toggle
-              aria-labelledby="setting-editor-word-wrap-label"
-              color="primary"
-              [(ngModel)]="editorWordWrap"
-            >
-              {{ editorWordWrap ? "Ativado" : "Desativado" }}
-            </mat-slide-toggle>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="preference-footer">
-      <button type="button" mat-stroked-button (click)="resetDefaults()">Restaurar padrões</button>
-    </div>
+  <div class="sections">
+    @for (item of sections; track item.id) {
+      <button
+        type="button"
+        class="section"
+        [attr.aria-current]="item.id === section().id ? 'page' : null"
+        [attr.cdkFocusInitial]="item.id === section().id ? '' : null"
+        (click)="sectionId.set(item.id)"
+      >
+        <svg-icon aria-hidden="true" [src]="item.icon" />
+        {{ item.label }}
+      </button>
+    }
   </div>
-</mat-dialog-content>
+</nav>
+
+<div class="main">
+  <header class="header">
+    <h3>{{ section().label }}</h3>
+    <p>{{ section().description }}</p>
+
+    <button type="button" class="icon-btn close" aria-label="Fechar" appTooltip="Fechar" (click)="dialogRef.close()">
+      <svg-icon src="assets/mdi/close.svg" aria-hidden="true" />
+    </button>
+  </header>
+
+  <div class="body">
+    <ng-container *ngComponentOutlet="section().component" />
+  </div>
+
+  <footer class="footer">
+    <span class="saved">
+      <svg-icon src="assets/mdi/check.svg" aria-hidden="true" />
+      <span>Salvo automaticamente</span>
+    </span>
+
+    <button type="button" class="btn btn-ghost btn-sm reset" (click)="resetDefaults()">
+      <svg-icon src="assets/mdi/restore.svg" aria-hidden="true" />
+      Restaurar padrões
+    </button>
+  </footer>
+</div>

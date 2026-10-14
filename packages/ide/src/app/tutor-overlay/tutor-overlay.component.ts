@@ -1,6 +1,7 @@
-import { DOCUMENT, NgStyle, isPlatformBrowser } from "@angular/common";
+import { DOCUMENT, isPlatformBrowser } from "@angular/common";
 import {
   AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   ElementRef,
   Injector,
@@ -13,13 +14,15 @@ import {
   signal,
   viewChild,
 } from "@angular/core";
-import { MatButtonModule } from "@angular/material/button";
-import { MatDialog } from "@angular/material/dialog";
-import { MatTooltipModule } from "@angular/material/tooltip";
 import { AngularSvgIconModule } from "angular-svg-icon";
 
 import { AgentChatComponent } from "../agent-chat/agent-chat.component";
-import { DialogConfirmClearTutorComponent } from "../dialog-confirm-clear-tutor/dialog-confirm-clear-tutor.component";
+import {
+  DIALOG_CONFIRM_CLEAR_TUTOR_TITLE_ID,
+  DialogConfirmClearTutorComponent,
+} from "../dialog-confirm-clear-tutor/dialog-confirm-clear-tutor.component";
+import { DialogService } from "../shared/dialog.service";
+import { TooltipDirective } from "../shared/tooltip.directive";
 import { TutorEditorContextService } from "../tutor-editor-context.service";
 import { TutorHudLayoutService } from "../tutor-hud-layout.service";
 import { TutorOverlayService } from "../tutor-overlay.service";
@@ -28,12 +31,14 @@ const VIEWPORT_MARGIN_PX = 12;
 
 @Component({
   selector: "app-tutor-overlay",
-  imports: [AgentChatComponent, MatButtonModule, MatTooltipModule, AngularSvgIconModule, NgStyle],
-  standalone: true,
+  imports: [AgentChatComponent, TooltipDirective, AngularSvgIconModule],
   templateUrl: "./tutor-overlay.component.html",
   styleUrl: "./tutor-overlay.component.scss",
+  // O template lê campos simples do `AgentChatComponent` (`hasHistory`, `streamingAssistant`…).
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     "[attr.aria-hidden]": "ariaHiddenAttr",
+    "[class.tutor-overlay-host--behind-dialog]": "confirmDialogOpen()",
     "(window:resize)": "onWindowResize()",
     "(document:keydown.escape)": "onEscape()",
   },
@@ -41,24 +46,28 @@ const VIEWPORT_MARGIN_PX = 12;
 export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   private readonly tutorContext = inject(TutorEditorContextService);
   private readonly hudLayout = inject(TutorHudLayoutService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   readonly shell = inject(TutorOverlayService);
-
-  readonly tabKeyResolver = (): string => this.tutorContext.getActive()?.getTabKey?.() ?? "";
-
   private readonly doc = inject(DOCUMENT);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
 
-  /** Semântica: tutor ausente ao leitor de ecrã quando o HUD está fechado. */
+  readonly tabKeyResolver = (): string => this.tutorContext.getActive()?.getTabKey?.() ?? "";
+
+  /**
+   *  *  * Semântica: tutor ausente ao leitor de ecrã quando o HUD está fechado.
+   */
   get ariaHiddenAttr(): true | null {
     return this.shell.isOpen() ? null : true;
   }
-  private readonly injector = inject(Injector);
 
   readonly agentChat = viewChild(AgentChatComponent);
   readonly panelRef = viewChild<ElementRef<HTMLElement>>("panel");
-  /** Raiz do cartão HUD — classes de abrir/dim aplicadas por effect (robusto após reparent ao body). */
+  readonly panelBody = viewChild.required<ElementRef<HTMLElement>>("panelBody");
+  /**
+   *  *  * Raiz do cartão HUD — classes de abrir/dim aplicadas por effect (robusto após reparent ao body).
+   */
   readonly overlayDiv = viewChild<ElementRef<HTMLElement>>("overlayRoot");
 
   readonly hudTransform = computed(() => {
@@ -82,6 +91,12 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   readonly dragging = signal(false);
 
   readonly resizing = signal(false);
+
+  /**
+   * Diálogo "Limpar conversa" aberto: o HUD (z-index acima do overlay do CDK) desce para
+   * trás do diálogo, e o Esc fecha só o diálogo.
+   */
+  readonly confirmDialogOpen = signal(false);
 
   private panelResizeObserver: ResizeObserver | null = null;
 
@@ -115,6 +130,11 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
     if (el.parentElement !== this.doc.body) {
       this.doc.body.append(el);
     }
+    // O clique dentro do painel não sobe além dele (o painel não é um controlo, por isso
+    // não há `(click)` no template).
+    this.panelBody().nativeElement.addEventListener("click", event => {
+      event.stopPropagation();
+    });
   }
 
   constructor() {
@@ -271,7 +291,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
       try {
         this.dragCaptureBar.releasePointerCapture(this.dragCapturePointerId);
       } catch {
-        /* ignore */
+        // ignore
       }
     }
     this.dragCaptureBar = null;
@@ -333,7 +353,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
       try {
         this.resizeCaptureEl.releasePointerCapture(this.resizeCapturePointerId);
       } catch {
-        /* ignore */
+        // ignore
       }
     }
     this.resizeCaptureEl = null;
@@ -355,8 +375,17 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   onHudClearConversation(ev: Event): void {
     ev.stopPropagation();
     ev.preventDefault();
-    const ref = this.dialog.open(DialogConfirmClearTutorComponent, { width: "min(92vw, 22rem)" });
-    ref.afterClosed().subscribe(confirmed => {
+    const ref = this.dialog.open<boolean>(DialogConfirmClearTutorComponent, {
+      width: "min(92vw, 22rem)",
+      ariaLabelledBy: DIALOG_CONFIRM_CLEAR_TUTOR_TITLE_ID,
+    });
+    this.confirmDialogOpen.set(true);
+    ref.closed.subscribe(confirmed => {
+      // Depois do evento que fechou o diálogo: o Esc que o fecha chega ao `document`
+      // (e ao `onEscape`) só depois de o CDK já ter fechado.
+      setTimeout(() => {
+        this.confirmDialogOpen.set(false);
+      });
       if (confirmed === true) {
         this.agentChat()?.clearConversation();
       }
@@ -406,7 +435,7 @@ export class TutorOverlayComponent implements AfterViewInit, OnDestroy {
   }
 
   onEscape(): void {
-    if (this.shell.isOpen()) {
+    if (this.shell.isOpen() && !this.confirmDialogOpen()) {
       this.close();
     }
   }

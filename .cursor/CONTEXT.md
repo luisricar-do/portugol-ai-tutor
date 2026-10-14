@@ -13,8 +13,8 @@
 
 ## Backend companheiro
 
-| Repositório | Função |
-|-------------|--------|
+| Repositório                                            | Função                                                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------- |
 | [maieutica](https://github.com/luisricar-do/maieutica) | Azure Function + LangGraph — expõe `/api/help` e `/api/help/stream` |
 
 URLs da API configuráveis em `packages/ide/src/environments/environment*.ts`.
@@ -28,14 +28,14 @@ Ficheiros em `.cursor/rules/*.mdc`:
 
 ## Skills Cursor úteis (referência)
 
-| Skill / área | Quando usar |
-|--------------|-------------|
-| `create-rule` | Novas regras ou padrões `.cursor/rules` |
-| `create-skill` | Skills personalizadas do projeto |
-| `update-cursor-settings` | Editor / VS Code |
-| `check-compiler-errors` (Team Kit) | Validar build TypeScript/Angular |
-| `fix-ci`, `loop-on-ci` | CI |
-| `deslop` | Limpar ruído em diffs |
-| Prisma / Figma | Só se a tarefa for nesse domínio |
+| Skill / área                       | Quando usar                             |
+| ---------------------------------- | --------------------------------------- |
+| `create-rule`                      | Novas regras ou padrões `.cursor/rules` |
+| `create-skill`                     | Skills personalizadas do projeto        |
+| `update-cursor-settings`           | Editor / VS Code                        |
+| `check-compiler-errors` (Team Kit) | Validar build TypeScript/Angular        |
+| `fix-ci`, `loop-on-ci`             | CI                                      |
+| `deslop`                           | Limpar ruído em diffs                   |
+| Prisma / Figma                     | Só se a tarefa for nesse domínio        |
 
 Skills residem em `~/.cursor/skills-cursor/` e em plugins; a IA pode carregar o `SKILL.md` correspondente quando relevante.

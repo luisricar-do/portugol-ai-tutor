@@ -9,7 +9,7 @@ _IDE online para o Portugol_
 
 ## Dissertação (UNIFEI) — fork `portugol-ai-tutor`
 
-Este repositório é um **fork** de [Portugol-Webstudio](https://github.com/dgadelha/Portugol-Webstudio) usado no mestrado em Ciência e Tecnologia da Computação (UNIFEI — Itajubá), no projeto de dissertação *Orquestração de Agentes de IA com Método Socrático para o Ensino de Lógica de Programação: uma integração com o Portugol Webstudio baseada em Design Science Research* (orientação: Prof. Dr. Bruno Guazzelli Batista).
+Este repositório é um **fork** de [Portugol-Webstudio](https://github.com/dgadelha/Portugol-Webstudio) usado no mestrado em Ciência e Tecnologia da Computação (UNIFEI — Itajubá), no projeto de dissertação _Orquestração de Agentes de IA com Método Socrático para o Ensino de Lógica de Programação: uma integração com o Portugol Webstudio baseada em Design Science Research_ (orientação: Prof. Dr. Bruno Guazzelli Batista).
 
 - **Autor do fork / pesquisa:** Luis Ricardo Albano Santos
 - **Upstream:** `https://github.com/dgadelha/Portugol-Webstudio.git` (remote sugerido: `upstream`)
@@ -48,8 +48,8 @@ O Portugol Webstudio é um projeto que utiliza o framework [Angular](https://ang
 - `@luisricar-do/antlr`: Pacote que contém a gramática do Portugol e a geração do parser, lexer e visitor
 - `@luisricar-do/ide`: Pacote que contém a interface do usuário
 - `@luisricar-do/parser`: Pacote que contém o novo parser do Portugol, que recebe uma árvore pré-processada pelo ANTLR e a transforma em uma árvore semântica
-- `@luisricar-do/resources`: Pacote que contém os recursos do Portugol, como os exemplos e a seção de ajuda
-- `@luisricar-do/runner`: Pacote que executa o código gerado pelo transpilador em Web Workers, tratando entrada, saída, erros e eventos. Inclui também o executor **headless** em Node (`PortugolNodeRunner`, `runPortugolProgram` e a CLI `lib/headless/cli.js`), exposto em `@luisricar-do/runner/headless` e usado pela avaliação da dissertação.
+- `@luisricar-do/resources`: Pacote que contém os recursos do Portugol: os exemplos, os tópicos da Ajuda (em Markdown) e os metadados das bibliotecas
+- `@luisricar-do/runner`: Pacote que executa o código gerado pelo transpilador em Web Workers, tratando entrada, saída, erros e eventos. Em Node, executa no `PortugolWorkerThreadsRunner` (do upstream); por cima dele, o fork mantém o executor **headless** (`runPortugolProgram` e a CLI `lib/headless/cli.js`), exposto em `@luisricar-do/runner/headless` e usado pela avaliação da dissertação.
 - `@luisricar-do/runtime`: Pacote que contém o transpilador de Portugol para JavaScript e o código de execução em _runtime_ necessário: variáveis, bibliotecas, etc.
 - `@luisricar-do/worker`: Pacote que contém o código que será executado em Web Workers, que é responsável por receber o código do Portugol, e executar a verificação de erros e transpilação do código em uma _thread_ separada.
 
@@ -97,11 +97,17 @@ printf '%s' '{ "code": "programa {\n funcao inicio() {\n escreva(1)\n }\n}", "st
   | node packages/runner/lib/headless/cli.js
 ```
 
-A saída é JSON com `errors`, `parseErrors`, `compilerErrorLines`, `stdout`, `timedOut`,
-`stdoutTruncated`, `runtimeError` e `executed`; a entrada pode ser um objeto ou uma lista de
+A saída é JSON com `errors`, `warnings`, `parseErrors`, `compilerErrorLines`, `stdout`, `timedOut`,
+`stdoutTruncated`, `runtimeError` e `executed` (`errors` são só os diagnósticos de severidade erro;
+avisos e informações do verificador vão em `warnings` e não entram em `compilerErrorLines`); a entrada pode ser um objeto ou uma lista de
 objetos (um por estado de código). O `timeoutMs` corta laços infinitos e a saída é limitada a
 64 000 caracteres. Em API: `runPortugolProgram()` de `@luisricar-do/runner/headless` — subcaminho
 próprio porque o executor headless usa `node:worker_threads`, que não existe no bundle do browser.
+
+Desde a sincronização com o upstream de outubro de 2026, as mensagens de erro seguem as do Portugol
+Studio (por exemplo, «A variável "x" não foi declarada neste escopo.») e cada diagnóstico traz o
+código do erro (`ErroSemantico.ErroSimboloNaoDeclarado.3`). Estados pré-computados antes disso têm
+o texto antigo: recalculá-los muda `errors`, por isso uma corrida nova da bancada é execução nova.
 
 ### Telemetria da avaliação (dissertação)
 
@@ -114,11 +120,11 @@ como NDJSON no Azure Blob Storage (ver README do **maieutica**).
 - **Identificação:** o navegador gera um `installId` persistente (`localStorage`) e um
   `sessionId` por aba (`sessionStorage`). Nenhum dado pessoal é registado.
 - **Atribuição do participante:** abra a IDE com `?pid=P07&cond=turma-2026-1`. O `cond` é um
-  rótulo livre da **etapa de coleta** (normalizado como *slug*), não um braço experimental — o
+  rótulo livre da **etapa de coleta** (normalizado como _slug_), não um braço experimental — o
   desenho não tem grupos. Os valores persistem na sessão, sobrevivendo a recarregamentos da aba.
 - **Envio:** lotes de 50 eventos a cada 10 s, mais um envio em `pagehide` e ao ocultar
   a aba. Falha de rede, `503` (armazenamento desligado) ou `5xx` mantêm os eventos na
-  fila com *backoff* exponencial — nada se perde se o backend estiver fora do ar.
+  fila com _backoff_ exponencial — nada se perde se o backend estiver fora do ar.
 - **Perdas são visíveis:** `seq` monotónico por sessão permite detetar lacunas na
   análise; eventos descartados (fila cheia, `400`) são reportados como evento
   `telemetry_dropped`.
@@ -130,7 +136,7 @@ como NDJSON no Azure Blob Storage (ver README do **maieutica**).
 
 Com `?pid=` (ou `?study=1`, que mostra o formulário de atribuição) aparece uma barra no
 topo da IDE para conduzir a sessão: seletor de tarefa, botão **Iniciar**, cronómetro do
-*timebox* e botões **Concluí** / **Interromper**. Fora de uma sessão de pesquisa a barra
+_timebox_ e botões **Concluí** / **Interromper**. Fora de uma sessão de pesquisa a barra
 não é renderizada e a IDE fica inalterada.
 
 Timeboxes conforme o apêndice de enunciados: **10 min** em T1–T2 e **15 min** em T3–T6 (não há
@@ -142,20 +148,20 @@ reavaliado quando a aba volta ao primeiro plano.
 
 #### Eventos registados
 
-| Evento | Quando | Campos próprios |
-| --- | --- | --- |
-| `session_start` / `app_reload` | Arranque da aplicação (o segundo quando o `sessionId` já tinha eventos) | — |
-| `task_start` | Botão **Iniciar** | `taskLabel`, `timeboxMs` |
-| `task_end` | **Concluí**, **Interromper** ou fim do timebox | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns` |
-| `code_edit` | Alteração no editor (antes do debounce, para preservar a ordem face aos turnos) | `codeLength`, `codeLines` |
-| `compile` | Verificação estática concluída | `errorCount`, `errorClass`, `errorClassCounts`, `errorLines`, `trigger` |
-| `run` | Início e fim da execução | `phase`, `outcome` (`finished`/`runtime_error`/`compile_error`/`stopped`), `durationMs` |
-| `first_help_request` | Primeiro pedido de orientação **do estudante** em cada tarefa | — |
-| `chat_turn_user` | Mensagem enviada ao tutor | `origin` (`student`/`proactive`), `messageLength`, `hintLevel` |
-| `chat_turn_assistant` | Resposta concluída | `latencyMs`, `replyLength`, `suggestedConversationEnd` |
-| `hint_level_changed` | Ajuste do nível de dica | `fromLevel`, `toLevel` |
-| `sse_error` / `api_error` | Falha no stream ou na chamada | `status`, `latencyMs` |
-| `telemetry_dropped` | Perda por fila cheia ou rejeição `400` | `droppedEvents` |
+| Evento                         | Quando                                                                          | Campos próprios                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `session_start` / `app_reload` | Arranque da aplicação (o segundo quando o `sessionId` já tinha eventos)         | —                                                                                       |
+| `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`                                                                |
+| `task_end`                     | **Concluí**, **Interromper** ou fim do timebox                                  | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns`               |
+| `code_edit`                    | Alteração no editor (antes do debounce, para preservar a ordem face aos turnos) | `codeLength`, `codeLines`                                                               |
+| `compile`                      | Verificação estática concluída                                                  | `errorCount`, `errorClass`, `errorClassCounts`, `errorLines`, `trigger`                 |
+| `run`                          | Início e fim da execução                                                        | `phase`, `outcome` (`finished`/`runtime_error`/`compile_error`/`stopped`), `durationMs` |
+| `first_help_request`           | Primeiro pedido de orientação **do estudante** em cada tarefa                   | —                                                                                       |
+| `chat_turn_user`               | Mensagem enviada ao tutor                                                       | `origin` (`student`/`proactive`), `messageLength`, `hintLevel`                          |
+| `chat_turn_assistant`          | Resposta concluída                                                              | `latencyMs`, `replyLength`, `suggestedConversationEnd`                                  |
+| `hint_level_changed`           | Ajuste do nível de dica                                                         | `fromLevel`, `toLevel`                                                                  |
+| `sse_error` / `api_error`      | Falha no stream ou na chamada                                                   | `status`, `latencyMs`                                                                   |
+| `telemetry_dropped`            | Perda por fila cheia ou rejeição `400`                                          | `droppedEvents`                                                                         |
 
 Todo evento leva `seq`, `ts`, `task`, `taskElapsedMs`, `tabKey`, `hudOpen`, `dialogTurnCount`
 e `userMessageCount`, além da identidade do envelope. **O código-fonte não é enviado** — só
@@ -165,7 +171,10 @@ Dois campos merecem nota metodológica:
 
 - `origin` separa o pedido explícito do estudante do disparo proativo da IDE. Só o primeiro
   conta como pedido de orientação, e é ele que abre a janela da métrica de atrito.
-- `errorClass` cobre `syntax`, `type_mismatch` e `undeclared_identifier`. **`logic` e
+- `errorClass` cobre `syntax`, `type_mismatch` e `undeclared_identifier`. A classe sai do código do
+  diagnóstico (`ErroSintatico.*`, `ErroSemantico.ErroSimboloNaoDeclarado*`,
+  `ErroSemantico.ErroTiposIncompativeis*` / `ErroTipoParametroIncompativel*`) e, sem código, do
+  texto da mensagem. Só os erros contam: avisos e informações do verificador ficam de fora. **`logic` e
   `infinite_loop` não são classificados na IDE**: o primeiro compila e executa, o segundo só
   se manifesta em execução. Ambos são derivados na análise, a partir do desfecho da tarefa e
   dos eventos `run` (em particular `outcome: "stopped"` com duração longa).
@@ -183,7 +192,7 @@ Dois campos merecem nota metodológica:
 ## Licença
 
     Portugol Webstudio - IDE online para o Portugol
-    Copyright (C) 2025  Douglas Gadêlha, Danilo Gadêlha e contribuidores
+    Copyright (C) 2026  Douglas Gadêlha, Danilo Gadêlha e contribuidores
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

@@ -1,12 +1,16 @@
-import { Injectable, signal } from "@angular/core";
+import { Service, signal } from "@angular/core";
 
 const OFFSET_STORAGE_KEY = "pws:tutor:hudOffset";
 const SIZE_STORAGE_KEY = "pws:tutor:hudSize";
 
-/** Largura mínima do painel (~17.5rem). */
+/**
+ * Largura mínima do painel (~17.5rem).
+ */
 export const TUTOR_HUD_MIN_WIDTH_PX = 280;
 
-/** Altura mínima do painel (~20rem). */
+/**
+ * Altura mínima do painel (~20rem).
+ */
 export const TUTOR_HUD_MIN_HEIGHT_PX = 320;
 
 const VIEWPORT_MARGIN_PX = 12;
@@ -17,7 +21,9 @@ const VIEWPORT_MARGIN_PX = 12;
  */
 export const TUTOR_HUD_DRAG_NUDGE_SUPPRESS_MS = 8000;
 
-/** Retângulo do painel HUD em coordenadas do viewport (getBoundingClientRect). */
+/**
+ * Retângulo do painel HUD em coordenadas do viewport (getBoundingClientRect).
+ */
 export interface TutorHudPanelViewport {
   readonly left: number;
   readonly top: number;
@@ -25,13 +31,17 @@ export interface TutorHudPanelViewport {
   readonly height: number;
 }
 
-/** Deslocamento em px aplicado ao painel (translate) ao arrastar a barra “Mover”. */
+/**
+ * Deslocamento em px aplicado ao painel (translate) ao arrastar a barra “Mover”.
+ */
 export interface TutorHudPixelOffset {
   readonly dx: number;
   readonly dy: number;
 }
 
-/** Dimensões customizadas do painel (px). */
+/**
+ * Dimensões customizadas do painel (px).
+ */
 export interface TutorHudPixelSize {
   readonly width: number;
   readonly height: number;
@@ -41,7 +51,7 @@ export interface TutorHudPixelSize {
  * Geometria do overlay inferior para a “corda fantasma” até a linha no Monaco.
  * Atualizado por {@link TutorOverlayComponent} via ResizeObserver.
  */
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorHudLayoutService {
   private readonly panelViewportSignal = signal<TutorHudPanelViewport | null>(null);
 
@@ -51,7 +61,9 @@ export class TutorHudLayoutService {
 
   private userDraggedAt = 0;
 
-  /** Linha 1-based em destaque pelo tutor (atenua outros erros no editor). */
+  /**
+   * Linha 1-based em destaque pelo tutor (atenua outros erros no editor).
+   */
   private tutorPrimaryErrorLine: number | null = null;
 
   readonly panelViewport = this.panelViewportSignal.asReadonly();
@@ -61,7 +73,7 @@ export class TutorHudLayoutService {
   readonly hudSize = this.hudSizeSignal.asReadonly();
 
   /**
-   * Limites máximos de largura/altura em função do viewport.
+   *  * Limites máximos de largura/altura em função do viewport.
    */
   static maxSizeForViewport(): TutorHudPixelSize {
     if (typeof window === "undefined") {
@@ -95,7 +107,7 @@ export class TutorHudLayoutService {
   }
 
   static clampSize(width: number, height: number): TutorHudPixelSize {
-    const max = TutorHudLayoutService.maxSizeForViewport();
+    const max = this.maxSizeForViewport();
     return {
       width: Math.max(TUTOR_HUD_MIN_WIDTH_PX, Math.min(max.width, Math.round(width))),
       height: Math.max(TUTOR_HUD_MIN_HEIGHT_PX, Math.min(max.height, Math.round(height))),
@@ -133,7 +145,7 @@ export class TutorHudLayoutService {
         try {
           localStorage.setItem(OFFSET_STORAGE_KEY, JSON.stringify(next));
         } catch {
-          /* ignore */
+          // ignore
         }
       }
     } catch {
@@ -170,7 +182,7 @@ export class TutorHudLayoutService {
         try {
           localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(next));
         } catch {
-          /* ignore */
+          // ignore
         }
       }
     } catch {
@@ -183,7 +195,7 @@ export class TutorHudLayoutService {
     try {
       localStorage.removeItem(OFFSET_STORAGE_KEY);
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 
@@ -192,7 +204,7 @@ export class TutorHudLayoutService {
     try {
       localStorage.removeItem(SIZE_STORAGE_KEY);
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 
@@ -215,7 +227,7 @@ export class TutorHudLayoutService {
     try {
       localStorage.setItem(OFFSET_STORAGE_KEY, JSON.stringify(next));
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 
@@ -223,7 +235,9 @@ export class TutorHudLayoutService {
     this.userDraggedAt = Date.now();
   }
 
-  /** Verdadeiro se o utilizador arrastou o painel há menos de {@link TUTOR_HUD_DRAG_NUDGE_SUPPRESS_MS}. */
+  /**
+   * Verdadeiro se o utilizador arrastou o painel há menos de {@link TUTOR_HUD_DRAG_NUDGE_SUPPRESS_MS}.
+   */
   wasUserDraggedRecently(): boolean {
     return Date.now() - this.userDraggedAt < TUTOR_HUD_DRAG_NUDGE_SUPPRESS_MS;
   }
@@ -241,13 +255,10 @@ export class TutorHudLayoutService {
   }
 
   /**
-   * Desloca o HUD para não cobrir a faixa vertical da linha no editor (viewport).
+   *  * Desloca o HUD para não cobrir a faixa vertical da linha no editor (viewport).
    */
   nudgeHudAwayFromLine(lineTop: number, lineHeight: number): void {
-    if (typeof window === "undefined") {
-      return;
-    }
-    if (this.wasUserDraggedRecently()) {
+    if (typeof window === "undefined" || this.wasUserDraggedRecently()) {
       return;
     }
     const panel = this.panelViewportSignal();
@@ -282,11 +293,13 @@ export class TutorHudLayoutService {
     try {
       localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(next));
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 
-  /** Reaplica limites ao tamanho guardado (ex.: após resize da janela). */
+  /**
+   * Reaplica limites ao tamanho guardado (ex.: após resize da janela).
+   */
   reclampHudSize(): void {
     const current = this.hudSizeSignal();
     if (!current) {
@@ -300,11 +313,13 @@ export class TutorHudLayoutService {
     try {
       localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(next));
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 
-  /** Repõe posição e tamanho ao default. */
+  /**
+   * Repõe posição e tamanho ao default.
+   */
   resetHudOffset(): void {
     this.clearStoredOffset();
     this.clearStoredSize();

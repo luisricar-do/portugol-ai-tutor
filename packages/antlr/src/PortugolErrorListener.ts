@@ -1,88 +1,74 @@
-import {
-  ANTLRErrorListener,
-  ATNConfigSet,
-  ATNSimulator,
-  BitSet,
-  DFA,
-  Parser,
-  ParserRuleContext,
-  ParseTree,
-  RecognitionException,
-  Recognizer,
-  Token,
-} from "antlr4ng";
+import { ParserRuleContext, ParseTree, Token } from "antlr4ng";
 
-interface PortugolErrorFallbackLocation {
-  line: number;
-  column: number;
-  textLength?: number;
+export enum PortugolDiagnosticSeverity {
+  Error = 0,
+  Warning = 1,
+  Information = 2,
 }
 
-export class PortugolCodeError extends Error {
-  private static readonly EMPTY_CONTEXT = { getText: () => "" } as unknown as ParseTree;
+export interface IPortugolCodeDiagnostic {
+  severity: PortugolDiagnosticSeverity;
+  message: string;
+  startLine: number;
+  startCol: number;
+  endLine: number;
+  endCol: number;
+  code?: string;
+}
 
+/**
+ * O token isolado é para quando o diagnóstico aponta exatamente o nome de um símbolo.
+ */
+export type PortugolDiagnosticContext = ParseTree | Token;
+
+export class PortugolCodeDiagnostic extends Error implements IPortugolCodeDiagnostic {
   constructor(
+    public readonly severity: PortugolDiagnosticSeverity,
     public readonly message: string,
-    public readonly context: ParseTree,
+    public readonly context: PortugolDiagnosticContext,
     public readonly startLine: number,
     public readonly startCol: number,
     public readonly endLine: number,
     public readonly endCol: number,
+    public readonly code?: string,
   ) {
     super(message);
-    this.name = "PortugolCodeError";
   }
 
-  private static fromFallbackLocation(
-    ctx: ParseTree | null,
+  /**
+   * As colunas do ANTLR contam pontos de código, e o `length` de uma string conta unidades de
+   * UTF-16: um emoji no token esticava o fim do diagnóstico uma coluna além.
+   */
+  private static comprimento(texto: string) {
+    return Array.from(texto).length;
+  }
+
+  static fromTokens(
+    start: Token,
+    stop: Token,
     message: string,
-    fallback?: PortugolErrorFallbackLocation,
-  ): PortugolCodeError | null {
-    if (!fallback || !Number.isFinite(fallback.line) || fallback.line < 1) {
-      return null;
-    }
+    severity: PortugolDiagnosticSeverity = PortugolDiagnosticSeverity.Error,
+    code?: string,
+  ) {
+    // `endCol` é a coluna (base 0) do último caractere, *inclusive*: é o que a IDE assume ao
+    // converter para o intervalo do Monaco, que é exclusivo e base 1. Um token que quebra a
+    // linha (uma cadeia com quebra) termina na última linha dele, e não na primeira.
+    const linhas = (stop.text ?? "").split("\n");
+    const últimaLinha = linhas.at(-1) ?? "";
+    const endLine = stop.line + linhas.length - 1;
+    const início = linhas.length > 1 ? 0 : stop.column;
+    const endCol = início + Math.max(PortugolCodeDiagnostic.comprimento(últimaLinha), 1) - 1;
 
-    const column = Number.isFinite(fallback.column) && fallback.column >= 0 ? fallback.column : 0;
-    const textLength =
-      typeof fallback.textLength === "number" && Number.isFinite(fallback.textLength) && fallback.textLength > 0
-        ? Math.trunc(fallback.textLength)
-        : 1;
-    const fallbackContext = ctx ?? ({ getText: () => "" } as unknown as ParseTree);
-    return new PortugolCodeError(
-      message,
-      fallbackContext,
-      Math.trunc(fallback.line),
-      Math.trunc(column),
-      Math.trunc(fallback.line),
-      Math.trunc(column) + textLength,
-    );
+    return new PortugolCodeDiagnostic(severity, message, start, start.line, start.column, endLine, endCol, code);
   }
 
-  private static fromPayloadToken(ctx: ParseTree | null, message: string): PortugolCodeError | null {
-    if (!ctx || !Object.hasOwn(ctx, "getPayload") || typeof ctx.getPayload !== "function") {
-      return null;
-    }
-
-    const possibleSymbol = ctx.getPayload() as Token | ParseTree | ParserRuleContext | undefined;
-    if (!possibleSymbol || !Object.hasOwn(possibleSymbol, "column") || !Object.hasOwn(possibleSymbol, "line")) {
-      return null;
-    }
-
-    const { line, column } = possibleSymbol as unknown as Token;
-    const textLength =
-      Object.hasOwn(ctx, "getText") && typeof ctx.getText === "function"
-        ? Math.max(ctx.getText().length, 1)
-        : 1;
-    return new PortugolCodeError(message, ctx, line, column, line, column + textLength);
-  }
-
-  static fromContext(ctx: ParseTree | null, message: string, fallback?: PortugolErrorFallbackLocation) {
+  static fromContext(
+    ctx: ParseTree,
+    message: string,
+    severity: PortugolDiagnosticSeverity = PortugolDiagnosticSeverity.Error,
+    code?: string,
+  ) {
     let possibleContext = ctx;
-    const fallbackError = PortugolCodeError.fromFallbackLocation(ctx, message, fallback);
-    const payloadError = PortugolCodeError.fromPayloadToken(ctx, message);
-    if (payloadError) {
-      return payloadError;
-    }
 
     if (
       typeof ctx === "object" &&
@@ -97,9 +83,8 @@ export class PortugolCodeError extends Error {
     }
 
     if (!possibleContext) {
-      return fallbackError ?? new PortugolCodeError(message, PortugolCodeError.EMPTY_CONTEXT, 1, 0, 1, 1);
+      return new PortugolCodeDiagnostic(severity, message, ctx, 1, 0, 9999, 0, code);
     }
-    const context = ctx as ParseTree;
 
     if (
       Object.hasOwn(possibleContext, "start") &&
@@ -111,88 +96,50 @@ export class PortugolCodeError extends Error {
       const { line: startLine, column: startCol } = start;
 
       if (typeof stop === "object" && stop !== null) {
-        const { line: endLine } = stop;
-        let { column: endCol } = stop;
+        let { line: endLine, column: endCol } = stop;
 
         if (startLine === endLine && startCol === endCol) {
-          endCol += context.getText().length - 1;
+          endCol += PortugolCodeDiagnostic.comprimento(ctx.getText()) - 1;
         }
 
-        return new PortugolCodeError(message, context, startLine, startCol, endLine, endCol);
+        return new PortugolCodeDiagnostic(severity, message, ctx, startLine, startCol, endLine, endCol, code);
       }
 
-      return new PortugolCodeError(
+      return new PortugolCodeDiagnostic(
+        severity,
         message,
-        context,
+        ctx,
         Math.max(startLine - 1, 1),
         startCol,
         startLine,
-        startCol + context.getText().length,
+        startCol + Math.max(PortugolCodeDiagnostic.comprimento(ctx.getText()), 1) - 1,
+        code,
       );
     }
 
-    if (Object.hasOwn(context, "getText") && typeof context.getText === "function") {
-      return fallbackError ?? new PortugolCodeError(message, context, 1, 1, 1, 2 + context.getText().length);
+    if (Object.hasOwn(ctx, "getPayload") && typeof ctx.getPayload === "function") {
+      const possibleSymbol = ctx.getPayload() as Token | ParseTree | ParserRuleContext | undefined;
+
+      if (possibleSymbol && Object.hasOwn(possibleSymbol, "column") && Object.hasOwn(possibleSymbol, "line")) {
+        const { line, column } = possibleSymbol as unknown as Token;
+
+        return new PortugolCodeDiagnostic(
+          severity,
+          message,
+          ctx,
+          line,
+          column,
+          line,
+          column + PortugolCodeDiagnostic.comprimento(ctx.getText()),
+          code,
+        );
+      }
     }
 
-    return fallbackError ?? new PortugolCodeError(message, context, 1, 0, 1, 1);
+    if (Object.hasOwn(ctx, "getText") && typeof ctx.getText === "function") {
+      return new PortugolCodeDiagnostic(severity, message, ctx, 1, 1, 1, 2 + PortugolCodeDiagnostic.comprimento(ctx.getText()), code);
+    }
+
+    return new PortugolCodeDiagnostic(severity, message, ctx, 1, 0, 9999, 0, code);
   }
-}
-
-export class PortugolErrorListener implements ANTLRErrorListener {
-  private errors: PortugolCodeError[] = [];
-
-  syntaxError<T extends ATNSimulator>(
-    _recognizer: Recognizer<T>,
-    offendingSymbol: Token | null,
-    line: number,
-    charPositionInLine: number,
-    _msg: string,
-    e: RecognitionException | null,
-  ) {
-    const context = (e?.ctx || offendingSymbol || null) as unknown as ParseTree | null;
-    this.errors.push(
-      PortugolCodeError.fromContext(context, "Código incompleto ou inválido", {
-        line,
-        column: charPositionInLine,
-        textLength: offendingSymbol?.text?.length,
-      }),
-    );
-  }
-
-  getErrors() {
-    return this.errors;
-  }
-
-  reset() {
-    this.errors = [];
-  }
-
-  reportAmbiguity(
-    _recognizer: Parser,
-    _dfa: DFA,
-    _startIndex: number,
-    _stopIndex: number,
-    _exact: boolean,
-    _ambigAlts: BitSet | undefined,
-    _configs: ATNConfigSet,
-  ) { }
-
-  reportAttemptingFullContext(
-    _recognizer: Parser,
-    _dfa: DFA,
-    _startIndex: number,
-    _stopIndex: number,
-    _conflictingAlts: BitSet | undefined,
-    _configs: ATNConfigSet,
-  ) { }
-
-  reportContextSensitivity(
-    _recognizer: Parser,
-    _dfa: DFA,
-    _startIndex: number,
-    _stopIndex: number,
-    _prediction: number,
-    _configs: ATNConfigSet,
-  ) { }
 }

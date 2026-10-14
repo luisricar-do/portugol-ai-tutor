@@ -23,11 +23,15 @@
     "registry": "https://npm.pkg.github.com"
   },
   "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
-  "main": "lib/index.js",
+  "sideEffects": false,
+  "main": "lib/entrypoints/node.js",
+  "browser": "lib/entrypoints/browser.js",
+  "typings": "lib/index.d.ts",
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "default": "./lib/index.js"
+      "browser": "./lib/entrypoints/browser.js",
+      "default": "./lib/entrypoints/node.js"
     },
     "./headless": {
       "types": "./lib/headless/index.d.ts",
@@ -36,7 +40,6 @@
     "./headless/cli": "./lib/headless/cli.js",
     "./package.json": "./package.json"
   },
-  "typings": "lib/index.d.ts",
   "directories": {
     "lib": "lib"
   },
@@ -46,17 +49,20 @@
   "scripts": {
     "build": "tsc",
     "build:w": "tsc -w",
-    "test": "node --import tsx --test test/*.test.ts"
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit",
+    "test:setup": "./tests/setup.sh",
+    "pretest": "npm run test:setup",
+    "test": "vitest"
   },
   "dependencies": {
     "@luisricar-do/antlr": "*",
     "@luisricar-do/parser": "*",
     "@luisricar-do/runtime": "*",
-    "antlr4ng": "^3.0.16",
     "rxjs": "~7.8.2"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
-    "typescript": "~5.9.3"
+    "@types/node": "^26.6.5",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
   }
 }

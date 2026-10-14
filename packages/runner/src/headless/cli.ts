@@ -21,10 +21,15 @@ async function readStdin(): Promise<string> {
 }
 
 /**
- * O verificador e o transpilador escrevem diagnósticos com `console.*`; em stdout eles
- * corromperiam o JSON do resultado, então vão todos para stderr.
+ * O verificador e o transpilador escrevem diagnósticos com `console.*`, e o `console` do worker
+ * do programa chega a `process.stdout` da thread principal; em stdout eles corromperiam o JSON do
+ * resultado, então vão todos para stderr. Devolve o `write` original, para o resultado.
  */
-function routeConsoleToStderr(): void {
+function routeConsoleToStderr(): (text: string) => void {
+  const writeStdout = process.stdout.write.bind(process.stdout);
+
+  process.stdout.write = process.stderr.write.bind(process.stderr);
+
   // `inspect` em vez de `JSON.stringify`: o transpilador loga nós do ANTLR, que são cíclicos —
   // serializá-los lançaria dentro do próprio verificador e viraria um falso erro de compilação.
   const toStderr = (...args: unknown[]): void => {
@@ -37,10 +42,14 @@ function routeConsoleToStderr(): void {
   console.debug = toStderr;
   console.info = toStderr;
   console.warn = toStderr;
+
+  return text => {
+    writeStdout(text);
+  };
 }
 
 async function main(): Promise<void> {
-  routeConsoleToStderr();
+  const writeResult = routeConsoleToStderr();
 
   const raw = (await readStdin()).trim();
 
@@ -58,7 +67,7 @@ async function main(): Promise<void> {
     results.push(await runPortugolProgram(job));
   }
 
-  process.stdout.write(`${JSON.stringify(Array.isArray(parsed) ? results : results[0], undefined, 2)}\n`);
+  writeResult(`${JSON.stringify(Array.isArray(parsed) ? results : results[0], undefined, 2)}\n`);
 }
 
 await main();

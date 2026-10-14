@@ -1,267 +1,55 @@
-// Custom Theming for Angular Material
-// For more information: https://material.angular.io/guide/theming
-@use "@angular/material" as mat;
+// Estilos globais do IDE. As cores e medidas ficam em `styles/_tokens.scss`, e
+// os controles (botões, chaves, campos) em `styles/_controls.scss`.
 @use "@ngxpert/hot-toast/src/styles/styles.scss";
-// Plus imports for other components in your app.
-//@use "@fontsource/lato/400.css";
-//@use "@fontsource/lato/700.css";
-@use "root";
+@use "styles/tokens";
+@use "styles/base";
+@use "styles/controls";
+@use "styles/overlay";
+@use "styles/split";
+@use "styles/markdown";
 @use "styles/tutor-effects";
 
-// Include the common styles for Angular Material. We include this here so that you only
-// have to load a single css file for Angular Material in your app.
-// Be sure that you only ever include this mixin once!
-@include mat.core();
-
-.mat-mdc-tooltip,
-.mdc-tooltip__surface {
-  --mat-tooltip-supporting-text-line-height: normal;
-  --mat-tooltip-supporting-text-size: 0.75rem;
-  --mat-tooltip-supporting-text-weight: 400;
+// Selo das logomarcas fora do domínio de produção
+.logo-with-badge {
+  position: relative;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-app-root {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  margin: 0;
-  font-family: var(--pws-font);
-}
-
-body {
-  background-color: var(--pws-body-bg);
-  color: var(--pws-body-color);
-}
-
-/*
- * HUD do tutor: ancorado ao viewport. html/body/app-root têm overflow:hidden, o que
- * em alguns motores bloqueia position:fixed dentro da árvore. O componente reparenta o
- * host para document.body em ngAfterViewInit; o ViewRef mantém-se no app para o CD.
- */
-app-tutor-overlay {
-  display: block !important;
-  box-sizing: border-box;
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
+.beta-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--pws-radius-sm);
+  background-color: var(--pws-accent);
+  color: var(--pws-on-accent);
+  font-size: var(--pws-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   pointer-events: none;
-  z-index: 10050;
-}
-
-// Barras de scroll finas e coerentes com o tema (Firefox: scrollbar-*; WebKit: ::-webkit-scrollbar)
-[data-theme="dark"],
-[data-theme="dark"] * {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--pws-text-300) 48%, var(--pws-bg-200)) var(--pws-bg-300);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--pws-bg-300);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--pws-text-300) 42%, var(--pws-bg-200));
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--pws-text-200) 48%, var(--pws-bg-200));
-  }
-
-  &::-webkit-scrollbar-corner {
-    background: var(--pws-bg-300);
-  }
-}
-
-[data-theme="light"],
-[data-theme="light"] * {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--pws-text-300) 35%, var(--pws-bg-200)) var(--pws-bg-100);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--pws-bg-100);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--pws-text-300) 28%, var(--pws-bg-200));
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--pws-text-200) 32%, var(--pws-bg-200));
-  }
-
-  &::-webkit-scrollbar-corner {
-    background: var(--pws-bg-100);
-  }
-}
-
-.as-split-gutter {
-  background-color: var(--pws-bg-200) !important;
-}
-
-s {
-  flex-grow: 1;
-}
-
-.mat-mdc-dialog-container {
-  display: flex !important;
-
-  >* {
-    flex-grow: 1;
-  }
-}
-
-.d-flex {
-  display: flex;
-}
-
-svg-icon>svg {
-  fill: currentColor;
-}
-
-.w-100 {
-  width: 100%;
 }
 
 .logo-title[fill] {
-  fill: var(--pws-body-color);
+  fill: var(--pws-fg-strong);
 }
 
 .logo-subtitle[fill] {
-  fill: var(--pws-text-muted);
+  fill: var(--pws-fg-muted);
 }
 
 .logo-subtitle[stroke] {
-  stroke: var(--pws-text-muted);
+  stroke: var(--pws-fg-muted);
 }
 
 .logo-icon[fill] {
-  fill: var(--pws-color-primary);
+  fill: var(--pws-accent);
 }
 
-.portugol-renderer-dialog .mat-mdc-dialog-content {
-  max-height: unset;
-}
+/////////////////////////////////////////////////////////////////////////
+// Tutora ADA (fork): HUD, chat e decorações no Monaco                  //
+/////////////////////////////////////////////////////////////////////////
 
-markdown {
-  padding: 0 1rem;
-
-  h1 {
-    margin: 1rem 0;
-    font-size: 15pt;
-    padding: 1rem;
-    background-color: var(--pws-bg-100);
-    border-left: 0.25rem solid var(--pws-color-secondary);
-  }
-
-  a,
-  a:visited {
-    color: var(--pws-color-secondary);
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  ul {
-    padding-left: 2rem;
-
-    li {
-      margin-bottom: 1rem;
-      list-style-type: disc;
-    }
-  }
-
-  code {
-    display: inline-block;
-    padding: 4px 6px;
-    font-family: monospace;
-    background-color: var(--pws-bg-100);
-    border-radius: 0.25rem;
-  }
-
-  .code {
-    display: block;
-    padding: 1rem;
-    overflow: auto;
-    font-family: monospace;
-    background-color: var(--pws-bg-100);
-
-    .code-keyword {
-      color: #569cd6;
-    }
-
-    .code-const-name {
-      color: #3dc9b0;
-    }
-
-    .code-func-name {
-      color: #f5d7a9;
-    }
-
-    .code-keyword-brackets {
-      color: #da70d6;
-    }
-
-    .code-param-name {
-      color: #d4d4d4;
-    }
-
-    .code-value {
-      color: #b5cea8;
-    }
-  }
-}
-
-[data-theme="light"] {
-  markdown .code {
-    .code-keyword {
-      color: #0000ff;
-    }
-
-    .code-const-name {
-      color: #008080;
-    }
-
-    .code-func-name {
-      color: #ad7f00;
-    }
-
-    .code-keyword-brackets {
-      color: #319331;
-    }
-
-    .code-param-name {
-      color: #000;
-    }
-
-    .code-value {
-      color: #098658;
-    }
-  }
-}
-
-/* Markdown compacto no chat do tutor (sobrepõe padding da Ajuda). */
+/* Markdown compacto no chat do tutor (sobrepõe o padding da Ajuda). */
 .agent-chat__bubble-markdown markdown.agent-chat__markdown {
   display: block;
   padding: 0;
@@ -308,7 +96,7 @@ markdown {
 
   a,
   a:visited {
-    color: var(--pws-color-secondary);
+    color: var(--pws-info-fg);
     text-decoration: none;
 
     &:hover {
@@ -319,9 +107,9 @@ markdown {
   code {
     display: inline;
     padding: 0.1rem 0.35rem;
-    font-family: monospace;
+    font-family: var(--pws-font-mono);
     font-size: 0.78em;
-    background-color: var(--pws-bg-100);
+    background-color: var(--pws-bg-input);
     border-radius: 0.25rem;
   }
 
@@ -329,12 +117,12 @@ markdown {
     margin: 0.35rem 0 0.5rem;
     padding: 0.5rem 0.65rem;
     overflow: auto;
-    font-family: monospace;
+    font-family: var(--pws-font-mono);
     font-size: 0.78rem;
     line-height: 1.45;
-    background-color: var(--pws-bg-100);
+    background-color: var(--pws-bg-input);
     border-radius: 0.35rem;
-    border: 1px solid color-mix(in srgb, var(--pws-border-color) 65%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pws-border-strong) 65%, transparent);
 
     code {
       padding: 0;
@@ -346,8 +134,8 @@ markdown {
   blockquote {
     margin: 0.35rem 0 0.5rem;
     padding-left: 0.65rem;
-    border-left: 3px solid color-mix(in srgb, var(--pws-color-primary) 45%, var(--pws-border-color));
-    color: color-mix(in srgb, var(--pws-text-200) 92%, transparent);
+    border-left: 3px solid color-mix(in srgb, var(--pws-accent) 45%, var(--pws-border-strong));
+    color: color-mix(in srgb, var(--pws-fg) 92%, transparent);
   }
 }
 
@@ -386,12 +174,4 @@ markdown {
 /* Erros secundários do compilador (marcador Hint) — menos alarmantes que o erro primário */
 .monaco-editor .squiggly-hint {
   opacity: 0.35;
-}
-
-.tutor-snack--celebrate .mdc-snackbar__label {
-  font-weight: 500;
-}
-
-.tutor-snack--escalate .mdc-snackbar__label {
-  max-width: 56ch;
 }

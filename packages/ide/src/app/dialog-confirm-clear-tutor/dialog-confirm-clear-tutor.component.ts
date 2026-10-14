@@ -1,11 +1,21 @@
-import { Component } from "@angular/core";
-import { MatButtonModule } from "@angular/material/button";
-import { MatDialogModule } from "@angular/material/dialog";
+import { DialogRef } from "@angular/cdk/dialog";
+import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 
+/**
+ *  *  * `id` do título, passado como `ariaLabelledBy` a quem abre o diálogo.
+ */
+export const DIALOG_CONFIRM_CLEAR_TUTOR_TITLE_ID = "dialogo-limpar-tutor-titulo";
+
+/**
+ * Confirma apagar a conversa com a ADA. Fecha com `true` para apagar; `false`
+ * (Cancelar) ou `undefined` (Esc, clique fora) mantêm a conversa.
+ */
 @Component({
   selector: "app-dialog-confirm-clear-tutor",
-  imports: [MatDialogModule, MatButtonModule],
-  standalone: true,
   templateUrl: "./dialog-confirm-clear-tutor.component.html",
+  styleUrl: "./dialog-confirm-clear-tutor.component.scss",
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DialogConfirmClearTutorComponent {}
+export class DialogConfirmClearTutorComponent {
+  readonly dialogRef = inject<DialogRef<boolean>>(DialogRef);
+}

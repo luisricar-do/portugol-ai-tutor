@@ -1,9 +1,13 @@
-<h2 mat-dialog-title>Limpar conversa</h2>
-<mat-dialog-content>
+<header class="dialog-header">
+  <h2 id="dialogo-limpar-tutor-titulo">Limpar conversa</h2>
+</header>
+
+<div class="dialog-body">
   <p>Apagar todas as mensagens desta conversa com a ADA?</p>
   <p>Os destaques no código também serão removidos.</p>
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button type="button" mat-button [mat-dialog-close]="false">Cancelar</button>
-  <button type="button" mat-button color="warn" [mat-dialog-close]="true">Apagar</button>
-</mat-dialog-actions>
+</div>
+
+<footer class="dialog-footer">
+  <button type="button" class="btn" cdkFocusInitial (click)="dialogRef.close(false)">Cancelar</button>
+  <button type="button" class="btn btn-ghost warn" (click)="dialogRef.close(true)">Apagar</button>
+</footer>

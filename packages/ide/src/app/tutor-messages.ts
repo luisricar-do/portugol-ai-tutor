@@ -1,4 +1,6 @@
-/** Mensagens locais da ADA (sem chamada à API). */
+/**
+ * Mensagens locais da ADA (sem chamada à API).
+ */
 
 export const TUTOR_WELCOME_MESSAGE =
   "Olá! Estou aqui para te ajudar a depurar. Quando encontrar um erro, me conta o que você acha que está acontecendo e vamos pensar juntos.";

@@ -1,4 +1,4 @@
-import { Injectable } from "@angular/core";
+import { Service } from "@angular/core";
 import type { GoogleAnalyticsService } from "ngx-google-analytics";
 
 type AnalyticsSurface = Pick<GoogleAnalyticsService, "event" | "pageView" | "appView" | "set" | "exception" | "gtag">;
@@ -16,7 +16,7 @@ type AnalyticsSurface = Pick<GoogleAnalyticsService, "event" | "pageView" | "app
  * `AnalyticsSurface` existe para o compilador recusar esta classe se o pacote mudar a
  * assinatura de algum destes métodos.
  */
-@Injectable({ providedIn: "root" })
+@Service()
 export class NoopGoogleAnalyticsService implements AnalyticsSurface {
   event(): void {
     return;

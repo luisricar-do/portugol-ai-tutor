@@ -1,10 +1,19 @@
 import { PortugolExecutor, PortugolMessage } from "@luisricar-do/runner";
 
 export interface IGraphicsRendererComponent {
-  close(): void;
+  /**
+   * Com `stopProgram` falso a janela fecha e o programa segue, como o `encerrar_modo_grafico`
+   * do Portugol Studio. Fechar pelo usuário ou pelo `fechar_janela` encerra o programa.
+   */
+  close(stopProgram?: boolean): void;
   getCanvas(): Promise<OffscreenCanvas>;
   setTitle(title: string): void;
   setSize(width: number, height: number): void;
+  /**
+   * Ocupa a aba do navegador e devolve o tamanho que sobra para o desenho.
+   */
+  enterFullscreen(): Promise<{ width: number; height: number }>;
+  exitFullscreen(): void;
 }
 
 export class CreateGraphicsRendererComponentEvent extends Event {
@@ -41,7 +50,7 @@ export class GraphicsRenderer extends EventTarget {
       }
 
       case "graphics.destroy": {
-        this.component?.close();
+        this.component?.close(false);
         this.destroy();
         this.executor.replyMessage(message, null);
         break;
@@ -81,6 +90,11 @@ export class GraphicsRenderer extends EventTarget {
         break;
       }
 
+      case "graphics.hideWindowBorder": {
+        this.executor.replyMessage(message, null);
+        break;
+      }
+
       case "graphics.minimizeWindow": {
         this.executor.replyMessage(message, null);
         break;
@@ -92,11 +106,13 @@ export class GraphicsRenderer extends EventTarget {
       }
 
       case "graphics.enterFullscreen": {
-        this.executor.replyMessage(message, null);
+        const size = await this.component?.enterFullscreen();
+        this.executor.replyMessage(message, size ?? { width: 640, height: 480 });
         break;
       }
 
       case "graphics.exitFullscreen": {
+        this.component?.exitFullscreen();
         this.executor.replyMessage(message, null);
         break;
       }

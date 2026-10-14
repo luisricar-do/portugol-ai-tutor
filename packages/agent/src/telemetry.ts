@@ -8,7 +8,9 @@
  * de atividade.
  */
 
-/** Subconjunto de `localStorage` usado pela fila (permite fake nos testes). */
+/**
+ *  * Subconjunto de `localStorage` usado pela fila (permite fake nos testes).
+ */
 export interface TelemetryStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -17,28 +19,42 @@ export interface TelemetryStorage {
   key(index: number): string | null;
 }
 
-/** Identidade da sessão; acompanha todos os lotes enviados. */
+/**
+ *  * Identidade da sessão; acompanha todos os lotes enviados.
+ */
 export interface TelemetryEnvelope {
-  /** Pseudónimo persistente do navegador (`localStorage`). */
+  /**
+   *  * Pseudónimo persistente do navegador (`localStorage`).
+   */
   installId: string;
-  /** Identificador da sessão (aba) corrente. */
+  /**
+   *  * Identificador da sessão (aba) corrente.
+   */
   sessionId: string;
-  /** Código do participante atribuído pelo pesquisador (ex.: `P07`). */
+  /**
+   *  * Código do participante atribuído pelo pesquisador (ex.: `P07`).
+   */
   participantId?: string;
-  /** Rótulo livre da etapa de coleta (ex.: `piloto`, `turma-2026-1`); não é braço experimental. */
+  /**
+   *  * Rótulo livre da etapa de coleta (ex.: `piloto`, `turma-2026-1`); não é braço experimental.
+   */
   condition?: string;
   buildSha?: string;
   promptHash?: string;
 }
 
-/** Evento tal como é registado pelos serviços da IDE (sem `seq`). */
+/**
+ *  * Evento tal como é registado pelos serviços da IDE (sem `seq`).
+ */
 export interface TelemetryEventInput {
   type: string;
   ts?: string;
   [key: string]: unknown;
 }
 
-/** Evento já persistido: `seq` monotónico por sessão e `ts` obrigatório. */
+/**
+ *  * Evento já persistido: `seq` monotónico por sessão e `ts` obrigatório.
+ */
 export interface TelemetryQueuedEvent extends TelemetryEventInput {
   seq: number;
   ts: string;
@@ -46,7 +62,9 @@ export interface TelemetryQueuedEvent extends TelemetryEventInput {
 
 interface TelemetrySessionRecord {
   lastSeq: number;
-  /** Eventos descartados por falta de espaço na fila, ainda não reportados. */
+  /**
+   *  * Eventos descartados por falta de espaço na fila, ainda não reportados.
+   */
   dropped: number;
   events: TelemetryQueuedEvent[];
 }
@@ -56,35 +74,57 @@ export interface CreateTelemetryQueueOptions {
   envelope: TelemetryEnvelope;
   storage: TelemetryStorage;
   fetch?: typeof fetch;
-  /** Eventos por lote (o servidor aceita até 500). */
+  /**
+   *  * Eventos por lote (o servidor aceita até 500).
+   */
   batchSize?: number;
-  /** Tecto da fila persistida; acima disso os eventos novos são contados como perdidos. */
+  /**
+   *  * Tecto da fila persistida; acima disso os eventos novos são contados como perdidos.
+   */
   maxQueued?: number;
-  /** Injetável nos testes. */
+  /**
+   *  * Injetável nos testes.
+   */
   now?: () => Date;
 }
 
 export interface TelemetryQueue {
-  /** Persiste o evento e devolve-o já com `seq` e `ts`. `null` se a fila estiver cheia. */
+  /**
+   *  * Persiste o evento e devolve-o já com `seq` e `ts`. `null` se a fila estiver cheia.
+   */
   enqueue(event: TelemetryEventInput): TelemetryQueuedEvent | null;
   /**
    * Envia um lote. Devolve o nº de eventos confirmados pelo servidor.
    * Não lança: falha de rede mantém o lote na fila.
    */
   flush(): Promise<number>;
-  /** Envia lotes até a fila esvaziar ou uma tentativa falhar. */
+  /**
+   *  * Envia lotes até a fila esvaziar ou uma tentativa falhar.
+   */
   flushAll(): Promise<number>;
-  /** Eventos ainda não confirmados nesta sessão. */
+  /**
+   *  * Eventos ainda não confirmados nesta sessão.
+   */
   pending(): TelemetryQueuedEvent[];
-  /** Último `seq` atribuído nesta sessão; 0 significa sessão ainda sem eventos. */
+  /**
+   *  * Último `seq` atribuído nesta sessão; 0 significa sessão ainda sem eventos.
+   */
   lastSeq(): number;
-  /** Nº de eventos descartados por fila cheia e ainda não reportados. */
+  /**
+   *  * Nº de eventos descartados por fila cheia e ainda não reportados.
+   */
   droppedCount(): number;
-  /** `true` se o próximo `flush` deve esperar (backoff em curso). */
+  /**
+   *  * `true` se o próximo `flush` deve esperar (backoff em curso).
+   */
   isBackingOff(): boolean;
-  /** Conteúdo de todas as sessões presentes neste navegador (cópia de segurança). */
+  /**
+   *  * Conteúdo de todas as sessões presentes neste navegador (cópia de segurança).
+   */
   exportAllSessions(): Record<string, TelemetrySessionRecord>;
-  /** Remove a fila desta sessão (usar só depois de exportar). */
+  /**
+   *  * Remove a fila desta sessão (usar só depois de exportar).
+   */
   clearSession(): void;
 }
 
@@ -164,7 +204,9 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
     nextAttemptAt = 0;
   }
 
-  /** Remove da fila os eventos já confirmados, sem perder o que entrou entretanto. */
+  /**
+   *  * Remove da fila os eventos já confirmados, sem perder o que entrou entretanto.
+   */
   function dropConfirmed(confirmedSeqs: Set<number>, reportedDropped: number): void {
     const record = read();
     record.events = record.events.filter(event => !confirmedSeqs.has(event.seq));
@@ -235,7 +277,7 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
     return 0;
   }
 
-  return {
+  const queue: TelemetryQueue = {
     enqueue(event: TelemetryEventInput): TelemetryQueuedEvent | null {
       const record = read();
 
@@ -283,7 +325,7 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
     async flushAll(): Promise<number> {
       let total = 0;
       for (;;) {
-        const sent = await this.flush();
+        const sent = await queue.flush();
         if (sent === 0) {
           return total;
         }
@@ -291,21 +333,13 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
       }
     },
 
-    pending(): TelemetryQueuedEvent[] {
-      return read().events;
-    },
+    pending: (): TelemetryQueuedEvent[] => read().events,
 
-    lastSeq(): number {
-      return read().lastSeq;
-    },
+    lastSeq: (): number => read().lastSeq,
 
-    droppedCount(): number {
-      return read().dropped;
-    },
+    droppedCount: (): number => read().dropped,
 
-    isBackingOff(): boolean {
-      return nextAttemptAt > 0 && now().getTime() < nextAttemptAt;
-    },
+    isBackingOff: (): boolean => nextAttemptAt > 0 && now().getTime() < nextAttemptAt,
 
     exportAllSessions(): Record<string, TelemetrySessionRecord> {
       const out: Record<string, TelemetrySessionRecord> = {};
@@ -320,7 +354,7 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
             out[storageKey.slice(STORAGE_PREFIX.length)] = parsed;
           }
         } catch {
-          /* ignora registo corrompido */
+          // ignora registo corrompido
         }
       }
       return out;
@@ -330,8 +364,10 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
       try {
         storage.removeItem(key);
       } catch {
-        /* ignora */
+        // ignora
       }
     },
   };
+
+  return queue;
 }

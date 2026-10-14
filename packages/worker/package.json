@@ -36,13 +36,11 @@
   "dependencies": {
     "@luisricar-do/antlr": "*",
     "@luisricar-do/parser": "*",
-    "@luisricar-do/runtime": "*",
-    "antlr4ng": "^3.0.16"
+    "@luisricar-do/runtime": "*"
   },
   "devDependencies": {
-    "antlr-ng": "^1.0.10",
-    "babel-loader": "^10.0.0",
-    "webpack": "^5.105.4",
-    "webpack-cli": "^6.0.1"
+    "babel-loader": "^10.1.1",
+    "webpack": "^5.111.1",
+    "webpack-cli": "^7.2.3"
   }
 }

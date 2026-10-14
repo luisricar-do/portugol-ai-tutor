@@ -11,7 +11,6 @@ export default defineConfig(
   prettier,
   {
     files: ["**/*.html"],
-    // @ts-expect-error - Configuração válida, tipos desatualizados
     extends: [...angular.configs.templateAll, ...angular.configs.templateAccessibility],
     rules: {
       "@angular-eslint/template/i18n": "off",
@@ -27,7 +26,8 @@ export default defineConfig(
     processor: angular.processInlineTemplates,
     languageOptions: {
       parserOptions: {
-        project: true,
+        project: ["tsconfig.eslint.json"],
+        // @ts-expect-error - esm
         tsconfigDirName: import.meta.dirname,
       },
     },
@@ -64,19 +64,34 @@ export default defineConfig(
     },
   },
   {
+    // As ferramentas do parser são .mjs tipados por JSDoc; só o tsconfig.spec.json do
+    // pacote liga `allowJs`, sem o qual os testes não resolvem o que importam delas.
+    files: ["packages/parser/**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: ["packages/parser/tsconfig.spec.json"],
+        // @ts-expect-error - esm
+        tsconfigDirName: import.meta.dirname,
+      },
+    },
+  },
+  {
     ignores: [
       "node_modules/",
       ".angular/",
+      "packages/**/coverage/",
       "packages/**/lib/",
       "packages/**/dist/",
+      "packages/resources/assets/",
       "packages/**/node_modules/",
       "packages/agent/test/**",
       "packages/runner/test/**",
       // Arquivos gerados:
       "packages/antlr/src/Portugol*.ts",
-      "packages/resources/assets/",
-      "packages/resources/recursos.temp/",
+      "packages/parser/src/bibliotecas/*.gerado.ts",
+      "packages/resources/bibliotecas/index.d.ts",
       "packages/ide/src/index.html",
+      "packages/ide/src/index.study.html",
     ],
   },
   {
@@ -100,24 +115,51 @@ export default defineConfig(
       "prefer-destructuring": "off",
       "prefer-named-capture-group": "off",
       "require-unicode-regexp": "off",
+      "unicorn/comment-content": "off",
+      "unicorn/consistent-boolean-name": "off",
+      "unicorn/consistent-class-member-order": "off",
       "unicorn/consistent-function-scoping": "off",
+      "unicorn/custom-error-definition": "off",
       "unicorn/filename-case": "off",
+      "unicorn/max-nested-calls": ["error", { "max": 5 }],
+      "unicorn/name-replacements": "off",
       "unicorn/no-abusive-eslint-disable": "off",
+      "unicorn/no-array-front-mutation": "off",
       "unicorn/no-array-reduce": "off",
+      "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
       "unicorn/no-await-expression-member": "off",
+      "unicorn/no-barrel-files": "off",
+      "unicorn/no-error-property-assignment": "off",
       "unicorn/no-for-loop": "off",
+      "unicorn/no-incorrect-template-string-interpolation": "off",
       "unicorn/no-keyword-prefix": "off",
       "unicorn/no-lonely-if": "off",
+      "unicorn/no-manually-wrapped-comments": "off",
       "unicorn/no-null": "off",
       "unicorn/no-object-as-default-parameter": "off",
+      "unicorn/no-top-level-assignment-in-function": "off",
+      "unicorn/no-top-level-side-effects": "off",
+      "unicorn/no-unreadable-new-expression": "off",
+      "unicorn/no-unsafe-string-replacement": "off",
+      "unicorn/no-useless-override": "off",
+      "unicorn/no-useless-recursion": "off",
+      "unicorn/no-useless-template-literals": "off",
+      "unicorn/prefer-await": "off",
+      "unicorn/prefer-continue": "off",
+      "unicorn/prefer-default-parameters": "off",
+      "unicorn/prefer-early-return": "off",
+      "unicorn/prefer-error-is-error": "off",
       "unicorn/prefer-export-from": "off",
       "unicorn/prefer-global-this": "off",
+      "unicorn/prefer-number-coercion": "off",
       "unicorn/prefer-spread": "off",
       "unicorn/prefer-string-raw": "off",
+      "unicorn/prefer-temporal": "off",
       "unicorn/prefer-ternary": "off",
       "unicorn/prefer-top-level-await": "off",
       "unicorn/prevent-abbreviations": "off",
       "unicorn/require-post-message-target-origin": "off",
+      "unicorn/try-complexity": "off",
     },
   },
 );

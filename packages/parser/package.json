@@ -23,6 +23,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "homepage": "https://github.com/luisricar-do/portugol-ai-tutor#readme",
+  "sideEffects": false,
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "directories": {
@@ -33,13 +34,19 @@
   ],
   "scripts": {
     "build": "tsc",
-    "build:w": "tsc -w"
+    "build:w": "tsc -w",
+    "typecheck": "tsc -p tsconfig.spec.json --noEmit",
+    "test": "vitest"
   },
   "dependencies": {
     "@luisricar-do/antlr": "*",
+    "@luisricar-do/resources": "*",
     "antlr4ng": "^3.0.16"
   },
   "devDependencies": {
-    "typescript": "~5.9.3"
+    "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.3",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
   }
 }

@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, computed, inject, signal } from "@angular/core";
+import { DestroyRef, Service, computed, inject, signal } from "@angular/core";
 import { Subject } from "rxjs";
 
 /**
@@ -24,7 +24,9 @@ export type StudyCondition = string;
 export type TaskOutcome = "solved" | "timeout" | "aborted";
 
 export interface StudyTask {
-  /** 1–6: os seis cenários de depuração do apêndice de enunciados. */
+  /**
+   * 1–6: os seis cenários de depuração do apêndice de enunciados.
+   */
   readonly index: number;
   readonly label: string;
   readonly timeboxMs: number;
@@ -48,11 +50,15 @@ export const STUDY_TASKS: readonly StudyTask[] = [
 export interface TaskLifecycleEvent {
   kind: "started" | "ended";
   task: StudyTask;
-  /** Epoch ms do início da tarefa (preservado entre recarregamentos da aba). */
+  /**
+   * Epoch ms do início da tarefa (preservado entre recarregamentos da aba).
+   */
   startedAt: number;
   elapsedMs: number;
   outcome?: TaskOutcome;
-  /** Turnos de chat do estudante nesta tarefa (só relevante no encerramento). */
+  /**
+   * Turnos de chat do estudante nesta tarefa (só relevante no encerramento).
+   */
   studentTurns?: number;
 }
 
@@ -63,23 +69,25 @@ interface PersistedState {
   helpRequested: boolean;
 }
 
-/** Contexto anexado a cada evento de telemetria enquanto uma tarefa está em curso. */
+/**
+ * Contexto anexado a cada evento de telemetria enquanto uma tarefa está em curso.
+ */
 export interface TaskContext {
   task?: number;
   taskElapsedMs?: number;
 }
 
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorStudySessionService {
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly lifetime = inject(DestroyRef);
 
   // `signal()` exige valor inicial; o `undefined` explícito é obrigatório aqui.
-  /* eslint-disable unicorn/no-useless-undefined */
+
   private readonly participantIdSignal = signal<string | undefined>(undefined);
   private readonly conditionSignal = signal<StudyCondition | undefined>(undefined);
   private readonly taskIndexSignal = signal<number | undefined>(undefined);
   private readonly startedAtSignal = signal<number | undefined>(undefined);
-  /* eslint-enable unicorn/no-useless-undefined */
+
   private readonly studentTurnsSignal = signal(0);
   private readonly helpRequestedSignal = signal(false);
   private readonly nowSignal = signal(Date.now());
@@ -90,7 +98,9 @@ export class TutorStudySessionService {
 
   private readonly lifecycleSubject = new Subject<TaskLifecycleEvent>();
 
-  /** `task_start` / `task_end` para quem faz o registo (telemetria). */
+  /**
+   * `task_start` / `task_end` para quem faz o registo (telemetria).
+   */
   readonly lifecycle$ = this.lifecycleSubject.asObservable();
 
   readonly participantId = this.participantIdSignal.asReadonly();
@@ -98,7 +108,9 @@ export class TutorStudySessionService {
   readonly studentTurnsInTask = this.studentTurnsSignal.asReadonly();
   readonly helpRequestedInTask = this.helpRequestedSignal.asReadonly();
 
-  /** Uma sessão de pesquisa só existe quando há participante atribuído. */
+  /**
+   * Uma sessão de pesquisa só existe quando há participante atribuído.
+   */
   readonly isStudySession = computed(() => this.participantIdSignal() !== undefined);
 
   readonly activeTask = computed<StudyTask | undefined>(() => {
@@ -131,12 +143,14 @@ export class TutorStudySessionService {
 
   constructor() {
     this.restore();
-    this.destroyRef.onDestroy(() => {
+    this.lifetime.onDestroy(() => {
       this.stopTick();
     });
   }
 
-  /** Atribuição vinda da query string (`?pid=P07&cond=exp`) ou da barra de sessão. */
+  /**
+   * Atribuição vinda da query string (`?pid=P07&cond=exp`) ou da barra de sessão.
+   */
   setParticipant(participantId: string | undefined, condition: StudyCondition | undefined): void {
     this.participantIdSignal.set(participantId?.trim() || undefined);
     this.conditionSignal.set(condition);
@@ -161,7 +175,9 @@ export class TutorStudySessionService {
     this.lifecycleSubject.next({ kind: "started", task, startedAt, elapsedMs: 0 });
   }
 
-  /** Encerra a tarefa corrente. `timeout` é emitido automaticamente pelo relógio. */
+  /**
+   * Encerra a tarefa corrente. `timeout` é emitido automaticamente pelo relógio.
+   */
   endTask(outcome: TaskOutcome): void {
     const task = this.activeTask();
     const startedAt = this.startedAtSignal();
@@ -210,7 +226,9 @@ export class TutorStudySessionService {
     return startedAt === undefined ? 0 : Math.max(0, Date.now() - startedAt);
   }
 
-  /** Contexto para anexar aos eventos de telemetria. */
+  /**
+   * Contexto para anexar aos eventos de telemetria.
+   */
   taskContext(): TaskContext {
     const task = this.activeTask();
     if (task === undefined) {
@@ -237,7 +255,9 @@ export class TutorStudySessionService {
     window.addEventListener("focus", this.visibilityListener);
   }
 
-  /** Atualiza o relógio da UI e encerra a tarefa se o timebox já expirou. */
+  /**
+   * Atualiza o relógio da UI e encerra a tarefa se o timebox já expirou.
+   */
   private refreshClock(): void {
     this.nowSignal.set(Date.now());
     const task = this.activeTask();
@@ -322,7 +342,7 @@ export class TutorStudySessionService {
         } satisfies PersistedState),
       );
     } catch {
-      /* quota esgotada ou modo privado */
+      // quota esgotada ou modo privado
     }
   }
 
@@ -330,7 +350,7 @@ export class TutorStudySessionService {
     try {
       sessionStorage.removeItem(STATE_KEY);
     } catch {
-      /* ignora */
+      // ignora
     }
   }
 }

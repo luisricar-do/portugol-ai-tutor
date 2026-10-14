@@ -1,6 +1,7 @@
 import {
   afterNextRender,
   AfterViewInit,
+  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   DestroyRef,
@@ -15,7 +16,6 @@ import {
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
-import { MatButtonModule } from "@angular/material/button";
 import {
   createTutorAgentClient,
   TUTOR_CHAT_PLACEHOLDER_CODE,
@@ -47,14 +47,31 @@ import { TutorTelemetryService } from "../tutor-telemetry.service";
 
 @Component({
   selector: "app-agent-chat",
-  imports: [AngularSvgIconModule, FormsModule, MatButtonModule, MarkdownComponent],
-  standalone: true,
+  imports: [AngularSvgIconModule, FormsModule, MarkdownComponent],
   templateUrl: "./agent-chat.component.html",
   styleUrl: "./agent-chat.component.scss",
+  // Estado do chat em campos simples (`thread`, `draft`, `streamingAssistant`…).
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: { "(click)": "onDocLinkClick($event)" },
 })
 export class AgentChatComponent implements AfterViewInit {
-  /** Valor espelhado do editor (pode atrasar face ao Monaco). */
+  private readonly ngZone = inject(NgZone);
+  private readonly injector = inject(Injector);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly editorActionsService = inject(EditorActionsService);
+  private readonly helpNavigation = inject(HelpNavigationService);
+  private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
+  private readonly tutorSettings = inject(TutorSettingsService);
+  private readonly studySession = inject(TutorStudySessionService);
+  private readonly telemetry = inject(TutorTelemetryService);
+  private readonly tutorOverlay = inject(TutorOverlayService);
+  private readonly tutorEditorContext = inject(TutorEditorContextService);
+  private readonly chatSession = inject(TutorChatSessionService);
+  private readonly lifetime = inject(DestroyRef);
+
+  /**
+   *  *  * Valor espelhado do editor (pode atrasar face ao Monaco).
+   */
   @Input() editorCode = "";
 
   /**
@@ -69,10 +86,14 @@ export class AgentChatComponent implements AfterViewInit {
    */
   @Input() compilerErrorsResolver?: () => Promise<string[]>;
 
-  /** Fallback síncrono (ex.: marcadores Monaco) quando não há resolver. */
+  /**
+   *  *  * Fallback síncrono (ex.: marcadores Monaco) quando não há resolver.
+   */
   @Input() compilerErrorsSnapshot?: () => string[];
 
-  /** Layout do HUD flutuante (cartão em baixo) — compositor compacto. */
+  /**
+   *  *  * Layout do HUD flutuante (cartão em baixo) — compositor compacto.
+   */
   @Input() immersiveLayout = false;
 
   @Input() cursorLineResolver?: () => number | undefined;
@@ -83,18 +104,26 @@ export class AgentChatComponent implements AfterViewInit {
 
   @Input() dataFlowContextResolver?: () => string | undefined;
 
-  /** Linhas 1-based com erro de compilação no momento do pedido (payload `compilerErrorLines`). */
+  /**
+   *  *  * Linhas 1-based com erro de compilação no momento do pedido (payload `compilerErrorLines`).
+   */
   @Input() compilerErrorLinesResolver?: () => number[];
 
-  /** Chave da aba do editor (`tab.id`), não do browser — boas-vindas por ficheiro aberto. */
+  /**
+   *  *  * Chave da aba do editor (`tab.id`), não do browser — boas-vindas por ficheiro aberto.
+   */
   @Input() tabKeyResolver?: () => string;
 
   readonly baseUrlConfigured = Boolean(environment.agentApiBaseUrl?.trim());
 
-  /** Aguarda erros do worker antes do primeiro token SSE. */
+  /**
+   *  *  * Aguarda erros do worker antes do primeiro token SSE.
+   */
   preparingResponse = false;
 
-  /** No modo HUD: só a última troca visível até expandir. */
+  /**
+   *  *  * No modo HUD: só a última troca visível até expandir.
+   */
   immersiveHistoryExpanded = false;
 
   private readonly hudPlaceholders = [
@@ -106,7 +135,9 @@ export class AgentChatComponent implements AfterViewInit {
 
   private immersivePlaceholderIndex = 0;
 
-  /** Havia erros reportados desde que o overlay esteve aberto — para celebrar limpeza. */
+  /**
+   *  *  * Havia erros reportados desde que o overlay esteve aberto — para celebrar limpeza.
+   */
   private compileErrorsWerePresent = false;
 
   private successCelebrationTriggered = false;
@@ -119,46 +150,30 @@ export class AgentChatComponent implements AfterViewInit {
 
   readonly draftInput = viewChild<ElementRef<HTMLTextAreaElement>>("draftInput");
 
-  private readonly ngZone = inject(NgZone);
-
-  private readonly injector = inject(Injector);
-
-  private readonly cdr = inject(ChangeDetectorRef);
-
-  private readonly editorActionsService = inject(EditorActionsService);
-
-  private readonly helpNavigation = inject(HelpNavigationService);
-
-  /** Tópicos de documentação sugeridos pela ADA no turno atual (viram link no fim da resposta). */
+  /**
+   *  *  * Tópicos de documentação sugeridos pela ADA no turno atual (viram link no fim da resposta).
+   */
   private readonly pendingDocTopics = new Set<string>();
 
-  private readonly tutorAutoTrigger = inject(TutorAutoTriggerService);
-
-  private readonly tutorSettings = inject(TutorSettingsService);
-  private readonly studySession = inject(TutorStudySessionService);
-  private readonly telemetry = inject(TutorTelemetryService);
-
-  private readonly tutorOverlay = inject(TutorOverlayService);
-
-  private readonly tutorEditorContext = inject(TutorEditorContextService);
-
-  private readonly chatSession = inject(TutorChatSessionService);
-
-  private readonly destroyRef = inject(DestroyRef);
-
-  /** Utilizador no fundo do thread — auto-scroll durante streaming só se true (M13). */
+  /**
+   *  *  * Utilizador no fundo do thread — auto-scroll durante streaming só se true (M13).
+   */
   private readonly threadPinnedToBottom = signal(true);
 
   private forceScrollNext = false;
 
   private static readonly THREAD_SCROLL_BOTTOM_THRESHOLD_PX = 48;
 
-  /** Opacidade por linha `.agent-chat__row` (modo imersivo), atualizada no scroll. */
+  /**
+   *  *  * Opacidade por linha `.agent-chat__row` (modo imersivo), atualizada no scroll.
+   */
   private rowOpacityValues: number[] = [];
 
   private layerOpacityReduceMotion = false;
 
-  /** `requestAnimationFrame` para recalcular opacidades das mensagens. */
+  /**
+   *  *  * `requestAnimationFrame` para recalcular opacidades das mensagens.
+   */
   private layerOpacityRaf: number | null = null;
 
   private threadScrollEl: HTMLElement | null = null;
@@ -168,29 +183,39 @@ export class AgentChatComponent implements AfterViewInit {
     this.scheduleLayerOpacityUpdate();
   };
 
-  /** Tokens SSE acumulados até o próximo frame (evita NgZone/CD por caractere). */
+  /**
+   *  *  * Tokens SSE acumulados até o próximo frame (evita NgZone/CD por caractere).
+   */
   private streamingTokenBuffer = "";
 
-  /** `requestAnimationFrame` pendente para aplicar `streamingTokenBuffer`. */
+  /**
+   *  *  * `requestAnimationFrame` pendente para aplicar `streamingTokenBuffer`.
+   */
   private streamingTokenFlushRaf: number | null = null;
 
   draft = "";
   error: string | null = null;
 
-  /** Resposta em andamento via SSE (`/help/stream`). */
+  /**
+   *  *  * Resposta em andamento via SSE (`/help/stream`).
+   */
   streamingAssistant = false;
   streamingText = "";
 
   private history: TutorHistoryItem[] = [];
 
-  /** Conversa anterior arquivada após o tutor sinalizar problema resolvido (reabrir opcional). */
+  /**
+   *  *  * Conversa anterior arquivada após o tutor sinalizar problema resolvido (reabrir opcional).
+   */
   lastArchivedThread: TutorHistoryItem[] | null = null;
 
   get thread(): TutorHistoryItem[] {
     return this.history;
   }
 
-  /** Histórico visível no HUD compacto (última interação). */
+  /**
+   *  *  * Histórico visível no HUD compacto (última interação).
+   */
   visibleThreadForDisplay(): TutorHistoryItem[] {
     if (!this.immersiveLayout || this.immersiveHistoryExpanded) {
       return this.history;
@@ -217,7 +242,9 @@ export class AgentChatComponent implements AfterViewInit {
     return hasAssistant && this.history.length >= 2;
   }
 
-  /** Usado pela barra «Mover» do overlay (botão Ver histórico). */
+  /**
+   *  *  * Usado pela barra «Mover» do overlay (botão Ver histórico).
+   */
   expandImmersiveHudHistory(): void {
     if (!this.immersiveLayout) {
       return;
@@ -228,7 +255,9 @@ export class AgentChatComponent implements AfterViewInit {
     this.cdr.markForCheck();
   }
 
-  /** Faixa de estado do HUD (PT), derivada do TutorOverlayService. */
+  /**
+   *  *  * Faixa de estado do HUD (PT), derivada do TutorOverlayService.
+   */
   immersiveStateLabel(): string {
     switch (this.tutorOverlay.uiState()) {
       case "observer": {
@@ -244,7 +273,9 @@ export class AgentChatComponent implements AfterViewInit {
     return this.immersiveLayout && !this.immersiveHistoryExpanded;
   }
 
-  /** Destaque tipográfico na última resposta da tutora (HUD colapsado). */
+  /**
+   *  *  * Destaque tipográfico na última resposta da tutora (HUD colapsado).
+   */
   isHeroAssistantBubble(index: number): boolean {
     if (!this.immersiveLayout || this.immersiveHistoryExpanded || this.streamingAssistant) {
       return false;
@@ -281,7 +312,9 @@ export class AgentChatComponent implements AfterViewInit {
     return contextual[idx] ?? this.hudPlaceholders[0];
   }
 
-  /** FAB “pronto para submeter hipótese” quando há texto no rascunho. */
+  /**
+   *  *  * FAB “pronto para submeter hipótese” quando há texto no rascunho.
+   */
   hudSendReady(): boolean {
     return this.immersiveLayout && Boolean(this.draft.trim()) && !this.streamingAssistant;
   }
@@ -301,7 +334,9 @@ export class AgentChatComponent implements AfterViewInit {
     return null;
   }
 
-  /** Compositor mais compacto (menos padding) quando o campo está vazio. */
+  /**
+   *  *  * Compositor mais compacto (menos padding) quando o campo está vazio.
+   */
   hudComposerSlim(): boolean {
     return this.immersiveLayout && !this.draft.trim();
   }
@@ -327,10 +362,10 @@ export class AgentChatComponent implements AfterViewInit {
 
   constructor() {
     this.refreshLayerOpacityReduceMotion();
-    this.tutorAutoTrigger.events$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(msg => {
+    this.tutorAutoTrigger.events$.pipe(takeUntilDestroyed(this.lifetime)).subscribe(msg => {
       void this.sendWithText(msg, "proactive");
     });
-    this.chatSession.successfulRunAfterManyAttempts$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+    this.chatSession.successfulRunAfterManyAttempts$.pipe(takeUntilDestroyed(this.lifetime)).subscribe(() => {
       if (!this.immersiveLayout) {
         return;
       }
@@ -355,7 +390,7 @@ export class AgentChatComponent implements AfterViewInit {
       () => {
         const len = this.history.length;
         const streaming = this.streamingAssistant;
-        if (this.immersiveLayout && (len > 0 || streaming) && this.shouldAutoScroll()) {
+        if (this.immersiveLayout && (streaming || len > 0) && this.shouldAutoScroll()) {
           this.scrollThreadToEnd();
         }
       },
@@ -377,7 +412,7 @@ export class AgentChatComponent implements AfterViewInit {
       },
       { injector: this.injector },
     );
-    this.destroyRef.onDestroy(() => {
+    this.lifetime.onDestroy(() => {
       this.detachThreadScrollListener();
       if (this.layerOpacityRaf !== null) {
         cancelAnimationFrame(this.layerOpacityRaf);
@@ -405,10 +440,12 @@ export class AgentChatComponent implements AfterViewInit {
    * limpar destaques do tutor, borda verde discreta + mensagem reflexiva.
    */
   private checkCompileErrorRecovery(): void {
-    if (!this.immersiveLayout || !this.tutorOverlay.isOpen() || this.successCelebrationTriggered) {
-      return;
-    }
-    if (this.streamingAssistant) {
+    if (
+      !this.immersiveLayout ||
+      !this.tutorOverlay.isOpen() ||
+      this.successCelebrationTriggered ||
+      this.streamingAssistant
+    ) {
       return;
     }
     const lines = this.compilerErrorLinesResolver?.() ?? [];
@@ -466,7 +503,9 @@ export class AgentChatComponent implements AfterViewInit {
     this.scrollThreadToEnd();
   }
 
-  /** Opacidade por índice de mensagem (e `thread.length` para a linha em streaming). */
+  /**
+   *  *  * Opacidade por índice de mensagem (e `thread.length` para a linha em streaming).
+   */
   rowOpacityStyle(index: number): string | undefined {
     if (!this.immersiveLayout || this.layerOpacityReduceMotion) {
       return undefined;
@@ -506,10 +545,7 @@ export class AgentChatComponent implements AfterViewInit {
   }
 
   private scheduleLayerOpacityUpdate(): void {
-    if (!this.immersiveLayout || !this.baseUrlConfigured) {
-      return;
-    }
-    if (this.layerOpacityRaf !== null) {
+    if (!this.immersiveLayout || !this.baseUrlConfigured || this.layerOpacityRaf !== null) {
       return;
     }
     this.layerOpacityRaf = requestAnimationFrame(() => {
@@ -557,7 +593,9 @@ export class AgentChatComponent implements AfterViewInit {
     this.cdr.markForCheck();
   }
 
-  /** Foco no compositor (ex.: ao abrir o overlay). */
+  /**
+   *  *  * Foco no compositor (ex.: ao abrir o overlay).
+   */
   focusComposer(): void {
     queueMicrotask(() => {
       const el = this.draftInput()?.nativeElement;
@@ -583,12 +621,16 @@ export class AgentChatComponent implements AfterViewInit {
     this.cdr.markForCheck();
   }
 
-  /** Destaques/comentários do tutor ainda visíveis no editor (para UI ou lógica externa). */
+  /**
+   *  *  * Destaques/comentários do tutor ainda visíveis no editor (para UI ou lógica externa).
+   */
   get activeTutorDecorationCount(): number {
     return this.editorActionsService.activeTutorDecorationCount;
   }
 
-  /** Scroll leve durante streaming (um rAF; não empilha `afterNextRender`). */
+  /**
+   *  *  * Scroll leve durante streaming (um rAF; não empilha `afterNextRender`).
+   */
   private scrollThreadToEndFast(): void {
     if (!this.shouldAutoScroll()) {
       return;
@@ -603,7 +645,9 @@ export class AgentChatComponent implements AfterViewInit {
     this.scheduleLayerOpacityUpdate();
   }
 
-  /** Após o DOM refletir novas mensagens / streaming, leva o scroll ao fundo do thread. */
+  /**
+   *  *  * Após o DOM refletir novas mensagens / streaming, leva o scroll ao fundo do thread.
+   */
   private scrollThreadToEnd(): void {
     if (!this.shouldAutoScroll()) {
       return;
@@ -633,7 +677,9 @@ export class AgentChatComponent implements AfterViewInit {
     );
   }
 
-  /** Agenda aplicação dos tokens do stream no próximo frame (uma entrada na NgZone por frame). */
+  /**
+   *  *  * Agenda aplicação dos tokens do stream no próximo frame (uma entrada na NgZone por frame).
+   */
   private scheduleStreamingTokenFlush(): void {
     if (this.streamingTokenFlushRaf !== null) {
       return;
@@ -710,7 +756,9 @@ export class AgentChatComponent implements AfterViewInit {
     void this.send();
   }
 
-  /** Altura auto do compositor imersivo (até ~8rem). `scrollHeight` pode ser subdimensionado sem mínimo explícito. */
+  /**
+   *  *  * Altura auto do compositor imersivo (até ~8rem). `scrollHeight` pode ser subdimensionado sem mínimo explícito.
+   */
   onHudComposerInput(event: Event): void {
     const ta = event.target as HTMLTextAreaElement;
     const maxPx = 192;
@@ -817,7 +865,7 @@ export class AgentChatComponent implements AfterViewInit {
     // tinha devolvido os erros.
     const ultimo = this.history.at(-1);
     if (ultimo?.role === "user") {
-      this.history.splice(-1, 1, { ...ultimo, code: requestCode, errors });
+      this.history[this.history.length - 1] = { ...ultimo, code: requestCode, errors };
     }
 
     void client

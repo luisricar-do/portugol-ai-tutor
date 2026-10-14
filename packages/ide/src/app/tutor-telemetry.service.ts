@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, inject } from "@angular/core";
+import { DestroyRef, Service, inject } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { createTelemetryQueue } from "@luisricar-do/agent";
 import type { TelemetryEnvelope, TelemetryQueue } from "@luisricar-do/agent";
@@ -10,11 +10,17 @@ import { TutorEditorContextService } from "./tutor-editor-context.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
 import { TutorStudySessionService } from "./tutor-study-session.service";
 
-/** Pseudónimo do navegador: persiste entre sessões (não identifica a pessoa). */
+/**
+ * Pseudónimo do navegador: persiste entre sessões (não identifica a pessoa).
+ */
 const INSTALL_ID_KEY = "pws:tutor:installId";
-/** Identificador da sessão (aba); reinicia ao abrir nova aba. */
+/**
+ * Identificador da sessão (aba); reinicia ao abrir nova aba.
+ */
 const SESSION_ID_KEY = "pws:tutor:sessionId";
-/** Atribuição da pesquisa, lida da query string na primeira carga. */
+/**
+ * Atribuição da pesquisa, lida da query string na primeira carga.
+ */
 const PARTICIPANT_ID_KEY = "pws:tutor:participantId";
 const CONDITION_KEY = "pws:tutor:condition";
 
@@ -52,30 +58,38 @@ export interface TutorTelemetryEvent {
   userMessageCount?: number;
   fromLevel?: number;
   toLevel?: number;
-  /** Índice da tarefa (1–6) quando a sessão de pesquisa estiver em curso. */
+  /**
+   * Índice da tarefa (1–6) quando a sessão de pesquisa estiver em curso.
+   */
   task?: number;
-  /** Classe de falha do compilador (`syntax`, `type_mismatch`, …). */
+  /**
+   * Classe de falha do compilador (`syntax`, `type_mismatch`, …).
+   */
   errorClass?: string;
-  /** Latência total do turno, do envio ao fim do fluxo (ou ao erro). */
+  /**
+   * Latência total do turno, do envio ao fim do fluxo (ou ao erro).
+   */
   latencyMs?: number;
   /**
    * Latência até o primeiro token do fluxo SSE. É o que a espera custa em atenção: depois dele
    * o estudante vê a resposta a formar-se. Ausente quando nenhum token chegou.
    */
   firstTokenMs?: number;
-  /** Teto de espera em vigor, gravado com `first_token_timeout` para o registro ser auto-suficiente. */
+  /**
+   * Teto de espera em vigor, gravado com `first_token_timeout` para o registro ser auto-suficiente.
+   */
   timeoutMs?: number;
   [key: string]: unknown;
 }
 
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorTelemetryService {
   private readonly gaService = inject(GoogleAnalyticsService);
   private readonly tutorOverlay = inject(TutorOverlayService);
   private readonly tutorEditorContext = inject(TutorEditorContextService);
   private readonly chatSession = inject(TutorChatSessionService);
   private readonly studySession = inject(TutorStudySessionService);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly lifetime = inject(DestroyRef);
 
   private readonly envelope: TelemetryEnvelope;
   private readonly queue: TelemetryQueue | undefined;
@@ -105,7 +119,9 @@ export class TutorTelemetryService {
     return this.envelope.sessionId;
   }
 
-  /** Registra o evento na fila durável; o envio para o backend é assíncrono. */
+  /**
+   * Registra o evento na fila durável; o envio para o backend é assíncrono.
+   */
   log(event: TutorTelemetryEvent): void {
     if (!environment.enableTutorTelemetry || !this.queue) {
       return;
@@ -131,17 +147,23 @@ export class TutorTelemetryService {
     this.gaService.event("tutor_hint_level", "Tutor", `Nível ${fromLevel} → ${toLevel}`, toLevel);
   }
 
-  /** Eventos desta sessão ainda não confirmados pelo servidor. */
+  /**
+   * Eventos desta sessão ainda não confirmados pelo servidor.
+   */
   dumpEvents(): TutorTelemetryEvent[] {
     return (this.queue?.pending() ?? []) as TutorTelemetryEvent[];
   }
 
-  /** Força o envio do que estiver pendente (fim de sessão, troca de tarefa). */
+  /**
+   * Força o envio do que estiver pendente (fim de sessão, troca de tarefa).
+   */
   async flush(): Promise<number> {
     return (await this.queue?.flushAll()) ?? 0;
   }
 
-  /** Cópia de segurança local: todas as sessões deste navegador, em JSON. */
+  /**
+   * Cópia de segurança local: todas as sessões deste navegador, em JSON.
+   */
   exportSessionsAsJson(): string {
     return JSON.stringify(
       {
@@ -154,7 +176,9 @@ export class TutorTelemetryService {
     );
   }
 
-  /** Descarrega a cópia de segurança (camada de contingência da coleta). */
+  /**
+   * Descarrega a cópia de segurança (camada de contingência da coleta).
+   */
   downloadSessionsBackup(): void {
     if (typeof document === "undefined") {
       return;
@@ -170,7 +194,9 @@ export class TutorTelemetryService {
     URL.revokeObjectURL(url);
   }
 
-  /** Atribuição do participante (barra de sessão ou console do pesquisador). */
+  /**
+   * Atribuição do participante (barra de sessão ou console do pesquisador).
+   */
   setParticipant(participantId: string, condition?: string): void {
     const normalizedId = participantId.trim().slice(0, 64);
     if (normalizedId) {
@@ -186,7 +212,7 @@ export class TutorTelemetryService {
 
   private createQueue(): TelemetryQueue | undefined {
     const baseUrl = environment.agentApiBaseUrl?.trim();
-    if (!environment.enableTutorTelemetry || !baseUrl) {
+    if (!baseUrl || !environment.enableTutorTelemetry) {
       return undefined;
     }
     if (typeof localStorage === "undefined") {
@@ -225,7 +251,7 @@ export class TutorTelemetryService {
    * `timeout` automático do timebox também fica registado.
    */
   private observeTaskLifecycle(): void {
-    this.studySession.lifecycle$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
+    this.studySession.lifecycle$.pipe(takeUntilDestroyed(this.lifetime)).subscribe(event => {
       if (event.kind === "started") {
         this.log({
           type: "task_start",
@@ -269,7 +295,7 @@ export class TutorTelemetryService {
     window.addEventListener("pagehide", onPageHide);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    this.destroyRef.onDestroy(() => {
+    this.lifetime.onDestroy(() => {
       if (this.flushTimer !== undefined) {
         clearInterval(this.flushTimer);
       }
@@ -302,7 +328,9 @@ export class TutorTelemetryService {
     }
   }
 
-  /** Rótulo da etapa de coleta: slug curto, sem braços fixos (ver `StudyCondition`). */
+  /**
+   * Rótulo da etapa de coleta: slug curto, sem braços fixos (ver `StudyCondition`).
+   */
   private normalizeCondition(raw: string | undefined): string | undefined {
     const slug = (raw ?? "")
       .trim()
@@ -323,7 +351,9 @@ export class TutorTelemetryService {
     return id;
   }
 
-  /** Só `[A-Za-z0-9_-]`: o identificador entra no caminho do blob no servidor. */
+  /**
+   * Só `[A-Za-z0-9_-]`: o identificador entra no caminho do blob no servidor.
+   */
   private randomId(): string {
     if (typeof crypto !== "undefined" && crypto.randomUUID) {
       return crypto.randomUUID().replaceAll("-", "");
@@ -343,7 +373,7 @@ export class TutorTelemetryService {
     try {
       store.setItem(key, value);
     } catch {
-      /* quota esgotada ou modo privado */
+      // quota esgotada ou modo privado
     }
   }
 

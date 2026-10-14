@@ -7,9 +7,8 @@
       </div>
       @if (baseUrlConfigured && hasHistory) {
         <button
-          mat-button
           type="button"
-          class="agent-chat__clear"
+          class="btn btn-ghost btn-sm agent-chat__clear"
           [disabled]="streamingAssistant"
           (click)="clearConversation()"
         >
@@ -36,8 +35,10 @@
           <div class="agent-chat__banner" role="status">
             <p class="agent-chat__banner-text">Problema resolvido — nova conversa iniciada.</p>
             <div class="agent-chat__banner-actions">
-              <button mat-button type="button" (click)="reopenArchivedConversation()">Reabrir conversa anterior</button>
-              <button mat-button type="button" (click)="dismissArchivedHint()">Dispensar</button>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="reopenArchivedConversation()">
+                Reabrir conversa anterior
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="dismissArchivedHint()">Dispensar</button>
             </div>
           </div>
         }
@@ -130,9 +131,8 @@
           ></textarea>
           <div class="agent-chat__composer-actions">
             <button
-              mat-icon-button
               type="button"
-              class="agent-chat__send agent-chat__send--panel"
+              class="icon-btn agent-chat__send agent-chat__send--panel"
               aria-label="Enviar mensagem"
               [class.agent-chat__send--ready]="!!draft.trim() && !streamingAssistant"
               [disabled]="streamingAssistant || !draft.trim()"
@@ -162,9 +162,8 @@
                 (focus)="onHudPlaceholderRotate()"
               ></textarea>
               <button
-                mat-icon-button
                 type="button"
-                class="agent-chat__send agent-chat__send--hud"
+                class="icon-btn agent-chat__send agent-chat__send--hud"
                 aria-label="Submeter hipótese ao tutor"
                 [class.agent-chat__send--ready]="hudSendReady()"
                 [disabled]="streamingAssistant || !draft.trim()"

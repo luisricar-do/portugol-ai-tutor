@@ -1,13 +1,14 @@
-import { Component, DestroyRef, computed, inject, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
-import { MatButtonModule } from "@angular/material/button";
 
 import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { STUDY_TASKS, TutorStudySessionService } from "../tutor-study-session.service";
 import type { TaskOutcome } from "../tutor-study-session.service";
 
-/** Abaixo deste tempo restante o cronómetro passa a estado de aviso. */
+/**
+ *  *  * Abaixo deste tempo restante o cronómetro passa a estado de aviso.
+ */
 const WARNING_THRESHOLD_MS = 2 * 60_000;
 
 const OUTCOME_LABELS: Record<TaskOutcome, string> = {
@@ -25,15 +26,16 @@ const OUTCOME_LABELS: Record<TaskOutcome, string> = {
  */
 @Component({
   selector: "app-study-session-bar",
-  imports: [FormsModule, MatButtonModule],
-  standalone: true,
+  imports: [FormsModule],
   templateUrl: "./study-session-bar.component.html",
   styleUrl: "./study-session-bar.component.scss",
+  // O template só lê signals e constantes.
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StudySessionBarComponent {
   private readonly studySession = inject(TutorStudySessionService);
   private readonly telemetry = inject(TutorTelemetryService);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly lifetime = inject(DestroyRef);
 
   readonly tasks = STUDY_TASKS;
 
@@ -44,13 +46,16 @@ export class StudySessionBarComponent {
   readonly remainingMs = this.studySession.remainingMs;
   readonly studentTurns = this.studySession.studentTurnsInTask;
 
-  /** Tarefa escolhida no seletor (ainda não iniciada). */
+  /**
+   *  *  * Tarefa escolhida no seletor (ainda não iniciada).
+   */
   readonly selectedTaskIndex = signal(this.tasks[0].index);
 
-  // eslint-disable-next-line unicorn/no-useless-undefined -- `signal()` exige valor inicial
   readonly lastOutcome = signal<{ label: string; outcome: TaskOutcome } | undefined>(undefined);
 
-  /** Formulário de atribuição, usado quando a IDE abre com `?study=1` sem `?pid=`. */
+  /**
+   *  *  * Formulário de atribuição, usado quando a IDE abre com `?study=1` sem `?pid=`.
+   */
   readonly draftParticipantId = signal("");
   readonly draftCondition = signal("");
 
@@ -76,7 +81,7 @@ export class StudySessionBarComponent {
   constructor() {
     this.studyModeRequested = this.readStudyFlag();
 
-    this.studySession.lifecycle$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
+    this.studySession.lifecycle$.pipe(takeUntilDestroyed(this.lifetime)).subscribe(event => {
       if (event.kind !== "ended" || event.outcome === undefined) {
         return;
       }

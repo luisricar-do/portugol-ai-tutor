@@ -1,13 +1,15 @@
-import { Injectable, inject, signal } from "@angular/core";
+import { Service, inject, signal } from "@angular/core";
 
 import { TutorTelemetryService } from "./tutor-telemetry.service";
 
 const STORAGE_KEY_NAME = "pws:tutor:studentName";
 const STORAGE_KEY_HINT = "pws:tutor:hintLevel";
-/** Prefixo localStorage: `pws:tutor:welcomeShown:{tabKey}` — tabKey = ID da aba do editor, não do browser. */
+/**
+ * Prefixo localStorage: `pws:tutor:welcomeShown:{tabKey}` — tabKey = ID da aba do editor, não do browser.
+ */
 const WELCOME_PREFIX = "pws:tutor:welcomeShown:";
 
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorSettingsService {
   private readonly telemetry = inject(TutorTelemetryService);
 
@@ -26,7 +28,7 @@ export class TutorSettingsService {
         this.nameSignal.set(raw.trim());
       }
     } catch {
-      /* ignore */
+      // ignore
     }
     try {
       const hl = Number(localStorage.getItem(STORAGE_KEY_HINT));
@@ -34,7 +36,7 @@ export class TutorSettingsService {
         this.hintLevelSignal.set(hl);
       }
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 
@@ -45,7 +47,7 @@ export class TutorSettingsService {
       try {
         localStorage.removeItem(STORAGE_KEY_NAME);
       } catch {
-        /* ignore */
+        // ignore
       }
       return;
     }
@@ -53,7 +55,7 @@ export class TutorSettingsService {
     try {
       localStorage.setItem(STORAGE_KEY_NAME, trimmed);
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 
@@ -67,7 +69,7 @@ export class TutorSettingsService {
     try {
       localStorage.setItem(STORAGE_KEY_HINT, String(next));
     } catch {
-      /* ignore */
+      // ignore
     }
     this.telemetry.logHintLevelChanged(prev, next);
   }
@@ -87,7 +89,9 @@ export class TutorSettingsService {
     }
   }
 
-  /** Marca boas-vindas para a aba do editor identificada por `tabKey` (ver {@link hasWelcomeShown}). */
+  /**
+   * Marca boas-vindas para a aba do editor identificada por `tabKey` (ver {@link hasWelcomeShown}).
+   */
   markWelcomeShown(tabKey: string): void {
     if (!tabKey) {
       return;
@@ -95,7 +99,7 @@ export class TutorSettingsService {
     try {
       localStorage.setItem(WELCOME_PREFIX + tabKey, "1");
     } catch {
-      /* ignore */
+      // ignore
     }
   }
 }

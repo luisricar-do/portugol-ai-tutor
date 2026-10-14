@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 
 import { createTutorAgentClient } from "../src/client.js";
 import type { EditorAction } from "../src/types.js";
@@ -8,7 +8,7 @@ test("helpStream chama onAction ao receber evento SSE action", async () => {
   const sse =
     'event: diagnosis\ndata: {"errorType":"none"}\n\n' +
     'event: action\ndata: {"type":"highlight_line","payload":{"line":14,"color":"warning"}}\n\n' +
-    'event: done\ndata: {}\n\n';
+    "event: done\ndata: {}\n\n";
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -36,9 +36,7 @@ test("helpStream chama onAction ao receber evento SSE action", async () => {
     },
   );
 
-  assert.deepStrictEqual(received, [
-    { type: "highlight_line", payload: { line: 14, color: "warning" } },
-  ]);
+  assert.deepStrictEqual(received, [{ type: "highlight_line", payload: { line: 14, color: "warning" } }]);
 });
 
 test("helpStream passa tutorMeta no onDone quando o evento done inclui JSON", async () => {
@@ -63,11 +61,14 @@ test("helpStream passa tutorMeta no onDone quando o evento done inclui JSON", as
   let donePayload: unknown;
   const client = createTutorAgentClient({ baseUrl: "http://localhost:7071/api", fetch: fetchMock });
 
-  await client.helpStream({ code: "programa\n{\n}", errors: [], history: [] }, {
-    onDone: payload => {
-      donePayload = payload;
+  await client.helpStream(
+    { code: "programa\n{\n}", errors: [], history: [] },
+    {
+      onDone: payload => {
+        donePayload = payload;
+      },
     },
-  });
+  );
 
   assert.deepStrictEqual(donePayload, {
     tutorMeta: { suggestedConversationEnd: true, endReason: "bug_resolved" },

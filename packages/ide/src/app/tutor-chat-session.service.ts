@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from "@angular/core";
+import { Service, computed, inject, signal } from "@angular/core";
 import type { TutorHistoryItem } from "@luisricar-do/agent";
 import { Subject } from "rxjs";
 
@@ -8,9 +8,9 @@ const MANY_EXECUTION_ATTEMPTS = 3;
 const MIN_USER_TURNS_FOR_LOGIC_ENCOURAGEMENT = 2;
 
 /**
- * Estado leve do diálogo do tutor no HUD (partilhado entre gatilhos proativos e telemetria).
+ *  * Estado leve do diálogo do tutor no HUD (partilhado entre gatilhos proativos e telemetria).
  */
-@Injectable({ providedIn: "root" })
+@Service()
 export class TutorChatSessionService {
   private readonly tutorOverlay = inject(TutorOverlayService);
 
@@ -32,7 +32,9 @@ export class TutorChatSessionService {
 
   readonly successfulRunAfterManyAttempts$ = this.successfulRunAfterManyAttemptsSubject.asObservable();
 
-  /** Turnos totais (utilizador + assistente) no histórico actual. */
+  /**
+   * Turnos totais (utilizador + assistente) no histórico actual.
+   */
   readonly messageCount = computed(() => this.dialogTurnCountSignal());
 
   syncFromHistory(history: readonly TutorHistoryItem[]): void {

@@ -1,22 +1,28 @@
-import { PortugolCodeError } from "@luisricar-do/antlr";
-import { PortugolErrorChecker } from "@luisricar-do/parser";
+import { IPortugolCodeDiagnostic, PortugolDiagnosticSeverity } from "@luisricar-do/antlr";
+import { PortugolCodeChecker } from "@luisricar-do/parser";
 import { PortugolJs } from "@luisricar-do/runtime";
 
-import { PortugolNodeRunner } from "../runners/PortugolNodeRunner.js";
+import { PortugolWorkerThreadsRunner } from "../runners/PortugolWorkerThreadsRunner.js";
 
 export interface HeadlessRunOptions {
-  /** Código-fonte Portugol do estado a executar. */
+  /**
+   *  * Código-fonte Portugol do estado a executar.
+   */
   code: string;
-  /** Entradas consumidas pelos `leia`, na ordem em que o programa as pede. */
+  /**
+   *  * Entradas consumidas pelos `leia`, na ordem em que o programa as pede.
+   */
   stdin?: string[];
-  /** Corta a execução (laço infinito é um dos defeitos do banco de itens). */
+  /**
+   *  * Corta a execução (laço infinito é um dos defeitos do banco de itens).
+   */
   timeoutMs?: number;
 }
 
 /**
- * Erro de compilação em forma serializável.
+ * Diagnóstico em forma serializável.
  *
- * `PortugolCodeError` carrega o contexto do ANTLR, que é cíclico e não sobrevive a
+ * `PortugolCodeDiagnostic` carrega o contexto do ANTLR, que é cíclico e não sobrevive a
  * `JSON.stringify`; o harness precisa da forma plana para gravar no banco de itens.
  */
 export interface HeadlessCodeError {
@@ -28,29 +34,49 @@ export interface HeadlessCodeError {
 }
 
 export interface HeadlessRunResult {
-  /** Erros de compilação do verificador (mesma lista que a IDE mostra). */
+  /**
+   *  * Erros semânticos do verificador (os diagnósticos de severidade erro que a IDE mostra).
+   */
   errors: HeadlessCodeError[];
+  /**
+   *  * Avisos do verificador; não entram em `compilerErrorLines` nem impedem a execução.
+   */
+  warnings: HeadlessCodeError[];
   parseErrors: HeadlessCodeError[];
-  /** Linhas 1-based com erro, no formato aceite por `compilerErrorLines` em `/api/help`. */
+  /**
+   *  * Linhas 1-based com erro, no formato aceite por `compilerErrorLines` em `/api/help`.
+   */
   compilerErrorLines: number[];
-  /** Saída do programa, concatenada. Vazia quando não chegou a executar. */
+  /**
+   *  * Saída do programa, concatenada. Vazia quando não chegou a executar.
+   */
   stdout: string;
-  /** `true` quando o programa foi interrompido pelo `timeoutMs`. */
+  /**
+   *  * `true` quando o programa foi interrompido pelo `timeoutMs`.
+   */
   timedOut: boolean;
-  /** `true` quando a saída foi cortada em `MAX_STDOUT_CHARS` (típico de laço infinito). */
+  /**
+   *  * `true` quando a saída foi cortada em `MAX_STDOUT_CHARS` (típico de laço infinito).
+   */
   stdoutTruncated: boolean;
-  /** Mensagem de erro de execução, quando houver. */
+  /**
+   *  * Mensagem de erro de execução, quando houver.
+   */
   runtimeError?: string;
-  /** `false` quando erros de compilação impediram a execução. */
+  /**
+   *  * `false` quando erros de compilação impediram a execução.
+   */
   executed: boolean;
 }
 
 const DEFAULT_TIMEOUT_MS = 5000;
 
-/** Um laço infinito que escreve a cada volta produz saída ilimitada; corta-se aqui. */
+/**
+ *  * Um laço infinito que escreve a cada volta produz saída ilimitada; corta-se aqui.
+ */
 export const MAX_STDOUT_CHARS = 64_000;
 
-function toPlainError(error: PortugolCodeError): HeadlessCodeError {
+function toPlainError(error: IPortugolCodeDiagnostic): HeadlessCodeError {
   return {
     message: error.message,
     startLine: error.startLine,
@@ -73,7 +99,8 @@ function compilerErrorLinesFrom(errors: HeadlessCodeError[]): number[] {
  *
  * Usado pelo harness da avaliação para (a) pré-computar `errors` e `compilerErrorLines` de cada
  * estado de código do banco de itens e (b) rodar os casos de teste de um item sobre um estado,
- * que é a regra objetiva do movimento do estudante.
+ * que é a regra objetiva do movimento do estudante. Executa no `PortugolWorkerThreadsRunner`,
+ * com o mesmo runtime da IDE.
  */
 export async function runPortugolProgram({
   code,
@@ -81,18 +108,29 @@ export async function runPortugolProgram({
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: HeadlessRunOptions): Promise<HeadlessRunResult> {
   let errors: HeadlessCodeError[] = [];
+  let warnings: HeadlessCodeError[] = [];
   let parseErrors: HeadlessCodeError[] = [];
   let js = "";
 
   try {
-    const checkResult = PortugolErrorChecker.checkCode(code);
+    const checkResult = PortugolCodeChecker.checkCode(code);
 
-    errors = checkResult.errors.map(error => toPlainError(error));
+    errors = checkResult.diagnostics
+      .filter(diagnostic => diagnostic.severity === PortugolDiagnosticSeverity.Error)
+      .map(diagnostic => toPlainError(diagnostic));
+    warnings = checkResult.diagnostics
+      .filter(diagnostic => diagnostic.severity !== PortugolDiagnosticSeverity.Error)
+      .map(diagnostic => toPlainError(diagnostic));
     parseErrors = checkResult.parseErrors.map(error => toPlainError(error));
-    js = new PortugolJs().visit(checkResult.tree) ?? "";
+
+    // Com erro de sintaxe a árvore é a que o ANTLR remendou: não há programa para executar.
+    if (parseErrors.length === 0) {
+      js = new PortugolJs().visit(checkResult.tree) ?? "";
+    }
   } catch (error) {
     return {
       errors,
+      warnings,
       parseErrors,
       compilerErrorLines: compilerErrorLinesFrom([...errors, ...parseErrors]),
       stdout: "",
@@ -105,10 +143,10 @@ export async function runPortugolProgram({
 
   const compilerErrorLines = compilerErrorLinesFrom([...errors, ...parseErrors]);
 
-  // Erro de parsing impede transpilação: não há programa para executar.
-  if (parseErrors.length > 0 || !js) {
+  if (!js || parseErrors.length > 0) {
     return {
       errors,
+      warnings,
       parseErrors,
       compilerErrorLines,
       stdout: "",
@@ -118,11 +156,12 @@ export async function runPortugolProgram({
     };
   }
 
-  const runner = new PortugolNodeRunner(js);
+  const runner = new PortugolWorkerThreadsRunner(js);
   const pending = [...stdin];
   let stdout = "";
   let stdoutTruncated = false;
   let timedOut = false;
+  let finished = false;
   let runtimeError: string | undefined;
 
   runner.stdOut$.subscribe(chunk => {
@@ -160,9 +199,16 @@ export async function runPortugolProgram({
           }
 
           case "finish": {
+            // O runner pode emitir `finish` mais de uma vez (erro seguido do fim do worker).
+            if (finished) {
+              break;
+            }
+
+            finished = true;
             clearTimeout(timer);
             resolve({
               errors,
+              warnings,
               parseErrors,
               compilerErrorLines,
               stdout,
