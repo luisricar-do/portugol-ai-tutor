@@ -38,12 +38,29 @@ export type TaskOutcome = "solved" | "timeout" | "aborted";
 
 export interface StudyTask {
   /**
-   * 1–6: os seis cenários de depuração do apêndice de enunciados.
+   * 1–6: os seis cenários de depuração do apêndice de enunciados; 0: o treino.
    */
   readonly index: number;
   readonly label: string;
   readonly timeboxMs: number;
+  /**
+   * Exercício de ambientação: igual para todos, fora do banco e fora das trajetórias.
+   */
+  readonly practice?: boolean;
 }
+
+/**
+ * Treino que abre a sessão (Bloco 2 do roteiro, ambientação): todos fazem o mesmo exercício,
+ * com o mesmo fluxo dos cenários (Iniciar, cronómetro, Ada, Concluí), para que dúvidas e
+ * problemas de máquina apareçam antes da coleta. Os turnos com o tutor vão para
+ * `interactions/treino-…/` (ver `TutorTelemetryService.sessionId`).
+ */
+export const PRACTICE_TASK: StudyTask = {
+  index: 0,
+  label: "Treino — Idade em 2026",
+  timeboxMs: 10 * 60_000,
+  practice: true,
+};
 
 /**
  * Cenários e timeboxes do apêndice de enunciados: 10 min em T1–T2, 15 min em T3–T6.
@@ -59,6 +76,10 @@ export const STUDY_TASKS: readonly StudyTask[] = [
   { index: 5, label: "T5 — Maior do vetor", timeboxMs: 15 * 60_000 },
   { index: 6, label: "T6 — Contagem condicional em vetor", timeboxMs: 15 * 60_000 },
 ];
+
+function findTask(index: number): StudyTask | undefined {
+  return index === PRACTICE_TASK.index ? PRACTICE_TASK : STUDY_TASKS.find(task => task.index === index);
+}
 
 export interface TaskLifecycleEvent {
   kind: "started" | "ended";
@@ -143,20 +164,28 @@ export class TutorStudySessionService {
   readonly completedTasks = this.completedSignal.asReadonly();
 
   /**
-   * Ordem dos seis cenários para este participante, sorteada a partir do identificador: estável
-   * entre recarregamentos e refeita na análise com `studyTaskOrder`. Sem participante (modo
-   * teste), a ordem do apêndice.
+   * O treino primeiro, depois os seis cenários na ordem sorteada a partir do identificador:
+   * estável entre recarregamentos e refeita na análise com `studyTaskOrder`. Sem participante
+   * (modo teste), a ordem do apêndice.
    */
   readonly taskOrder = computed<readonly StudyTask[]>(() => {
     const participantId = this.participantIdSignal();
-    if (participantId === undefined) {
-      return STUDY_TASKS;
-    }
-    return studyTaskOrder(
-      participantId,
-      STUDY_TASKS.map(task => task.index),
-    ).flatMap(index => STUDY_TASKS.filter(task => task.index === index));
+    const scenarios =
+      participantId === undefined
+        ? STUDY_TASKS
+        : studyTaskOrder(
+            participantId,
+            STUDY_TASKS.map(task => task.index),
+          ).flatMap(index => STUDY_TASKS.filter(task => task.index === index));
+    return [PRACTICE_TASK, ...scenarios];
   });
+
+  /**
+   * Cenários encerrados, sem o treino: é o que a barra conta como feito.
+   */
+  readonly completedScenarioCount = computed(
+    () => this.completedSignal().filter(index => index !== PRACTICE_TASK.index).length,
+  );
 
   /**
    * Primeiro cenário da ordem ainda não encerrado.
@@ -168,7 +197,7 @@ export class TutorStudySessionService {
 
   readonly activeTask = computed<StudyTask | undefined>(() => {
     const index = this.taskIndexSignal();
-    return index === undefined ? undefined : STUDY_TASKS.find(task => task.index === index);
+    return index === undefined ? undefined : findTask(index);
   });
 
   readonly isRunning = computed(() => this.activeTask() !== undefined && this.startedAtSignal() !== undefined);
@@ -231,7 +260,7 @@ export class TutorStudySessionService {
   }
 
   startTask(index: number): void {
-    const task = STUDY_TASKS.find(candidate => candidate.index === index);
+    const task = findTask(index);
     if (task === undefined || this.isRunning()) {
       return;
     }
@@ -367,7 +396,7 @@ export class TutorStudySessionService {
     if (!raw) {
       return;
     }
-    const task = STUDY_TASKS.find(candidate => candidate.index === raw.taskIndex);
+    const task = findTask(raw.taskIndex);
     if (task === undefined) {
       this.clearPersisted();
       return;

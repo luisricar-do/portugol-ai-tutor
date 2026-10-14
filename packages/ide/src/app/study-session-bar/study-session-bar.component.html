@@ -73,7 +73,7 @@
         >
           @for (task of taskOrder(); track task.index) {
             <option [value]="task.index" [selected]="task.index === selectedTaskIndex()">
-              {{ $index + 1 }}. {{ task.label }}{{ isCompleted(task.index) ? " (feita)" : "" }}
+              {{ optionLabel(task, $index) }}
             </option>
           }
         </select>

@@ -15,11 +15,11 @@ import { FormsModule } from "@angular/forms";
 import { maskMatricula, pseudonymFromMatricula } from "@luisricar-do/agent";
 
 import { environment } from "../../environments/environment";
-import { STUDY_TASK_MATERIAL } from "../study-tasks.gerado";
+import { taskMaterial } from "../study-material";
 import { TutorSettingsService } from "../tutor-settings.service";
 import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { TutorStudySessionService } from "../tutor-study-session.service";
-import type { TaskOutcome } from "../tutor-study-session.service";
+import type { StudyTask, TaskOutcome } from "../tutor-study-session.service";
 import { WorkspaceService } from "../workspace.service";
 
 /**
@@ -100,10 +100,10 @@ export class StudySessionBarComponent {
    */
   readonly activeMaterial = computed(() => {
     const task = this.activeTask();
-    return task === undefined ? undefined : STUDY_TASK_MATERIAL[task.index];
+    return task === undefined ? undefined : taskMaterial(task.index);
   });
 
-  readonly completedCount = computed(() => this.studySession.completedTasks().length);
+  readonly completedCount = this.studySession.completedScenarioCount;
 
   readonly remainingLabel = computed(() => {
     const total = Math.ceil(this.remainingMs() / 1000);
@@ -219,7 +219,7 @@ export class StudySessionBarComponent {
     this.lastOutcome.set(undefined);
     this.studySession.startTask(this.selectedTaskIndex());
     const task = this.activeTask();
-    const material = task === undefined ? undefined : STUDY_TASK_MATERIAL[task.index];
+    const material = task === undefined ? undefined : taskMaterial(task.index);
     if (task === undefined || material === undefined) {
       return;
     }
@@ -239,6 +239,14 @@ export class StudySessionBarComponent {
   onSelectedTaskChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.selectedTaskIndex.set(Number.parseInt(value, 10));
+  }
+
+  /**
+   * O treino não leva número: os cenários contam de 1 a 6, na ordem sorteada.
+   */
+  optionLabel(task: StudyTask, position: number): string {
+    const done = this.isCompleted(task.index) ? " (feita)" : "";
+    return task.practice ? `${task.label}${done}` : `${position}. ${task.label}${done}`;
   }
 
   isCompleted(index: number): boolean {

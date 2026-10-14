@@ -9,7 +9,7 @@ import { environment } from "../environments/environment";
 import { TutorChatSessionService } from "./tutor-chat-session.service";
 import { TutorEditorContextService } from "./tutor-editor-context.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
-import { STUDY_TASK_MATERIAL } from "./study-tasks.gerado";
+import { taskMaterial } from "./study-material";
 import { STUDY_TEST_MODE_KEY, TutorStudySessionService } from "./tutor-study-session.service";
 
 /**
@@ -31,6 +31,11 @@ const CONDITION_KEY = "pws:tutor:condition";
  * prefixo põe-nos numa pasta própria (`interactions/teste-…/`), fora das trajetórias.
  */
 export const TEST_SESSION_PREFIX = "teste";
+
+/**
+ * Prefixo do `sessionId` enviado ao tutor durante o treino (ver `sessionId`).
+ */
+const PRACTICE_SESSION_PREFIX = "treino";
 
 const FLUSH_INTERVAL_MS = 10_000;
 
@@ -129,10 +134,14 @@ export class TutorTelemetryService {
 
   /**
    * Identificador da sessão da IDE, enviado ao serviço em cada pedido de ajuda: é a chave que
-   * liga os turnos registados no serviço à sessão de coleta.
+   * liga os turnos registados no serviço à sessão de coleta. Durante o treino leva o prefixo
+   * `treino-`, e os turnos caem em `interactions/treino-…/`, fora das trajetórias mas ainda
+   * ligados à sessão.
    */
   get sessionId(): string {
-    return this.envelope.sessionId;
+    return this.studySession.activeTask()?.practice
+      ? `${PRACTICE_SESSION_PREFIX}-${this.envelope.sessionId}`
+      : this.envelope.sessionId;
   }
 
   /**
@@ -337,13 +346,15 @@ export class TutorTelemetryService {
       .subscribe(event => {
         if (event.kind === "started") {
           // Item do banco e hash do código aberto: ligam a trajetória ao estado `s0` da bancada.
+          // No treino não há item: `practice` basta para o tirar da análise.
           this.log({
             type: "task_start",
             task: event.task.index,
             taskLabel: event.task.label,
             timeboxMs: event.task.timeboxMs,
-            bankItem: STUDY_TASK_MATERIAL[event.task.index]?.bankItem,
-            codeSha256: STUDY_TASK_MATERIAL[event.task.index]?.codeSha256,
+            practice: event.task.practice,
+            bankItem: taskMaterial(event.task.index)?.bankItem,
+            codeSha256: taskMaterial(event.task.index)?.codeSha256,
           });
           return;
         }
@@ -354,6 +365,7 @@ export class TutorTelemetryService {
           taskLabel: event.task.label,
           timeboxMs: event.task.timeboxMs,
           taskElapsedMs: event.elapsedMs,
+          practice: event.task.practice,
           outcome: event.outcome,
           studentTurns: event.studentTurns,
         });

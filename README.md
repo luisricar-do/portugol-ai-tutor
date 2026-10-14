@@ -158,8 +158,12 @@ Fora da build de coleta (`npm start`, build pública), a barra só aparece com `
 #### Barra de sessão e timebox
 
 A barra no topo tem o seletor de tarefa, o botão **Iniciar**, o cronómetro do _timebox_ e os
-botões **Concluí** / **Interromper**. Os seis cenários aparecem na **ordem sorteada para o
-participante** (`studyTaskOrder`, com semente no pseudônimo: a mesma ordem em cada recarga e
+botões **Concluí** / **Interromper**. A primeira tarefa é o **treino** («Treino — Idade em 2026»,
+10 min), igual para todos: serve à ambientação, para que dúvidas e problemas de máquina apareçam
+antes da coleta. Fica fora do banco e os seus defeitos não coincidem com os dos cenários; não
+entra no «N de 3 feitas», os eventos levam `practice: true` e os turnos com a Ada vão ao serviço
+com `sessionId` `treino-<sessionId>`, ou seja, para `interactions/treino-…/`. Depois do treino, os
+seis cenários aparecem na **ordem sorteada para o participante** (`studyTaskOrder`, com semente no pseudônimo: a mesma ordem em cada recarga e
 refeita na análise). Ao fim de cada tarefa o seletor passa à seguinte, e a barra conta «N de 3
 feitas».
 
@@ -184,8 +188,8 @@ reavaliado quando a aba volta ao primeiro plano.
 | `session_start` / `app_reload` | Arranque da coleta (o segundo quando o `sessionId` já tinha eventos)            | —                                                                                       |
 | `study_assigned`               | **Começar** no formulário de matrícula                                          | `taskOrder`                                                                             |
 | `session_end`                  | **Encerrar sessão**                                                             | —                                                                                       |
-| `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`, `bankItem`, `codeSha256`                                      |
-| `task_end`                     | **Concluí**, **Interromper** ou fim do timebox                                  | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns`               |
+| `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`, `practice`, `bankItem`, `codeSha256`                          |
+| `task_end`                     | **Concluí**, **Interromper** ou fim do timebox                                  | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns`, `practice`   |
 | `code_edit`                    | Alteração no editor (antes do debounce, para preservar a ordem face aos turnos) | `codeLength`, `codeLines`                                                               |
 | `compile`                      | Verificação estática concluída                                                  | `errorCount`, `errorClass`, `errorClassCounts`, `errorLines`, `trigger`                 |
 | `run`                          | Início e fim da execução                                                        | `phase`, `outcome` (`finished`/`runtime_error`/`compile_error`/`stopped`), `durationMs` |
