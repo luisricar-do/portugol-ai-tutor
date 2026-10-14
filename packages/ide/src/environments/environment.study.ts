@@ -1,3 +1,4 @@
+import { buildConfig } from "./environment.build";
 import { buildVersion } from "./environment.version";
 
 /**
@@ -30,8 +31,8 @@ export const environment = {
   analyticsMeasurementId: "",
   /** Desligado: o Compartilhar enviaria o código do estudante ao Firebase Storage. */
   enableShare: false,
-  /** Defina no build (substituição de arquivo) ou ajuste antes de cada sessão de coleta. */
-  agentApiBaseUrl: "",
+  /** Vem de `AGENT_API_BASE_URL` no build (variable do repositório na esteira); inclua `/api`. */
+  agentApiBaseUrl: buildConfig.agentApiBaseUrl,
   firebase: {
     apiKey: "AIzaSyD_6fjI7Vsm4RQS6EJZSZ_an7Zehjz9YwQ",
     authDomain: "portugol-webstudio.firebaseapp.com",

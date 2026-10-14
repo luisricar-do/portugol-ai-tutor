@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Gera environment.version.ts com commit e data de build (antes de ng build).
+ * Gera environment.version.ts com commit e data de build (antes de ng build), e
+ * environment.build.ts com a URL do serviço do tutor (`AGENT_API_BASE_URL`; na esteira,
+ * a variable homónima do repositório).
  */
 import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -31,3 +33,15 @@ export const buildVersion = {
 
 writeFileSync(outPath, contents, "utf8");
 console.log(`Wrote ${outPath} (${commitSha})`);
+
+const buildPath = join(__dirname, "../src/environments/environment.build.ts");
+const agentApiBaseUrl = (process.env.AGENT_API_BASE_URL ?? "").trim();
+
+const buildContents = `/** Gerado por scripts/inject-version.mjs a partir de AGENT_API_BASE_URL — não editar manualmente. */
+export const buildConfig = {
+  agentApiBaseUrl: ${JSON.stringify(agentApiBaseUrl)},
+};
+`;
+
+writeFileSync(buildPath, buildContents, "utf8");
+console.log(`Wrote ${buildPath} (agentApiBaseUrl: ${agentApiBaseUrl || "vazia"})`);

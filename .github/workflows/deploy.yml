@@ -17,6 +17,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Serviço do tutor (maieutica), com `/api`. Lido por packages/ide/scripts/inject-version.mjs.
+      AGENT_API_BASE_URL: ${{ vars.AGENT_API_BASE_URL }}
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v5

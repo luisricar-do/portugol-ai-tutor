@@ -1,3 +1,4 @@
+import { buildConfig } from "./environment.build";
 import { buildVersion } from "./environment.version";
 
 export const environment = {
@@ -8,8 +9,8 @@ export const environment = {
   enableAnalytics: true,
   analyticsMeasurementId: "G-ZKM28VG4G5",
   enableShare: true,
-  /** Defina no build (substituição de arquivo) ou ajuste antes do deploy. */
-  agentApiBaseUrl: "",
+  /** Vem de `AGENT_API_BASE_URL` no build (variable do repositório na esteira); inclua `/api`. */
+  agentApiBaseUrl: buildConfig.agentApiBaseUrl,
   firebase: {
     apiKey: "AIzaSyD_6fjI7Vsm4RQS6EJZSZ_an7Zehjz9YwQ",
     authDomain: "portugol-webstudio.firebaseapp.com",
