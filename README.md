@@ -4,7 +4,7 @@
 
 _IDE online para o Portugol_
 
-[![Licença](https://img.shields.io/badge/licen%C3%A7a-GPL-blue.svg)](https://github.com/dgadelha/Portugol-Webstudio/blob/master/LICENSE)
+[![Licença](https://img.shields.io/badge/licen%C3%A7a-GPL-blue.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/dgadelha/Portugol-Webstudio)](https://github.com/dgadelha/Portugol-Webstudio/stargazers)
 
 ## Dissertação (UNIFEI) — fork `portugol-ai-tutor`
@@ -13,7 +13,7 @@ Este repositório é um **fork** de [Portugol-Webstudio](https://github.com/dgad
 
 - **Autor do fork / pesquisa:** Luis Ricardo Albano Santos
 - **Upstream:** `https://github.com/dgadelha/Portugol-Webstudio.git` (remote sugerido: `upstream`)
-- **Backend (Azure Functions + LangGraph):** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica). Esta IDE inclui o tutora socrática **ADA** em **overlay imersivo** (atalho **⌘⇧A** / **Ctrl+Shift+A** e botão na barra lateral), consumindo `/api/help/stream` em modo SSE. Quando a API sinaliza problema resolvido (`tutorMeta.suggestedConversationEnd`), a conversa é arquivada e inicia-se um fio novo, com opção de reabrir a anterior.
+- **Backend (Azure Functions + LangGraph):** repositório companheiro [**maieutica**](https://github.com/luisricar-do/maieutica). Esta IDE inclui a tutora socrática **ADA** em **overlay imersivo** (atalho **⌘⇧A** / **Ctrl+Shift+A** e botão na barra lateral), consumindo `/api/help/stream` em modo SSE. Quando a API sinaliza problema resolvido (`tutorMeta.suggestedConversationEnd`), a conversa é arquivada e inicia-se um fio novo, com opção de reabrir a anterior.
 
 ### Sincronizar com o upstream
 
@@ -23,6 +23,43 @@ git checkout develop   # ou a branch em que você trabalha
 git merge upstream/main
 # resolva conflitos se houver, teste com npm ci && npm run build && npm start
 ```
+
+### Versões usadas na dissertação
+
+| Uso na dissertação                                     | Commit                                     | O que trouxe                                                                        |
+| ------------------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| IDE da avaliação em bancada (corrida cap5), 14/09/2026 | `189e53c2e8b5182b7b6befbfedb4d4e1f9a07778` | Estado do código viaja em cada turno do estudante no histórico                      |
+| Criação da build de estudo, 15/09/2026                 | `f25d14a975d1437d447da418a58832a2de385939` | Build de coleta sem terceiros: três flags e uma auditoria que falha se algum voltar |
+| Produção na coleta com estudantes, 14/10/2026          | `af31dd910c21419f8a0c984e78eba8b38453e305` | Treino igual para todos abre a sessão, antes dos cenários sorteados                 |
+
+O `af31dd91` foi implantado pelo workflow «Build and Deploy (Production)» com sucesso em 2026-10-14T14:05Z (GitHub Pages).
+
+Repositórios relacionados:
+
+- **Serviço do tutor** (Azure Functions + LangGraph): [github.com/luisricar-do/maieutica](https://github.com/luisricar-do/maieutica).
+- **Bancada de avaliação** (harness dos Caps. 4 e 5): [github.com/luisricar-do/maieutica-avaliacoes](https://github.com/luisricar-do/maieutica-avaliacoes), privado até a defesa.
+- **Texto da dissertação**: repositório irmão, também fora deste.
+
+### Upstream × dissertação
+
+O que é do Portugol WebStudio (Douglas e Danilo Gadêlha) e o que o fork acrescentou. Os caminhos foram conferidos com `git ls-files` e a divisão com `git diff --name-status upstream/main develop`.
+
+| Área                                                                                                                                                                                                                                 | Origem                       | Conteúdo                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/agent`                                                                                                                                                                                                                     | Dissertação (pacote inteiro) | Cliente de `/api/help` e `/api/help/stream` (SSE), estudo (`study.ts`), fila de telemetria, classificação de erros do compilador, `scripts/pseudonimos.mjs` |
+| `packages/ide/src/app`: `agent-chat/`, `tutor-*` (serviços, `tutor-overlay/`, `tutor-toast/`), `study-session-bar/`, `study-material.ts`, `study-tasks.gerado.ts`, `noop-google-analytics.service.ts`, `dialog-confirm-clear-tutor/` | Dissertação                  | Chat e overlay da ADA, gatilhos, proatividade, telemetria, barra de sessão e timebox, cenários da coleta, GA no-op                                          |
+| `packages/ide/scripts`: `audit-study-build.mjs`, `importar-cenarios.mjs`, `inject-version.mjs`                                                                                                                                       | Dissertação                  | Auditoria da build de coleta, importação do banco da bancada, injeção de versão e de `AGENT_API_BASE_URL`                                                   |
+| `packages/ide/src/environments/` (`environment.study.ts`, `environment.build.ts`, `environment.version.ts`; edições em `environment.ts` e `environment.prod.ts`), `index.study.html`, `docs/tutor-help-request.md`                   | Dissertação                  | Configuração da build de coleta e da URL do serviço                                                                                                         |
+| `packages/runner/src/headless/` e `tests/headless.test.ts`                                                                                                                                                                           | Dissertação                  | Executor headless e CLI usados pela bancada; o restante do `runner` é do upstream                                                                           |
+| `.github/workflows/` (`deploy.yml`, `lint.yml`, `publish.yml`, `pull-request.yml`)                                                                                                                                                   | Dissertação (adaptados)      | Deploy da `develop` no GitHub Pages com `AGENT_API_BASE_URL`, lint, publicação                                                                              |
+| `AGENTS.md`, `.cursor/`, `.mailmap`                                                                                                                                                                                                  | Dissertação                  | Contexto para agentes e unificação de autoria                                                                                                               |
+| `packages/ide` (demais arquivos), `packages/parser`, `packages/runtime`, `packages/worker`, `packages/antlr`, `packages/resources`                                                                                                   | Upstream                     | Editor, interface, gramática, parser, transpilador, runtime, bibliotecas, exemplos e Ajuda                                                                  |
+
+Duas ressalvas. A sincronização de outubro de 2026 (`7e493e09`) trouxe do upstream 164 commits em um único commit do autor; por isso `git log` e `git blame` atribuem a ele mudanças de `parser`, `runtime`, `resources` e da interface que são do upstream. As diferenças de `packages/parser` hoje em relação ao upstream são só a troca de namespace para `@luisricar-do` (commit `48724cab`). E `survey.ts`, `survey.service.ts` e `survey-invite/` são do upstream (convite à pesquisa dele); na build de coleta o fork os desliga.
+
+### Autoria dos commits
+
+Os commits da dissertação aparecem sob três identidades: `big-ricardo`, `luisricar-do` e `Luis Ricardo Santos`. São a mesma pessoa (Luis Ricardo Albano Santos, o mesmo e-mail). O `.mailmap` na raiz as unifica em `git shortlog -sne` e `git log --use-mailmap`; autores do upstream não são mapeados.
 
 O restante deste README descreve o projeto original **Portugol Webstudio**; a licença e os créditos dos autores originais permanecem inalterados abaixo.
 
@@ -80,7 +117,11 @@ Após isto, você poderá acessar a IDE em: [http://localhost:4200](http://local
 ### Tutor por IA (API [maieutica](https://github.com/luisricar-do/maieutica))
 
 1. Siga o README do repositório **maieutica** para subir as Azure Functions localmente (por exemplo `http://localhost:7071`).
-2. Na IDE, a URL da API é lida de `packages/ide/src/environments/environment.ts` (desenvolvimento) e `environment.prod.ts` (produção), propriedade **`agentApiBaseUrl`**. Deve incluir o prefixo `/api` (ex.: `http://localhost:7071/api`). Em produção, defina o valor antes do build ou via substituição de arquivo do Angular.
+2. A URL da API entra no **build**, pela variável de ambiente `AGENT_API_BASE_URL`, lida por `packages/ide/scripts/inject-version.mjs`. O script grava `packages/ide/src/environments/environment.build.ts` (gerado; não editar), e `environment.prod.ts` e `environment.study.ts` leem o valor dali em `agentApiBaseUrl`. O valor deve incluir o prefixo `/api`.
+   - **Local:** `AGENT_API_BASE_URL=https://<host>/api npm run build` (build pública) ou `AGENT_API_BASE_URL=https://<host>/api npm run build:study --workspace=@luisricar-do/ide` (build de coleta).
+   - **CI:** a esteira (`.github/workflows/deploy.yml`) passa `vars.AGENT_API_BASE_URL`, a _variable_ do repositório no GitHub (Settings → Secrets and variables → Actions → Variables).
+   - **Sem a variável**, o build não falha: o script grava `agentApiBaseUrl` vazia e avisa «vazia» no log. A IDE sobe, mas o chat do tutor mostra que a URL não está configurada e a telemetria não registra nada. Numa coleta, confira o log do build antes de publicar.
+   - **`npm start`** usa `environment.ts`, com `agentApiBaseUrl` fixo em `http://localhost:7071/api`; não passa pela variável.
 3. O backend deve permitir **CORS** para a origem da IDE (ver `Host.CORS` em `local.settings.json` no maieutica ou o portal Azure em produção).
 4. Para compilar só o cliente HTTP do tutor: `npm run build:agent`. O `npm run build` da raiz já inclui todos os pacotes necessários para a IDE.
 5. **Interface do tutor:** use **⌘⇧A** (macOS) ou **Ctrl+Shift+A** (Windows/Linux) para abrir/fechar o painel; **Esc** também fecha. O histórico mantém-se enquanto a página estiver aberta (o painel fica montado em segundo plano).

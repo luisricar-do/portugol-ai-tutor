@@ -17,7 +17,12 @@
 | ------------------------------------------------------ | ------------------------------------------------------------------- |
 | [maieutica](https://github.com/luisricar-do/maieutica) | Azure Function + LangGraph — expõe `/api/help` e `/api/help/stream` |
 
-URLs da API configuráveis em `packages/ide/src/environments/environment*.ts`.
+A URL da API (com `/api`) vem da variável de ambiente **`AGENT_API_BASE_URL`**, lida no build por `packages/ide/scripts/inject-version.mjs` (na esteira, a _variable_ do repositório). Só o `npm start` usa `agentApiBaseUrl` fixo de `environment.ts`. Sem a variável o build passa, mas o tutor e a telemetria ficam sem URL.
+
+## Modo de coleta e produção
+
+- A IDE de coleta com estudantes é a build `npm run build:study` (com `audit:study`): formulário de matrícula, modo teste (nada é coletado), sem Firebase nem Google Analytics.
+- **Todo push em `develop` reconstrói e publica a IDE de produção** (`.github/workflows/deploy.yml`, sem `paths-ignore`). Trabalhe em outro branch e não faça push em `develop` durante uma coleta sem decisão explícita.
 
 ## Regras neste repo
 
