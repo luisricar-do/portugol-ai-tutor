@@ -930,7 +930,12 @@ export class AgentChatComponent implements AfterViewInit {
                 suggestedConversationEnd: payload?.tutorMeta?.suggestedConversationEnd === true,
               });
               if (reply.length > 0) {
-                this.history.push({ role: "assistant", content: reply });
+                const level = payload?.tutorMeta?.concretenessLevel;
+                this.history.push(
+                  typeof level === "number"
+                    ? { role: "assistant", content: reply, concretenessLevel: level }
+                    : { role: "assistant", content: reply },
+                );
               }
               this.syncChatSession();
               if (payload?.tutorMeta?.suggestedConversationEnd === true) {

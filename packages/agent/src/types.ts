@@ -15,6 +15,13 @@ export interface TutorHistoryItem {
    *  * Erros do compilador neste turno, par de `code`.
    */
   errors?: string[];
+  /**
+   * Nível de concretude (0 `open`, 1 `focused`, 2 `conceptual`) que o estrategista escolheu para
+   * esta resposta. Só nos turnos `assistant`: a IDE devolve aqui o `tutorMeta.concretenessLevel`
+   * que veio com ela, e o estrategista do turno seguinte compara com o nível que decidiu, em vez
+   * de o inferir da fala da tutora (que pode ter ficado aquém do plano).
+   */
+  concretenessLevel?: number;
 }
 
 export interface TutorHelpRequest {
@@ -113,6 +120,11 @@ export interface TutorTutorMeta {
    * `PROGRESSO`, `ESTAGNACAO`, `REGRESSAO`, `PEDIDO_EXPLICITO` ou `NENHUM`.
    */
   studentMovement?: string;
+  /**
+   * Nível de concretude escolhido pelo estrategista neste turno (0-2). Ausente quando o
+   * estrategista não correu (CASUAL, THEORY, OUT_OF_SCOPE) ou não declarou o nível.
+   */
+  concretenessLevel?: number;
   /**
    *  * Modelo que gerou o turno (reprodutibilidade).
    */
