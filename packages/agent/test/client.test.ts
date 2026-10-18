@@ -74,3 +74,29 @@ test("helpStream passa tutorMeta no onDone quando o evento done inclui JSON", as
     tutorMeta: { suggestedConversationEnd: true, endReason: "bug_resolved" },
   });
 });
+
+test("helpStream envia o concretenessLevel dos turnos assistant no history", async () => {
+  let sentBody: unknown;
+  const fetchMock: typeof fetch = async (_url, init) => {
+    sentBody = JSON.parse(String(init?.body));
+    return new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("event: done\ndata: {}\n\n"));
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "content-type": "text/event-stream; charset=utf-8" } },
+    );
+  };
+  const client = createTutorAgentClient({ baseUrl: "http://localhost:7071/api", fetch: fetchMock });
+
+  const history = [
+    { role: "user" as const, content: "não sei", code: "x", errors: [] },
+    { role: "assistant" as const, content: "Olhe a linha 2.", concretenessLevel: 1 },
+    { role: "user" as const, content: "ainda não", code: "x", errors: [] },
+  ];
+  await client.helpStream({ code: "x", errors: [], history }, {});
+
+  assert.deepStrictEqual((sentBody as { history: unknown }).history, history);
+});
