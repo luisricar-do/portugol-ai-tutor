@@ -199,7 +199,7 @@ Fora da build de coleta (`npm start`, build pública), a barra só aparece com `
 #### Barra de sessão e timebox
 
 A barra no topo tem o seletor de tarefa, o botão **Iniciar**, o cronómetro do _timebox_ e os
-botões **Concluí** / **Interromper**. A primeira tarefa é o **treino** («Treino — Idade em 2026»,
+botões **Concluí** / **Interromper**. A primeira tarefa é o **treino** («Treino — Troco da compra»,
 10 min), igual para todos: serve à ambientação, para que dúvidas e problemas de máquina apareçam
 antes da coleta. Fica fora do banco e os seus defeitos não coincidem com os dos cenários; não
 entra no «N de 3 feitas», os eventos levam `practice: true` e os turnos com a Ada vão ao serviço

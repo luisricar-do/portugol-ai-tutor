@@ -20,25 +20,25 @@ export interface TaskMaterial {
  * Treino da ambientação. Fica fora do banco, como pede o roteiro, e os dois defeitos não
  * coincidem com os dos seis cenários: um nome de variável digitado errado (erro de compilação)
  * e uma soma no lugar da subtração. Assim o treino mostra o erro do compilador, a execução e a
- * conversa com a Ada sem ensinar a correção de nenhum cenário da coleta.
+ * conversa com a Ada sem ensinar a correção de nenhum cenário da coleta. Não pede dado pessoal:
+ * os valores lidos são de uma compra fictícia.
  */
 const PRACTICE_MATERIAL: TaskMaterial = {
   statement:
-    "Exercício de treino (não conta para a pesquisa). O programa a seguir deveria ler o seu nome e o ano em que você nasceu e escrever quantos anos você completa em 2026. Ele não compila e, depois de corrigido isso, mostra uma idade errada. Experimente executar, ler o erro e conversar com a Ada. Localize e corrija os defeitos.",
+    "Exercício de treino (não conta para a pesquisa). O programa a seguir deveria ler o preço de um produto e o valor pago e escrever o troco. Ele não compila e, depois de corrigido isso, mostra um troco errado. Experimente executar, ler o erro e conversar com a Ada. Localize e corrija os defeitos.",
   code: `programa
 {
     funcao inicio()
     {
-        cadeia nome
-        inteiro ano_nascimento, idade
+        inteiro preco, pago, troco
 
-        escreva("Qual e o seu nome? ")
-        leia(nome)
-        escreva("Em que ano voce nasceu? ")
-        leia(ano_nascimento)
+        escreva("Preco do produto: ")
+        leia(preco)
+        escreva("Valor pago: ")
+        leia(pago)
 
-        idade = 2026 + ano_nascimento
-        escreva("Ola, ", nme, "! Em 2026 voce completa ", idade, " anos.\\n")
+        troco = pago + preco
+        escreva("Troco: ", trco, "\\n")
     }
 }
 `,

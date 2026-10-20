@@ -57,7 +57,7 @@ export interface StudyTask {
  */
 export const PRACTICE_TASK: StudyTask = {
   index: 0,
-  label: "Treino — Idade em 2026",
+  label: "Treino — Troco da compra",
   timeboxMs: 10 * 60_000,
   practice: true,
 };
