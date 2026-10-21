@@ -18,8 +18,13 @@ export const TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE =
  * progresso na interface e a espera deixa de competir por atenção; antes dele, não vê nada.
  * O limite vale, por isso, só para essa primeira janela: começado o fluxo, a geração corre até
  * ao fim. É a fronteira operacional entre espera e indisponibilidade declarada na dissertação.
+ *
+ * Eram 10 s até 21/10/2026. Na v2 o primeiro token só sai depois do analista e do estrategista,
+ * e na bancada 11–18% dos turnos passaram de 10 s. Com o teto de 12 s por chamada no serviço, uma
+ * chamada travada é refeita em ~15 s, e 30 s cobrem uma retentativa. O valor em vigor vai em
+ * `timeoutMs` de cada `first_token_timeout`, o que separa os turnos de antes e de depois.
  */
-export const TUTOR_FIRST_TOKEN_TIMEOUT_MS = 10_000;
+export const TUTOR_FIRST_TOKEN_TIMEOUT_MS = 30_000;
 
 export const TUTOR_FIRST_TOKEN_TIMEOUT_MESSAGE =
   "O tutor está demorando mais que o normal e pode estar temporariamente indisponível. " +
