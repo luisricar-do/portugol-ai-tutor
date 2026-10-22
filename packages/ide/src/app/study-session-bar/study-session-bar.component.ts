@@ -19,7 +19,7 @@ import { taskMaterial } from "../study-material";
 import { StudyRemoteControlService } from "../study-remote-control.service";
 import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { TutorStudySessionService } from "../tutor-study-session.service";
-import type { StudyTask, TaskOutcome } from "../tutor-study-session.service";
+import type { StudyTask, TaskEndedBy, TaskOutcome } from "../tutor-study-session.service";
 import { WorkspaceService } from "../workspace.service";
 
 /**
@@ -82,7 +82,9 @@ export class StudySessionBarComponent {
   readonly remainingMs = this.studySession.remainingMs;
   readonly completedCount = this.studySession.completedScenarioCount;
 
-  readonly lastOutcome = signal<{ task: StudyTask; outcome: TaskOutcome } | undefined>(undefined);
+  readonly lastOutcome = signal<{ task: StudyTask; outcome: TaskOutcome; endedBy?: TaskEndedBy } | undefined>(
+    undefined,
+  );
 
   /**
    * Enunciado reaberto durante a tarefa (botão **Ver enunciado**).
@@ -159,6 +161,10 @@ export class StudySessionBarComponent {
       return;
     }
     const what = last.task.practice ? "Treino" : "Exercício";
+    // Aceite pelo painel não passou nos casos: o estudante não pode ler que passou.
+    if (last.endedBy === "conductor") {
+      return { text: `${what} encerrado pelo pesquisador.`, tone: "info" as const };
+    }
     switch (last.outcome) {
       case "solved": {
         return { text: `${what} concluído: o programa passou em todos os casos de teste.`, tone: "ok" as const };
@@ -225,7 +231,7 @@ export class StudySessionBarComponent {
       this.closeTaskTab();
       this.checkFeedback.set(undefined);
       this.statementOpen.set(false);
-      this.lastOutcome.set({ task: event.task, outcome: event.outcome });
+      this.lastOutcome.set({ task: event.task, outcome: event.outcome, endedBy: event.endedBy });
     });
   }
 
