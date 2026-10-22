@@ -2,6 +2,8 @@ import { DestroyRef, Service, computed, inject, signal } from "@angular/core";
 import { studyTaskOrder } from "@luisricar-do/agent";
 import { Subject } from "rxjs";
 
+import { environment } from "../environments/environment";
+
 /**
  * Estado da sessão de pesquisa (dissertação): participante, condição e tarefa
  * corrente com o respetivo *timebox*.
@@ -35,6 +37,10 @@ const TICK_INTERVAL_MS = 1000;
  */
 export type StudyCondition = string;
 export type TaskOutcome = "solved" | "timeout" | "aborted";
+/**
+ * Quem encerrou a tarefa quando não foi o estudante nem o relógio: o condutor, pelo painel.
+ */
+export type TaskEndedBy = "conductor";
 
 export interface StudyTask {
   /**
@@ -94,6 +100,11 @@ export interface TaskLifecycleEvent {
    * Turnos de chat do estudante nesta tarefa (só relevante no encerramento).
    */
   studentTurns?: number;
+  endedBy?: TaskEndedBy;
+  /**
+   * Tempo extra dado pelo condutor nesta tarefa (só no encerramento).
+   */
+  extraMs?: number;
 }
 
 interface PersistedState {
@@ -101,6 +112,10 @@ interface PersistedState {
   startedAt: number;
   studentTurns: number;
   helpRequested: boolean;
+  /**
+   * Tempo dado pelo condutor além do *timebox* do protocolo.
+   */
+  extraMs: number;
 }
 
 /**
@@ -128,6 +143,7 @@ export class TutorStudySessionService {
 
   private readonly studentTurnsSignal = signal(0);
   private readonly helpRequestedSignal = signal(false);
+  private readonly extraMsSignal = signal(0);
   private readonly nowSignal = signal(Date.now());
 
   private tickTimer: ReturnType<typeof setInterval> | undefined;
@@ -203,6 +219,17 @@ export class TutorStudySessionService {
   readonly isRunning = computed(() => this.activeTask() !== undefined && this.startedAtSignal() !== undefined);
 
   /**
+   * Na sessão de pesquisa a IDE esconde o que não serve à tarefa (abrir arquivo, exemplos, nova
+   * aba, fechar a aba da tarefa): menos caminhos para o estudante se perder ou perder o código.
+   */
+  readonly simplifiedUi = computed(() => environment.studyGate || this.isStudySession() || this.testModeSignal());
+
+  /**
+   * *Timebox* da tarefa corrente mais o tempo extra dado pelo condutor.
+   */
+  readonly effectiveTimeboxMs = computed(() => (this.activeTask()?.timeboxMs ?? 0) + this.extraMsSignal());
+
+  /**
    * Para a UI: depende de `nowSignal`, logo re-renderiza a cada tique.
    * Não usar para medir — o navegador estrangula `setInterval` em aba oculta.
    */
@@ -212,13 +239,12 @@ export class TutorStudySessionService {
   });
 
   readonly remainingMs = computed(() => {
-    const task = this.activeTask();
-    if (task === undefined) {
+    if (this.activeTask() === undefined) {
       return 0;
     }
     // `elapsedMs` pode estar atrasado (tique estrangulado); o relógio real manda.
     const elapsed = Math.max(this.elapsedMs(), this.elapsedMsNow());
-    return Math.max(0, task.timeboxMs - elapsed);
+    return Math.max(0, this.effectiveTimeboxMs() - elapsed);
   });
 
   readonly isTimedOut = computed(() => this.isRunning() && this.remainingMs() === 0);
@@ -270,6 +296,7 @@ export class TutorStudySessionService {
     this.startedAtSignal.set(startedAt);
     this.studentTurnsSignal.set(0);
     this.helpRequestedSignal.set(false);
+    this.extraMsSignal.set(0);
     this.timeoutEmitted = false;
     this.nowSignal.set(startedAt);
     this.persist();
@@ -279,9 +306,21 @@ export class TutorStudySessionService {
   }
 
   /**
+   * Mais tempo na tarefa corrente (comando do condutor). Não reabre tarefa já encerrada.
+   */
+  extendTask(extraMs: number): void {
+    if (!this.isRunning() || extraMs <= 0) {
+      return;
+    }
+    this.extraMsSignal.update(value => value + extraMs);
+    this.persist();
+    this.nowSignal.set(Date.now());
+  }
+
+  /**
    * Encerra a tarefa corrente. `timeout` é emitido automaticamente pelo relógio.
    */
-  endTask(outcome: TaskOutcome): void {
+  endTask(outcome: TaskOutcome, endedBy?: TaskEndedBy): void {
     const task = this.activeTask();
     const startedAt = this.startedAtSignal();
     if (task === undefined || startedAt === undefined) {
@@ -290,6 +329,7 @@ export class TutorStudySessionService {
 
     const elapsedMs = Math.max(0, Date.now() - startedAt);
     const studentTurns = this.studentTurnsSignal();
+    const extraMs = this.extraMsSignal();
 
     this.stopTick();
     this.taskIndexSignal.set(undefined);
@@ -298,7 +338,7 @@ export class TutorStudySessionService {
     this.completedSignal.update(done => (done.includes(task.index) ? done : [...done, task.index]));
     this.writeText(COMPLETED_KEY, JSON.stringify(this.completedSignal()));
 
-    this.lifecycleSubject.next({ kind: "ended", task, startedAt, elapsedMs, outcome, studentTurns });
+    this.lifecycleSubject.next({ kind: "ended", task, startedAt, elapsedMs, outcome, studentTurns, endedBy, extraMs });
   }
 
   /**
@@ -369,7 +409,7 @@ export class TutorStudySessionService {
     if (task === undefined || this.timeoutEmitted) {
       return;
     }
-    if (this.elapsedMsNow() >= task.timeboxMs) {
+    if (this.elapsedMsNow() >= this.effectiveTimeboxMs()) {
       this.timeoutEmitted = true;
       this.endTask("timeout");
     }
@@ -405,6 +445,7 @@ export class TutorStudySessionService {
     this.startedAtSignal.set(raw.startedAt);
     this.studentTurnsSignal.set(raw.studentTurns);
     this.helpRequestedSignal.set(raw.helpRequested);
+    this.extraMsSignal.set(raw.extraMs);
     this.nowSignal.set(Date.now());
     this.startTick();
   }
@@ -424,6 +465,7 @@ export class TutorStudySessionService {
         startedAt: parsed.startedAt,
         studentTurns: typeof parsed.studentTurns === "number" ? parsed.studentTurns : 0,
         helpRequested: parsed.helpRequested === true,
+        extraMs: typeof parsed.extraMs === "number" ? parsed.extraMs : 0,
       };
     } catch {
       return undefined;
@@ -444,6 +486,7 @@ export class TutorStudySessionService {
           startedAt,
           studentTurns: this.studentTurnsSignal(),
           helpRequested: this.helpRequestedSignal(),
+          extraMs: this.extraMsSignal(),
         } satisfies PersistedState),
       );
     } catch {

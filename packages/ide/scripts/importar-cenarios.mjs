@@ -12,6 +12,10 @@
  * leitura textual do movimento. O texto é o do apêndice de enunciados, com acentos; o `problem`
  * do banco é a mesma redação sem eles.
  *
+ * Os `unit_tests` do item vêm junto: o **Concluí** só encerra a tarefa quando o programa passa
+ * em todos, com a mesma regra de `_passou` em `avaliacao/estados.py`. Ficam no navegador, como o
+ * enunciado: os casos de teste não vão ao serviço do tutor (invariante da bancada).
+ *
  *   node packages/ide/scripts/importar-cenarios.mjs [pasta-do-banco]
  */
 import { createHash } from "node:crypto";
@@ -71,18 +75,41 @@ const entradas = CENARIOS.map(({ index, item, enunciado }) => {
   if (s0 && s0.codigo !== dados.bug_code) {
     throw new Error(`${item}: bug_code difere do estado s0; o banco precisa ser corrigido antes`);
   }
+  if (!Array.isArray(dados.unit_tests) || dados.unit_tests.length === 0) {
+    throw new Error(`${item}: item sem unit_tests`);
+  }
+  const casos = dados.unit_tests.map((caso, posicao) => {
+    if (!Array.isArray(caso.entrada) || typeof caso.saida_contem !== "string") {
+      throw new TypeError(`${item}: caso ${posicao} sem entrada ou saida_contem`);
+    }
+    return {
+      input: caso.entrada.map(String),
+      expectedContains: caso.saida_contem,
+      ...(typeof caso.saida_nao_contem === "string" && { expectedNotContains: caso.saida_nao_contem }),
+    };
+  });
   const sha = createHash("sha256").update(dados.bug_code).digest("hex");
   return `  ${index}: {
     bankItem: ${JSON.stringify(item)},
     statement: ${JSON.stringify(enunciado)},
     code: ${JSON.stringify(dados.bug_code)},
     codeSha256: ${JSON.stringify(sha)},
+    tests: ${JSON.stringify(casos)},
   },`;
 });
 
 writeFileSync(
   destino,
   `// Gerado por scripts/importar-cenarios.mjs a partir do banco da bancada — não editar manualmente.
+
+/**
+ * Um \`unit_test\` do item: entradas dos \`leia\`, na ordem, e o que a saída deve (ou não) conter.
+ */
+export interface StudyTestCase {
+  readonly input: readonly string[];
+  readonly expectedContains: string;
+  readonly expectedNotContains?: string;
+}
 
 export interface StudyTaskMaterial {
   /**
@@ -98,6 +125,10 @@ export interface StudyTaskMaterial {
    */
   readonly code: string;
   readonly codeSha256: string;
+  /**
+   * Casos de teste do banco; o primeiro aparece como exemplo no enunciado.
+   */
+  readonly tests: readonly StudyTestCase[];
 }
 
 export const STUDY_TASK_MATERIAL: Readonly<Record<number, StudyTaskMaterial>> = {

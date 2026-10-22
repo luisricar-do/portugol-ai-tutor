@@ -29,6 +29,7 @@ import { HelpNavigationService } from "./help-navigation.service";
 import { SettingsService } from "./settings.service";
 import { ShareService } from "./share.service";
 import { StudySessionBarComponent } from "./study-session-bar/study-session-bar.component";
+import { TutorStudySessionService } from "./tutor-study-session.service";
 import { SurveyService } from "./survey.service";
 import { atalhoDoEvento } from "./shared/atalhos";
 import { DialogService } from "./shared/dialog.service";
@@ -96,6 +97,7 @@ export class AppComponent implements OnInit {
   private readonly tutorOverlay = inject(TutorOverlayService);
   private readonly tutorEditorContext = inject(TutorEditorContextService);
   private readonly helpNavigation = inject(HelpNavigationService);
+  private readonly studySession = inject(TutorStudySessionService);
 
   /**
    * A ADA sugeriu um tópico de documentação no chat: abre (ou traz para a frente) a aba de
@@ -116,6 +118,12 @@ export class AppComponent implements OnInit {
   readonly tabs = this.workspace.tabs;
   readonly activeTabId = this.workspace.activeTabId;
   readonly isBeta = IS_BETA;
+
+  /**
+   * Sessão de pesquisa: sem aba de início, nova aba, abrir arquivo nem exemplos, e a aba da
+   * tarefa não fecha pela mão do estudante (ver `TutorStudySessionService.simplifiedUi`).
+   */
+  readonly simplifiedUi = this.studySession.simplifiedUi;
 
   readonly tabIcons: Record<TabType, string> = {
     editor: "assets/mdi/file-document-outline.svg",
@@ -460,6 +468,9 @@ export class AppComponent implements OnInit {
    * arquivos, exemplos e links têm eventos próprios.
    */
   newTab(origin: Origin) {
+    if (this.simplifiedUi()) {
+      return;
+    }
     this.addTab();
     this.gaService.event("new_tab_top", "Editor", origin, this.workspace.tabs().length);
   }
@@ -474,6 +485,9 @@ export class AppComponent implements OnInit {
    *  * O seletor de arquivos é um só: a origem fica guardada até o arquivo ser escolhido.
    */
   chooseFiles(origin: Origin) {
+    if (this.simplifiedUi()) {
+      return;
+    }
     this.openFileOrigin = origin;
     this.fileInput().nativeElement.click();
   }
@@ -499,6 +513,10 @@ export class AppComponent implements OnInit {
    *  * Pelo X ou o clique do meio (`abas`), ou por Delete e Alt+W (`atalho`).
    */
   closeTab(tab: Tab, origin: "abas" | "atalho") {
+    // Na coleta a aba da tarefa só fecha no fim dela; fechá-la a meio perderia código e conversa.
+    if (this.simplifiedUi() && tab.type === "editor") {
+      return;
+    }
     // A aba fechada leva junto o botão que estava em foco: o foco vai para a
     // aba que ficou no lugar.
     const confirmClose = () => {
@@ -586,6 +604,9 @@ export class AppComponent implements OnInit {
   }
 
   openExamplesDialog(origin: Origin) {
+    if (this.simplifiedUi()) {
+      return;
+    }
     this.gaService.event("open_examples_dialog", "Interface", origin);
 
     const ref = this.dialog.open<{ title: string; code: string; file?: string }, unknown, DialogOpenExampleComponent>(

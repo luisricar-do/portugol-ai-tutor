@@ -11,8 +11,10 @@ export {
   maskMatricula,
   normalizeMatricula,
   pseudonymFromMatricula,
+  studyCasePasses,
   studyTaskOrder,
 } from "./study.js";
+export type { StudyCaseRun } from "./study.js";
 export { classifyErrorMessage, summarizeErrorClasses } from "./telemetry-error-class.js";
 export type { TelemetryErrorClass } from "./telemetry-error-class.js";
 export type {

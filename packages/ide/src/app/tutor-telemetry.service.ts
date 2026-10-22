@@ -9,6 +9,7 @@ import { environment } from "../environments/environment";
 import { TutorChatSessionService } from "./tutor-chat-session.service";
 import { TutorEditorContextService } from "./tutor-editor-context.service";
 import { TutorOverlayService } from "./tutor-overlay.service";
+import type { StudyCheckResult } from "./study-check.service";
 import { taskMaterial } from "./study-material";
 import { STUDY_TEST_MODE_KEY, TutorStudySessionService } from "./tutor-study-session.service";
 
@@ -61,7 +62,9 @@ export type TutorTelemetryEventType =
   | "api_error"
   | "first_token_timeout"
   | "compile_trigger_fired"
-  | "compile_trigger_skipped_active_chat";
+  | "compile_trigger_skipped_active_chat"
+  | "task_check"
+  | "conductor_command_applied";
 
 export interface TutorTelemetryEvent {
   type: TutorTelemetryEventType;
@@ -142,6 +145,37 @@ export class TutorTelemetryService {
     return this.studySession.activeTask()?.practice
       ? `${PRACTICE_SESSION_PREFIX}-${this.envelope.sessionId}`
       : this.envelope.sessionId;
+  }
+
+  /**
+   * Identificador da sessão no blob de telemetria (sem o prefixo do treino), quando esta aba
+   * coleta. É por ele que o painel do condutor endereça os comandos.
+   */
+  get collectingSessionId(): string | undefined {
+    return this.queue ? this.envelope.sessionId : undefined;
+  }
+
+  /**
+   * Resultado do **Concluí**: o painel mostra as tentativas falhas, e a análise distingue
+   * "resolvida" (todos os casos) de "parou de tentar".
+   */
+  logTaskCheck(result: StudyCheckResult): void {
+    this.log({
+      type: "task_check",
+      passed: result.passed,
+      casesOk: result.casesOk,
+      casesTotal: result.casesTotal,
+      compileError: result.compileError,
+    });
+    void this.queue?.flush();
+  }
+
+  /**
+   * Comando do painel aplicado nesta aba; o painel passa-o de "pendente" a "aplicado".
+   */
+  logConductorCommand(commandId: string, kind: string, minutes?: number): void {
+    this.log({ type: "conductor_command_applied", commandId, kind, minutes });
+    void this.queue?.flush();
   }
 
   /**
@@ -368,6 +402,8 @@ export class TutorTelemetryService {
           practice: event.task.practice,
           outcome: event.outcome,
           studentTurns: event.studentTurns,
+          endedBy: event.endedBy,
+          extraMs: event.extraMs || undefined,
         });
         // Fecha a tarefa também no servidor: evita perder o desfecho se a sessão
         // terminar logo depois.

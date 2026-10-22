@@ -6,7 +6,6 @@ import {
   computed,
   effect,
   inject,
-  linkedSignal,
   signal,
   viewChild,
 } from "@angular/core";
@@ -15,20 +14,22 @@ import { FormsModule } from "@angular/forms";
 import { maskMatricula, pseudonymFromMatricula } from "@luisricar-do/agent";
 
 import { environment } from "../../environments/environment";
+import { StudyCheckService } from "../study-check.service";
 import { taskMaterial } from "../study-material";
-import { TutorSettingsService } from "../tutor-settings.service";
+import { StudyRemoteControlService } from "../study-remote-control.service";
 import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { TutorStudySessionService } from "../tutor-study-session.service";
 import type { StudyTask, TaskOutcome } from "../tutor-study-session.service";
 import { WorkspaceService } from "../workspace.service";
 
 /**
- *  *  * Abaixo deste tempo restante o cronómetro passa a estado de aviso.
+ * Abaixo deste tempo restante o cronómetro passa a estado de aviso.
  */
 const WARNING_THRESHOLD_MS = 2 * 60_000;
 
 /**
- * Quantos cenários cada estudante faz (dois quando restarem menos de trinta minutos).
+ * Quantos cenários cada estudante faz. Com menos de trinta minutos, o condutor encerra depois do
+ * segundo pelo painel.
  */
 const TASKS_PER_PARTICIPANT = 3;
 
@@ -37,15 +38,19 @@ const TASKS_PER_PARTICIPANT = 3;
  */
 const TASK_TAB_KEY = "pws:tutor:study:taskTab";
 
-const OUTCOME_LABELS: Record<TaskOutcome, string> = {
-  solved: "concluída",
-  timeout: "tempo esgotado",
-  aborted: "interrompida",
-};
+/**
+ * O que o diálogo da tarefa mostra: o próximo exercício (entre tarefas), o enunciado de novo
+ * (durante a tarefa, a pedido) ou o fim da sessão.
+ */
+type TaskDialogMode = "next" | "statement" | "done";
 
 /**
- * Barra de condução da sessão de pesquisa: identifica o participante, inicia e encerra
- * tarefas e aplica o *timebox* do protocolo.
+ * Barra de condução da sessão de pesquisa: identifica o participante, apresenta cada exercício
+ * num diálogo grande, cronometra e confere a solução com os casos de teste.
+ *
+ * O fluxo não tem escolha a fazer: o próximo exercício da ordem sorteada aparece sozinho, o
+ * cronómetro só corre depois de **Iniciar**, e o **Concluí** só encerra quando o programa passa
+ * nos casos. O que antes era **Interromper** ficou com o condutor, no painel.
  *
  * Na build de coleta (`studyGate`) a IDE abre com o formulário de matrícula; fora dela, a
  * barra só aparece com `?pid=` ou `?study=1`, para que a IDE pública fique inalterada.
@@ -61,8 +66,9 @@ const OUTCOME_LABELS: Record<TaskOutcome, string> = {
 export class StudySessionBarComponent {
   private readonly studySession = inject(TutorStudySessionService);
   private readonly telemetry = inject(TutorTelemetryService);
-  private readonly tutorSettings = inject(TutorSettingsService);
   private readonly workspace = inject(WorkspaceService);
+  private readonly checker = inject(StudyCheckService);
+  private readonly remoteControl = inject(StudyRemoteControlService);
   private readonly lifetime = inject(DestroyRef);
 
   readonly tasksPerParticipant = TASKS_PER_PARTICIPANT;
@@ -74,16 +80,20 @@ export class StudySessionBarComponent {
   readonly isRunning = this.studySession.isRunning;
   readonly isTestMode = this.studySession.isTestMode;
   readonly remainingMs = this.studySession.remainingMs;
-  readonly studentTurns = this.studySession.studentTurnsInTask;
-  readonly taskOrder = this.studySession.taskOrder;
+  readonly completedCount = this.studySession.completedScenarioCount;
+
+  readonly lastOutcome = signal<{ task: StudyTask; outcome: TaskOutcome } | undefined>(undefined);
 
   /**
-   * Tarefa escolhida no seletor (ainda não iniciada). Acompanha a ordem sorteada: ao fim de
-   * cada tarefa passa à seguinte, o que poupa ao estudante escolher e evita erro de condução.
+   * Enunciado reaberto durante a tarefa (botão **Ver enunciado**).
    */
-  readonly selectedTaskIndex = linkedSignal(() => this.studySession.nextTask()?.index ?? this.taskOrder()[0].index);
+  readonly statementOpen = signal(false);
 
-  readonly lastOutcome = signal<{ label: string; outcome: TaskOutcome } | undefined>(undefined);
+  readonly checking = signal(false);
+  /**
+   * Por que o **Concluí** não encerrou: só a entrada do caso que falhou, sem a saída esperada.
+   */
+  readonly checkFeedback = signal<string | undefined>(undefined);
 
   readonly draftMatricula = signal("");
   readonly assignError = signal<string | undefined>(undefined);
@@ -96,14 +106,71 @@ export class StudySessionBarComponent {
   readonly needsAssignment = computed(() => this.participantId() === undefined && !this.isTestMode());
 
   /**
-   * Enunciado e código do cenário em curso.
+   * Fim quando os cenários previstos estão feitos ou a ordem acabou.
    */
+  readonly sessionDone = computed(
+    () => this.completedCount() >= TASKS_PER_PARTICIPANT || this.studySession.nextTask() === undefined,
+  );
+
+  /**
+   * Tarefa que o diálogo apresenta: a corrente, durante a tarefa; a próxima, entre tarefas.
+   */
+  readonly dialogTask = computed(() => this.activeTask() ?? this.studySession.nextTask());
+
+  readonly dialogMaterial = computed(() => {
+    const task = this.dialogTask();
+    return task === undefined ? undefined : taskMaterial(task.index);
+  });
+
+  readonly dialogMode = computed<TaskDialogMode | undefined>(() => {
+    if (!this.visible() || this.needsAssignment()) {
+      return;
+    }
+    if (this.isRunning()) {
+      return this.statementOpen() ? "statement" : undefined;
+    }
+    return this.sessionDone() ? "done" : "next";
+  });
+
   readonly activeMaterial = computed(() => {
     const task = this.activeTask();
     return task === undefined ? undefined : taskMaterial(task.index);
   });
 
-  readonly completedCount = this.studySession.completedScenarioCount;
+  /**
+   * "Treino" ou "Exercício 2 de 3": o estudante sabe onde está sem ver a ordem inteira.
+   */
+  readonly heading = computed(() => {
+    const task = this.dialogTask();
+    if (task === undefined) {
+      return "";
+    }
+    return task.practice ? "Treino" : `Exercício ${this.completedCount() + 1} de ${TASKS_PER_PARTICIPANT}`;
+  });
+
+  readonly dialogMinutes = computed(() => Math.round((this.dialogTask()?.timeboxMs ?? 0) / 60_000));
+
+  /**
+   * Faixa no topo do diálogo seguinte: como terminou o exercício anterior.
+   */
+  readonly outcomeBanner = computed(() => {
+    const last = this.lastOutcome();
+    if (last === undefined) {
+      return;
+    }
+    const what = last.task.practice ? "Treino" : "Exercício";
+    switch (last.outcome) {
+      case "solved": {
+        return { text: `${what} concluído: o programa passou em todos os casos de teste.`, tone: "ok" as const };
+      }
+      case "timeout": {
+        return { text: `O tempo do ${what.toLowerCase()} acabou. Vamos para o próximo.`, tone: "warn" as const };
+      }
+      default: {
+        return { text: `${what} encerrado pelo pesquisador.`, tone: "info" as const };
+      }
+    }
+  });
 
   readonly remainingLabel = computed(() => {
     const total = Math.ceil(this.remainingMs() / 1000);
@@ -111,8 +178,6 @@ export class StudySessionBarComponent {
     const seconds = total % 60;
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   });
-
-  readonly isTimeoutOutcome = computed(() => this.lastOutcome()?.outcome === "timeout");
 
   readonly isWarning = computed(() => this.isRunning() && this.remainingMs() <= WARNING_THRESHOLD_MS);
 
@@ -123,11 +188,13 @@ export class StudySessionBarComponent {
   });
 
   private readonly gateDialog = viewChild<ElementRef<HTMLDialogElement>>("gate");
+  private readonly taskDialog = viewChild<ElementRef<HTMLDialogElement>>("taskDialog");
 
   private readonly studyModeRequested: boolean;
 
   constructor() {
     this.studyModeRequested = this.readStudyFlag();
+    this.remoteControl.start();
 
     // `showModal` torna o resto da página inerte: ninguém começa a editar antes de escolher.
     effect(() => {
@@ -137,15 +204,28 @@ export class StudySessionBarComponent {
       }
     });
 
+    // Entre tarefas o diálogo fica aberto e modal: nada se edita fora do cronómetro.
+    effect(() => {
+      const dialog = this.taskDialog()?.nativeElement;
+      if (dialog === undefined) {
+        return;
+      }
+      const mode = this.dialogMode();
+      if (mode !== undefined && !dialog.open) {
+        dialog.showModal();
+      } else if (mode === undefined && dialog.open) {
+        dialog.close();
+      }
+    });
+
     this.studySession.lifecycle$.pipe(takeUntilDestroyed(this.lifetime)).subscribe(event => {
       if (event.kind !== "ended" || event.outcome === undefined) {
         return;
       }
       this.closeTaskTab();
-      this.lastOutcome.set({
-        label: `${event.task.label}: ${OUTCOME_LABELS[event.outcome]}`,
-        outcome: event.outcome,
-      });
+      this.checkFeedback.set(undefined);
+      this.statementOpen.set(false);
+      this.lastOutcome.set({ task: event.task, outcome: event.outcome });
     });
   }
 
@@ -164,7 +244,7 @@ export class StudySessionBarComponent {
       this.studySession.setParticipantLabel(maskMatricula(this.draftMatricula()));
       this.studySession.setParticipant(pseudonym, condition);
       this.telemetry.setParticipant(pseudonym, condition);
-      this.telemetry.logAssignment(this.taskOrder().map(task => task.index));
+      this.telemetry.logAssignment(this.studySession.taskOrder().map(task => task.index));
       this.draftMatricula.set("");
       this.assignError.set(undefined);
       this.closeGate();
@@ -187,16 +267,14 @@ export class StudySessionBarComponent {
   async endSession(): Promise<void> {
     if (
       !this.isTestMode() &&
+      !this.sessionDone() &&
       !globalThis.confirm(
         "Encerrar a sessão? Os registros são enviados, o código das abas é apagado e a IDE volta ao formulário de matrícula.",
       )
     ) {
       return;
     }
-    await this.telemetry.endSession();
-    this.workspace.forgetAll();
-    this.tutorSettings.forgetParticipant();
-    globalThis.location.reload();
+    await this.remoteControl.endSessionAndReload();
   }
 
   onMatriculaChange(value: string): void {
@@ -212,12 +290,35 @@ export class StudySessionBarComponent {
   }
 
   /**
+   * Esc só fecha o enunciado reaberto durante a tarefa; entre tarefas o diálogo é o caminho.
+   */
+  onTaskDialogCancel(event: Event): void {
+    event.preventDefault();
+    if (this.dialogMode() === "statement") {
+      this.statementOpen.set(false);
+    }
+  }
+
+  showStatement(): void {
+    this.statementOpen.set(true);
+  }
+
+  hideStatement(): void {
+    this.statementOpen.set(false);
+  }
+
+  /**
    * Inicia o cronómetro e abre o programa defeituoso numa aba própria, idêntico ao estado
    * inicial da bancada. Cada tarefa tem a sua aba, e com ela a sua conversa com o tutor.
    */
   startTask(): void {
+    const next = this.studySession.nextTask();
+    if (next === undefined || this.isRunning()) {
+      return;
+    }
     this.lastOutcome.set(undefined);
-    this.studySession.startTask(this.selectedTaskIndex());
+    this.checkFeedback.set(undefined);
+    this.studySession.startTask(next.index);
     const task = this.activeTask();
     const material = task === undefined ? undefined : taskMaterial(task.index);
     if (task === undefined || material === undefined) {
@@ -228,43 +329,78 @@ export class StudySessionBarComponent {
     this.writeTaskTab(tabId);
   }
 
-  finishTask(): void {
-    this.studySession.endTask("solved");
+  /**
+   * **Concluí**: roda os casos de teste no navegador. Só passa à seguinte quando todos passam;
+   * senão diz a entrada do primeiro caso que falhou e o estudante continua.
+   */
+  async finishTask(): Promise<void> {
+    const task = this.activeTask();
+    const material = this.activeMaterial();
+    if (task === undefined || material === undefined || this.checking()) {
+      return;
+    }
+    this.checking.set(true);
+    this.checkFeedback.set(undefined);
+    try {
+      const result = await this.checker.check(this.taskCode(), material.tests);
+      // O relógio (ou o painel) pode ter encerrado a tarefa durante a conferência.
+      if (this.activeTask()?.index !== task.index) {
+        return;
+      }
+      this.telemetry.logTaskCheck(result);
+      if (result.passed) {
+        this.studySession.endTask("solved");
+        return;
+      }
+      if (result.compileError) {
+        this.checkFeedback.set(
+          "Ainda não: o programa tem erro de compilação. Veja a lista de Problemas abaixo do código.",
+        );
+      } else if (result.failedCase) {
+        this.checkFeedback.set(
+          `Ainda não: com a entrada ${this.formatInput(result.failedCase.input)} o programa não dá o resultado esperado. Continue corrigindo.`,
+        );
+      }
+    } catch (error) {
+      console.error(error, { studyCheck: true });
+      this.checkFeedback.set("Não foi possível conferir agora. Tente de novo; se continuar, chame o pesquisador.");
+    } finally {
+      this.checking.set(false);
+    }
   }
 
-  abortTask(): void {
-    this.studySession.endTask("aborted");
-  }
-
-  onSelectedTaskChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.selectedTaskIndex.set(Number.parseInt(value, 10));
+  formatInput(input: readonly string[]): string {
+    return input.length === 0 ? "(nenhuma)" : input.join(", ");
   }
 
   /**
-   * O treino não leva número: os cenários contam de 1 a 6, na ordem sorteada.
+   * Código da aba da tarefa; a aba ativa como reserva, caso o registo da aba se tenha perdido.
    */
-  optionLabel(task: StudyTask, position: number): string {
-    const done = this.isCompleted(task.index) ? " (feita)" : "";
-    return task.practice ? `${task.label}${done}` : `${position}. ${task.label}${done}`;
-  }
-
-  isCompleted(index: number): boolean {
-    return this.studySession.completedTasks().includes(index);
+  private taskCode(): string {
+    const tabId = this.readTaskTab();
+    return tabId ? this.workspace.contentsOf(tabId) : (this.workspace.activeTab()?.contents ?? "");
   }
 
   /**
    * Fim da tarefa: a aba sai, para o estudante não continuar a editar fora do tempo.
    */
   private closeTaskTab(): void {
+    const tabId = this.readTaskTab();
     try {
-      const tabId = sessionStorage.getItem(TASK_TAB_KEY);
       sessionStorage.removeItem(TASK_TAB_KEY);
-      if (tabId) {
-        this.workspace.closeTab(tabId);
-      }
     } catch {
       // modo privado
+    }
+    if (tabId) {
+      this.workspace.closeTab(tabId);
+    }
+  }
+
+  private readTaskTab(): string | undefined {
+    try {
+      return sessionStorage.getItem(TASK_TAB_KEY) ?? undefined;
+    } catch {
+      return undefined;
     }
   }
 

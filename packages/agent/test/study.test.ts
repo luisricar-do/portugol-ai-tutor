@@ -7,6 +7,7 @@ import {
   maskMatricula,
   normalizeMatricula,
   pseudonymFromMatricula,
+  studyCasePasses,
   studyTaskOrder,
 } from "../src/study.js";
 
@@ -45,4 +46,19 @@ test("ordem sorteada é permutação estável por participante", () => {
 
   const distinct = new Set(Array.from({ length: 40 }, (_, i) => studyTaskOrder(`m-${i}`, tasks).join(",")));
   assert.ok(distinct.size > 30, `só ${distinct.size} ordens distintas em 40 participantes`);
+});
+
+test("caso passa só com execução terminada e saída esperada", () => {
+  const caso = { expectedContains: "Media = 2\n" };
+  assert.equal(studyCasePasses(caso, { executed: true, timedOut: false, stdout: "Digite: Media = 2\n" }), true);
+  // A quebra de linha final é preservada: "Media = 2" não casa dentro de "Media = 2.5".
+  assert.equal(studyCasePasses(caso, { executed: true, timedOut: false, stdout: "Media = 2.5\n" }), false);
+  assert.equal(studyCasePasses(caso, { executed: false, timedOut: false, stdout: "Media = 2\n" }), false);
+  assert.equal(studyCasePasses(caso, { executed: true, timedOut: true, stdout: "Media = 2\n" }), false);
+});
+
+test("caso com saída proibida e esperado com espaços nas pontas", () => {
+  const caso = { expectedContains: " 3 x 10 = 30\n", expectedNotContains: "3 x 0 = 0" };
+  assert.equal(studyCasePasses(caso, { executed: true, timedOut: false, stdout: "3 x 1 = 3\n3 x 10 = 30\n" }), true);
+  assert.equal(studyCasePasses(caso, { executed: true, timedOut: false, stdout: "3 x 0 = 0\n3 x 10 = 30\n" }), false);
 });
