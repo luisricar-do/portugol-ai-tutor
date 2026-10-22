@@ -160,7 +160,7 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
   const now = options.now ?? (() => new Date());
   const key = telemetryStorageKey(envelope.sessionId);
 
-  let inFlight = false;
+  let inFlight: Promise<number> | undefined;
   let backoffMs = 0;
   let nextAttemptAt = 0;
 
@@ -314,17 +314,24 @@ export function createTelemetryQueue(options: CreateTelemetryQueueOptions): Tele
         return 0;
       }
 
-      inFlight = true;
+      inFlight = postBatch(record.events.slice(0, batchSize), record.dropped);
       try {
-        return await postBatch(record.events.slice(0, batchSize), record.dropped);
+        return await inFlight;
       } finally {
-        inFlight = false;
+        inFlight = undefined;
       }
     },
 
     async flushAll(): Promise<number> {
       let total = 0;
       for (;;) {
+        // Um envio já em curso (o periódico, por exemplo) não quer dizer fila vazia: espera-se
+        // por ele e drena-se o resto. Sem isto o `session_end` ficava no storage quando o fim
+        // da sessão coincidia com o envio periódico, e a página recarregava sem ele.
+        if (inFlight) {
+          total += await inFlight.catch(() => 0);
+          continue;
+        }
         const sent = await queue.flush();
         if (sent === 0) {
           return total;

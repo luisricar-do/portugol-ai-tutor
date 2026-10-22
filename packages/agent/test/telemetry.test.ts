@@ -295,6 +295,25 @@ test("flush concorrente não duplica o lote", async () => {
   assert.equal(queue.pending().length, 0);
 });
 
+test("flushAll espera o envio em curso e drena o que chegou depois", async () => {
+  let calls = 0;
+  const fetchMock: typeof fetch = async () => {
+    calls += 1;
+    await new Promise(resolve => setTimeout(resolve, 5));
+    return new Response("{}", { status: 200 });
+  };
+  const { queue } = makeQueue({ fetch: fetchMock });
+  queue.enqueue({ type: "conductor_command_applied" });
+  const periodic = queue.flush();
+  queue.enqueue({ type: "session_end" });
+
+  await queue.flushAll();
+  await periodic;
+
+  assert.equal(calls, 2);
+  assert.equal(queue.pending().length, 0);
+});
+
 test("lastSeq distingue sessão nova de recarregamento", () => {
   const storage = new FakeStorage();
   assert.equal(makeQueue({}, storage).queue.lastSeq(), 0);
