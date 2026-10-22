@@ -5,6 +5,7 @@ import { test } from "vitest";
 import {
   STUDY_PSEUDONYM_SALT,
   maskMatricula,
+  normalizeIntegralReals,
   normalizeMatricula,
   pseudonymFromMatricula,
   studyCasePasses,
@@ -61,4 +62,12 @@ test("caso com saída proibida e esperado com espaços nas pontas", () => {
   const caso = { expectedContains: " 3 x 10 = 30\n", expectedNotContains: "3 x 0 = 0" };
   assert.equal(studyCasePasses(caso, { executed: true, timedOut: false, stdout: "3 x 1 = 3\n3 x 10 = 30\n" }), true);
   assert.equal(studyCasePasses(caso, { executed: true, timedOut: false, stdout: "3 x 0 = 0\n3 x 10 = 30\n" }), false);
+});
+
+test("real sem parte fracionária vira inteiro; os demais números ficam", () => {
+  assert.equal(normalizeIntegralReals("Media = 4.0\n"), "Media = 4\n");
+  assert.equal(normalizeIntegralReals("Media = -10.0\n"), "Media = -10\n");
+  assert.equal(normalizeIntegralReals("Media = 1.6666666666666667\n"), "Media = 1.6666666666666667\n");
+  assert.equal(normalizeIntegralReals("4.05 e 10.0.1 e v1.0"), "4.05 e 10.0.1 e v1.0");
+  assert.equal(normalizeIntegralReals("nota 6.0 ok"), "nota 6 ok");
 });
