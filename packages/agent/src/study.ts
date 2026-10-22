@@ -118,6 +118,17 @@ export interface StudyCaseRun {
 }
 
 /**
+ * Escreve como inteiro o real sem parte fracionária (`4.0` → `4`), como o runtime fazia quando
+ * os `casos_ok` do banco foram pré-computados. Depois do sync com o upstream de outubro de 2026 o
+ * `escreva` de real passou a sair `4.0`, e a solução de `tese_01_media` (`Media = 4\n` no caso)
+ * deixou de passar. O **Concluí** da IDE normaliza a saída com isto antes de `studyCasePasses`;
+ * a bancada não, e nesse ponto as duas divergem (registrado no PR da coleta guiada).
+ */
+export function normalizeIntegralReals(text: string): string {
+  return text.replaceAll(/(?<![\w.])(-?\d+)\.0(?![\d.])/g, "$1");
+}
+
+/**
  * O `str.strip(" \t")` do Python: a quebra de linha das pontas fica.
  */
 function trimSpacesAndTabs(text: string): string {

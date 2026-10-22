@@ -9,6 +9,7 @@ export { createTelemetryQueue, telemetryStorageKey } from "./telemetry.js";
 export {
   STUDY_PSEUDONYM_SALT,
   maskMatricula,
+  normalizeIntegralReals,
   normalizeMatricula,
   pseudonymFromMatricula,
   studyCasePasses,

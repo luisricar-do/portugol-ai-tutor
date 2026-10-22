@@ -1,6 +1,6 @@
 import { Service, inject } from "@angular/core";
 import { PortugolDiagnosticSeverity } from "@luisricar-do/antlr";
-import { studyCasePasses } from "@luisricar-do/agent";
+import { normalizeIntegralReals, studyCasePasses } from "@luisricar-do/agent";
 import type { StudyCaseRun } from "@luisricar-do/agent";
 import { PortugolWebWorkersRunner } from "@luisricar-do/runner";
 
@@ -57,7 +57,9 @@ export class StudyCheckService {
     // Em sequência: cada caso abre um worker, e o estudante espera no máximo alguns segundos.
     for (const testCase of tests) {
       const run = await this.runCase(transpiled.js, testCase.input);
-      if (studyCasePasses(testCase, run)) {
+      // `4.0` conta como `4`: o banco foi pré-computado com o runtime que escrevia o real sem
+      // parte fracionária como inteiro (ver `normalizeIntegralReals`).
+      if (studyCasePasses(testCase, { ...run, stdout: normalizeIntegralReals(run.stdout) })) {
         casesOk++;
       } else {
         failedCase ??= testCase;
