@@ -1,4 +1,7 @@
 import { STUDY_TASK_MATERIAL } from "./study-tasks.gerado";
+import type { StudyTestCase } from "./study-tasks.gerado";
+
+export type { StudyTestCase } from "./study-tasks.gerado";
 
 export interface TaskMaterial {
   /**
@@ -14,6 +17,11 @@ export interface TaskMaterial {
    */
   readonly bankItem?: string;
   readonly codeSha256?: string;
+  /**
+   * Casos que o **Concluí** confere antes de encerrar a tarefa; o primeiro é o exemplo do
+   * enunciado. Ficam no navegador, como o enunciado.
+   */
+  readonly tests: readonly StudyTestCase[];
 }
 
 /**
@@ -42,6 +50,10 @@ const PRACTICE_MATERIAL: TaskMaterial = {
     }
 }
 `,
+  tests: [
+    { input: ["10", "25"], expectedContains: "Troco: 15\n" },
+    { input: ["7", "10"], expectedContains: "Troco: 3\n" },
+  ],
 };
 
 export function taskMaterial(index: number): TaskMaterial | undefined {

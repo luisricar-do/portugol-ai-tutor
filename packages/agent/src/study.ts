@@ -104,3 +104,44 @@ export function studyTaskOrder(participantId: string, taskIndices: readonly numb
   }
   return order;
 }
+
+/**
+ * Resultado de uma execução do programa do estudante sobre um caso de teste.
+ */
+export interface StudyCaseRun {
+  /**
+   * `false` quando erro de compilação impediu a execução.
+   */
+  executed: boolean;
+  timedOut: boolean;
+  stdout: string;
+}
+
+/**
+ * O `str.strip(" \t")` do Python: a quebra de linha das pontas fica.
+ */
+function trimSpacesAndTabs(text: string): string {
+  return text.replaceAll(/^[\t ]+|[\t ]+$/g, "");
+}
+
+/**
+ * Um caso passa quando o programa executa, termina e a saída contém o esperado (e não contém o
+ * proibido). É a regra de `_passou` em `maieutica-avaliacoes/avaliacao/estados.py`, para que o
+ * **Concluí** da IDE e a bancada concordem sobre o que é resolver: a quebra de linha final do
+ * esperado é preservada (sem ela, `"Media = 2"` casaria dentro de `"Media = 2.5"`) e só espaços e
+ * tabulações das pontas são aparados.
+ */
+export function studyCasePasses(
+  testCase: { expectedContains: string; expectedNotContains?: string },
+  run: StudyCaseRun,
+): boolean {
+  if (!run.executed || run.timedOut) {
+    return false;
+  }
+  const expected = trimSpacesAndTabs(testCase.expectedContains);
+  if (expected && !run.stdout.includes(expected)) {
+    return false;
+  }
+  const forbidden = trimSpacesAndTabs(testCase.expectedNotContains ?? "");
+  return !(forbidden && run.stdout.includes(forbidden));
+}

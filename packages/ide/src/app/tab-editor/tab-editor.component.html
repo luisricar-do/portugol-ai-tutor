@@ -27,51 +27,53 @@
     <svg-icon src="assets/mdi/square-rounded-outline.svg" class="icon-red" aria-hidden="true" />
   </button>
 
-  <span class="activity-separator" role="separator"></span>
+  @if (!simplifiedUi()) {
+    <span class="activity-separator" role="separator"></span>
 
-  <button
-    type="button"
-    class="activity-button"
-    tabindex="-1"
-    appTooltip="Abrir arquivo"
-    appTooltipShortcut="Ctrl+O"
-    appTooltipPosition="right"
-    aria-label="Abrir arquivo"
-    aria-keyshortcuts="Control+O"
-    (click)="openFile.emit('editor')"
-  >
-    <svg-icon src="assets/mdi/folder-open-outline.svg" class="icon-yellow" aria-hidden="true" />
-  </button>
+    <button
+      type="button"
+      class="activity-button"
+      tabindex="-1"
+      appTooltip="Abrir arquivo"
+      appTooltipShortcut="Ctrl+O"
+      appTooltipPosition="right"
+      aria-label="Abrir arquivo"
+      aria-keyshortcuts="Control+O"
+      (click)="openFile.emit('editor')"
+    >
+      <svg-icon src="assets/mdi/folder-open-outline.svg" class="icon-yellow" aria-hidden="true" />
+    </button>
 
-  <button
-    type="button"
-    class="activity-button"
-    tabindex="-1"
-    appTooltip="Salvar"
-    appTooltipShortcut="Ctrl+S"
-    appTooltipPosition="right"
-    aria-label="Salvar"
-    aria-keyshortcuts="Control+S"
-    (click)="saveFromEditor('editor')"
-  >
-    <svg-icon src="assets/mdi/content-save-outline.svg" class="icon-blue" aria-hidden="true" />
-  </button>
+    <button
+      type="button"
+      class="activity-button"
+      tabindex="-1"
+      appTooltip="Salvar"
+      appTooltipShortcut="Ctrl+S"
+      appTooltipPosition="right"
+      aria-label="Salvar"
+      aria-keyshortcuts="Control+S"
+      (click)="saveFromEditor('editor')"
+    >
+      <svg-icon src="assets/mdi/content-save-outline.svg" class="icon-blue" aria-hidden="true" />
+    </button>
 
-  <button
-    type="button"
-    class="activity-button"
-    tabindex="-1"
-    appTooltip="Salvar como…"
-    appTooltipPosition="right"
-    aria-label="Salvar como"
-    gaEvent="editor_save_as"
-    gaCategory="Editor"
-    gaLabel="Botão de Salvar como"
-    [cdkMenuTriggerFor]="saveMenu"
-    [cdkMenuPosition]="menuPositions"
-  >
-    <svg-icon src="assets/mdi/content-save-settings-outline.svg" class="icon-blue" aria-hidden="true" />
-  </button>
+    <button
+      type="button"
+      class="activity-button"
+      tabindex="-1"
+      appTooltip="Salvar como…"
+      appTooltipPosition="right"
+      aria-label="Salvar como"
+      gaEvent="editor_save_as"
+      gaCategory="Editor"
+      gaLabel="Botão de Salvar como"
+      [cdkMenuTriggerFor]="saveMenu"
+      [cdkMenuPosition]="menuPositions"
+    >
+      <svg-icon src="assets/mdi/content-save-settings-outline.svg" class="icon-blue" aria-hidden="true" />
+    </button>
+  }
 
   @if (shareEnabled) {
     <button
@@ -108,17 +110,19 @@
     <svg-icon src="assets/mdi/brain.svg" class="icon-yellow" aria-hidden="true" />
   </button>
 
-  <button
-    type="button"
-    class="activity-button"
-    tabindex="-1"
-    appTooltip="Abrir exemplo"
-    appTooltipPosition="right"
-    aria-label="Abrir exemplo"
-    (click)="examples.emit()"
-  >
-    <svg-icon src="assets/mdi/book-open-page-variant-outline.svg" class="icon-yellow" aria-hidden="true" />
-  </button>
+  @if (!simplifiedUi()) {
+    <button
+      type="button"
+      class="activity-button"
+      tabindex="-1"
+      appTooltip="Abrir exemplo"
+      appTooltipPosition="right"
+      aria-label="Abrir exemplo"
+      (click)="examples.emit()"
+    >
+      <svg-icon src="assets/mdi/book-open-page-variant-outline.svg" class="icon-yellow" aria-hidden="true" />
+    </button>
+  }
 
   <button
     type="button"

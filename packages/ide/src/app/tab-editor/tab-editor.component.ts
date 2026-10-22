@@ -57,6 +57,7 @@ import { TutorInterceptorService } from "../tutor-interceptor.service";
 import { TutorOverlayService } from "../tutor-overlay.service";
 import { TutorProactivityService } from "../tutor-proactivity.service";
 import { TutorRealtimeValidatorService } from "../tutor-realtime-validator.service";
+import { TutorStudySessionService } from "../tutor-study-session.service";
 import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { WorkerService } from "../worker.service";
 import { WorkspaceService } from "../workspace.service";
@@ -134,6 +135,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   private injector = inject(Injector);
   private responsive = inject(ResponsiveService);
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly studySession = inject(TutorStudySessionService);
   private workspace = inject(WorkspaceService);
   private editorActions = inject(EditorActionsService);
   private tutorEditorContext = inject(TutorEditorContextService);
@@ -152,6 +154,11 @@ export class TabEditorComponent implements OnInit, OnDestroy {
    *  * Controla o botão Compartilhar; desligado na build de coleta.
    */
   readonly shareEnabled = environment.enableShare;
+
+  /**
+   * Na sessão de pesquisa somem abrir arquivo, salvar e exemplos: a tarefa vem pronta na aba.
+   */
+  readonly simplifiedUi = this.studySession.simplifiedUi;
 
   /**
    *  * Início da execução corrente, para medir a duração no evento `run`.
