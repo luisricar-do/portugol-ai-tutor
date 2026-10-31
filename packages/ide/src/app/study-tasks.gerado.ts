@@ -15,7 +15,7 @@ export interface StudyTaskMaterial {
    */
   readonly bankItem: string;
   /**
-   * Enunciado do apêndice, mostrado na barra; nunca enviado ao tutor.
+   * Enunciado do apêndice, mostrado na barra e enviado ao tutor como problemStatement.
    */
   readonly statement: string;
   /**

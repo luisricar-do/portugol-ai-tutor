@@ -5,7 +5,8 @@ export type { StudyTestCase } from "./study-tasks.gerado";
 
 export interface TaskMaterial {
   /**
-   * Mostrado na barra enquanto a tarefa corre; nunca enviado ao tutor.
+   * Mostrado na barra enquanto a tarefa corre e enviado ao tutor como `problemStatement`, como
+   * faz a bancada (decisão após o teste real de 31/10: sem ele o tutor inferia a tarefa do código).
    */
   readonly statement: string;
   /**

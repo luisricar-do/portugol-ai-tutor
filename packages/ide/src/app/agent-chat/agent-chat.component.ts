@@ -11,6 +11,7 @@ import {
   Injector,
   Input,
   NgZone,
+  OnInit,
   signal,
   viewChild,
 } from "@angular/core";
@@ -29,6 +30,7 @@ import { MarkdownComponent } from "ngx-markdown";
 import { environment } from "../../environments/environment";
 import { EditorActionsService } from "../editor-actions.service";
 import { HelpNavigationService } from "../help-navigation.service";
+import { taskMaterial } from "../study-material";
 import { DOC_LINK_SCHEME, docSlugFromHref, resolveDocTopic } from "../tutor-doc-topics";
 import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
 import { TutorChatSessionService } from "../tutor-chat-session.service";
@@ -36,14 +38,53 @@ import { TutorEditorContextService } from "../tutor-editor-context.service";
 import {
   TUTOR_FIRST_TOKEN_TIMEOUT_MESSAGE,
   TUTOR_FIRST_TOKEN_TIMEOUT_MS,
+  TUTOR_COMPILE_FIXED_MESSAGE,
   TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE,
-  TUTOR_SUCCESS_REFLECTION_MESSAGE,
   TUTOR_WELCOME_MESSAGE,
 } from "../tutor-messages";
 import { TutorOverlayService } from "../tutor-overlay.service";
 import { TutorSettingsService } from "../tutor-settings.service";
 import { TutorStudySessionService } from "../tutor-study-session.service";
 import { TutorTelemetryService } from "../tutor-telemetry.service";
+
+/**
+ * Conversa da aba do editor em `sessionStorage`: sobrevive ao F5 e à aba restaurada depois de
+ * travar, some ao fechar a aba. Sem ela a recarga apagava o histórico, e com ele o que o serviço
+ * deriva dele (movimento, estagnação acumulada, nível de concretude anterior).
+ */
+const CONVERSATION_STORAGE_PREFIX = "pws:tutor:chat:";
+
+/**
+Itens do histórico guardados (o serviço só lê o fim da conversa).
+*/
+const MAX_PERSISTED_ITEMS = 40;
+
+/**
+Teto da entrada serializada: cada turno do aluno leva o código inteiro.
+*/
+const MAX_PERSISTED_CHARS = 400_000;
+
+interface PersistedConversation {
+  /**
+  `sessionId` da telemetria: outra sessão (próximo participante) não herda a conversa.
+  */
+  session: string;
+  /**
+  Tarefa do estudo em curso (`null` fora da coleta): trocar de tarefa descarta a anterior.
+  */
+  task: number | null;
+  history: TutorHistoryItem[];
+  previousCode?: string;
+  previousErrors?: string[];
+}
+
+function sessionStore(): Storage | null {
+  try {
+    return typeof sessionStorage === "undefined" ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
 
 @Component({
   selector: "app-agent-chat",
@@ -54,7 +95,7 @@ import { TutorTelemetryService } from "../tutor-telemetry.service";
   changeDetection: ChangeDetectionStrategy.Eager,
   host: { "(click)": "onDocLinkClick($event)" },
 })
-export class AgentChatComponent implements AfterViewInit {
+export class AgentChatComponent implements OnInit, AfterViewInit {
   private readonly ngZone = inject(NgZone);
   private readonly injector = inject(Injector);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -203,6 +244,11 @@ export class AgentChatComponent implements AfterViewInit {
   streamingText = "";
 
   private history: TutorHistoryItem[] = [];
+
+  /**
+  Aba do editor a que `history` pertence (chave da entrada em `sessionStorage`).
+  */
+  private conversationTabKey: string | null = null;
 
   /**
    *  *  * Conversa anterior arquivada após o tutor sinalizar problema resolvido (reabrir opcional).
@@ -377,7 +423,9 @@ export class AgentChatComponent implements AfterViewInit {
         if (!this.tutorOverlay.isOpen() || !this.immersiveLayout) {
           return;
         }
-        const tabKey = this.tabKeyResolver?.() ?? this.tutorEditorContext.getActive()?.getTabKey?.() ?? "";
+        // Antes das boas-vindas: a conversa restaurada já as tem.
+        this.ensureConversationForActiveTab();
+        const tabKey = this.activeTabKey();
         if (!tabKey || this.tutorSettings.hasWelcomeShown(tabKey) || this.history.length > 0) {
           return;
         }
@@ -425,6 +473,11 @@ export class AgentChatComponent implements AfterViewInit {
     });
   }
 
+  ngOnInit(): void {
+    // Antes da primeira renderização, para a conversa restaurada não trocar a vista já checada.
+    this.ensureConversationForActiveTab();
+  }
+
   ngAfterViewInit(): void {
     if (this.immersiveLayout) {
       this.attachThreadScrollListener();
@@ -436,8 +489,9 @@ export class AgentChatComponent implements AfterViewInit {
   }
 
   /**
-   * Erros de compilação eliminados após haver erros com o HUD aberto:
-   * limpar destaques do tutor, borda verde discreta + mensagem reflexiva.
+   * Erros de compilação eliminados após haver erros com o HUD aberto: limpa os destaques do
+   * tutor e manda executar e conferir. Sem borda verde nem "rodou!": compilar não é resolver, e
+   * a celebração aparecia com o defeito lógico ainda no código (teste real de 31/10/2026, T2).
    */
   private checkCompileErrorRecovery(): void {
     if (
@@ -455,15 +509,14 @@ export class AgentChatComponent implements AfterViewInit {
     }
     if (this.compileErrorsWerePresent) {
       this.successCelebrationTriggered = true;
-      this.triggerCompileFixedCelebration();
+      this.onCompileErrorsFixed();
     }
   }
 
-  private triggerCompileFixedCelebration(): void {
+  private onCompileErrorsFixed(): void {
     this.ngZone.run(() => {
-      this.pushLocalAssistantMessage(TUTOR_SUCCESS_REFLECTION_MESSAGE);
+      this.pushLocalAssistantMessage(TUTOR_COMPILE_FIXED_MESSAGE);
       this.editorActionsService.clearTutorDecorations();
-      this.tutorOverlay.beginSuccessCelebration();
     });
   }
 
@@ -472,6 +525,7 @@ export class AgentChatComponent implements AfterViewInit {
     if (!trimmed) {
       return;
     }
+    this.ensureConversationForActiveTab();
     this.history.push({ role: "assistant", content: trimmed });
     this.syncChatSession();
     if (this.shouldAutoScroll()) {
@@ -482,6 +536,152 @@ export class AgentChatComponent implements AfterViewInit {
 
   private syncChatSession(): void {
     this.chatSession.syncFromHistory(this.history);
+    this.persistConversation();
+  }
+
+  private activeTabKey(): string {
+    return this.tabKeyResolver?.() ?? this.tutorEditorContext.getActive()?.getTabKey?.() ?? "";
+  }
+
+  private currentTask(): number | null {
+    return this.studySession.activeTask()?.index ?? null;
+  }
+
+  /**
+   * Liga `history` à aba ativa: na primeira vez restaura o que a aba guardou (recarga, aba
+   * restaurada); ao trocar de aba, carrega a conversa dela. Com a ADA respondendo não troca,
+   * para a resposta não cair no histórico de outra aba.
+   */
+  private ensureConversationForActiveTab(): void {
+    const tabKey = this.activeTabKey();
+    if (!tabKey || tabKey === this.conversationTabKey || this.streamingAssistant) {
+      return;
+    }
+    const switching = this.conversationTabKey !== null;
+    this.conversationTabKey = tabKey;
+    this.pruneStaleConversations();
+    const saved = this.readConversation(tabKey);
+    if (saved) {
+      this.history = saved.history;
+      this.previousRequestCode = saved.previousCode;
+      this.previousRequestErrors = saved.previousErrors;
+    } else if (switching) {
+      this.history = [];
+      this.previousRequestCode = undefined;
+      this.previousRequestErrors = undefined;
+    } else {
+      return;
+    }
+    this.lastArchivedThread = null;
+    this.chatSession.syncFromHistory(this.history);
+    this.requestScrollToEnd();
+    this.cdr.markForCheck();
+  }
+
+  private readConversation(tabKey: string): PersistedConversation | null {
+    try {
+      const raw = sessionStore()?.getItem(CONVERSATION_STORAGE_PREFIX + tabKey);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw) as Partial<PersistedConversation>;
+      if (
+        !Array.isArray(parsed.history) ||
+        parsed.session !== this.telemetry.sessionId ||
+        (parsed.task ?? null) !== this.currentTask()
+      ) {
+        return null;
+      }
+      const history = parsed.history.filter((item): item is TutorHistoryItem => {
+        return (
+          typeof item === "object" &&
+          item !== null &&
+          (item.role === "user" || item.role === "assistant") &&
+          typeof item.content === "string"
+        );
+      });
+      // Fala do aluno sem resposta: a aba caiu no meio do stream. Sai, como no erro de envio.
+      if (history.at(-1)?.role === "user") {
+        history.pop();
+      }
+      return {
+        session: parsed.session,
+        task: parsed.task ?? null,
+        history,
+        previousCode: typeof parsed.previousCode === "string" ? parsed.previousCode : undefined,
+        previousErrors: Array.isArray(parsed.previousErrors)
+          ? parsed.previousErrors.filter((e): e is string => typeof e === "string")
+          : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private persistConversation(): void {
+    const store = sessionStore();
+    const tabKey = this.conversationTabKey;
+    if (!store || !tabKey) {
+      return;
+    }
+    const key = CONVERSATION_STORAGE_PREFIX + tabKey;
+    try {
+      if (this.history.length === 0) {
+        store.removeItem(key);
+        return;
+      }
+      let history = this.history.slice(-MAX_PERSISTED_ITEMS);
+      const serialize = (): string => {
+        return JSON.stringify({
+          session: this.telemetry.sessionId,
+          task: this.currentTask(),
+          history,
+          previousCode: this.previousRequestCode,
+          previousErrors: this.previousRequestErrors,
+        } satisfies PersistedConversation);
+      };
+      let json = serialize();
+      while (json.length > MAX_PERSISTED_CHARS && history.length > 1) {
+        history = history.slice(1);
+        json = serialize();
+      }
+      store.setItem(key, json);
+    } catch {
+      // Cota cheia ou armazenamento bloqueado: a conversa segue só em memória.
+    }
+  }
+
+  /**
+  Entradas de outra sessão ou de outra tarefa (próximo participante, tarefa já encerrada).
+  */
+  private pruneStaleConversations(): void {
+    const store = sessionStore();
+    if (!store) {
+      return;
+    }
+    try {
+      const stale: string[] = [];
+      for (let i = 0; i < store.length; i++) {
+        const key = store.key(i);
+        if (!key?.startsWith(CONVERSATION_STORAGE_PREFIX)) {
+          continue;
+        }
+        let entry: Partial<PersistedConversation> | null = null;
+        try {
+          entry = JSON.parse(store.getItem(key) ?? "null") as Partial<PersistedConversation> | null;
+        } catch {
+          entry = null;
+        }
+        if (entry?.session !== this.telemetry.sessionId || (entry.task ?? null) !== this.currentTask()) {
+          stale.push(key);
+        }
+      }
+      for (const key of stale) {
+        store.removeItem(key);
+      }
+    } catch {
+      // Sem armazenamento: nada a limpar.
+    }
   }
 
   private updateThreadPinnedState(): void {
@@ -720,6 +920,15 @@ export class AgentChatComponent implements AfterViewInit {
     return trimmed.length > 0 ? raw : TUTOR_CHAT_PLACEHOLDER_CODE;
   }
 
+  /**
+  Enunciado da tarefa da coleta em curso; `undefined` na IDE livre.
+  */
+  private problemStatementForRequest(): string | undefined {
+    const task = this.studySession.activeTask();
+    const statement = task ? taskMaterial(task.index)?.statement.trim() : undefined;
+    return statement || undefined;
+  }
+
   private compilerLinesPayload(): number[] | undefined {
     const raw = this.compilerErrorLinesResolver?.();
     if (!raw?.length) {
@@ -798,6 +1007,8 @@ export class AgentChatComponent implements AfterViewInit {
       return;
     }
 
+    this.ensureConversationForActiveTab();
+
     if (origin === "student" && this.studySession.noteStudentHelpRequest()) {
       this.telemetry.log({ type: "first_help_request" });
     }
@@ -839,6 +1050,7 @@ export class AgentChatComponent implements AfterViewInit {
       this.pendingDocTopics.clear();
       this.preparingResponse = true;
       this.streamingAssistant = true;
+      this.chatSession.setResponding(true);
       this.streamingText = "";
       this.requestScrollToEnd();
     });
@@ -885,6 +1097,7 @@ export class AgentChatComponent implements AfterViewInit {
           sessionId: this.telemetry.sessionId,
           previousCode,
           previousErrors,
+          problemStatement: this.problemStatementForRequest(),
         },
         {
           onToken: delta => {
@@ -919,6 +1132,7 @@ export class AgentChatComponent implements AfterViewInit {
               const reply = this.appendDocReferences(this.streamingText);
               this.preparingResponse = false;
               this.streamingAssistant = false;
+              this.chatSession.setResponding(false);
               this.streamingText = "";
               settleFirstTokenTimer();
               this.telemetry.log({
@@ -961,6 +1175,7 @@ export class AgentChatComponent implements AfterViewInit {
           this.streamingTokenBuffer = "";
           this.preparingResponse = false;
           this.streamingAssistant = false;
+          this.chatSession.setResponding(false);
           this.streamingText = "";
           if (this.history.length > 0 && this.history.at(-1)?.role === "user") {
             this.history.pop();
@@ -1038,6 +1253,8 @@ export class AgentChatComponent implements AfterViewInit {
     this.previousRequestCode = undefined;
     this.previousRequestErrors = undefined;
     this.chatSession.reset();
+    this.chatSession.setResponding(false);
+    this.persistConversation();
     this.error = null;
     this.streamingAssistant = false;
     this.streamingText = "";

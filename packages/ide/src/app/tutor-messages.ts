@@ -8,7 +8,35 @@ export const TUTOR_WELCOME_MESSAGE =
 export const TUTOR_COMPILE_RUN_PROMPT =
   "Você tentou executar e apareceu um erro. O que você observou no código antes de executar?";
 
-export const TUTOR_SUCCESS_REFLECTION_MESSAGE = "O programa rodou! O que você aprendeu com esse processo de depuração?";
+/**
+ * Sai quando somem os erros de compilação. Compilar não é resolver: o defeito lógico pode
+ * continuar lá, por isso a mensagem manda executar e conferir em vez de declarar sucesso.
+ */
+export const TUTOR_COMPILE_FIXED_MESSAGE =
+  "Agora o código compila sem erros. Execute e confira se o programa faz o que o enunciado pede.";
+
+export const TUTOR_RUNTIME_ERROR_PROMPT = "O programa falhou ao executar. Pode me ajudar a entender o que aconteceu?";
+
+/**
+Teto da mensagem de erro de execução citada na fala proativa.
+*/
+export const TUTOR_RUNTIME_ERROR_DETAIL_MAX_CHARS = 300;
+
+/**
+ * Fala proativa de erro de execução com a mensagem que o console mostrou. Sem ela a ADA não
+ * sabia qual erro houve (o pedido só leva erros de compilação) e respondia sobre o histórico.
+ */
+export function tutorRuntimeErrorPrompt(detail?: string): string {
+  const clean = (detail ?? "").replaceAll(/\s+/g, " ").trim();
+  if (!clean) {
+    return TUTOR_RUNTIME_ERROR_PROMPT;
+  }
+  const cut =
+    clean.length > TUTOR_RUNTIME_ERROR_DETAIL_MAX_CHARS
+      ? `${clean.slice(0, TUTOR_RUNTIME_ERROR_DETAIL_MAX_CHARS - 1)}…`
+      : clean;
+  return `O programa falhou ao executar com o erro: "${cut}". Pode me ajudar a entender o que aconteceu?`;
+}
 
 export const TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE =
   "Boa, agora ele executou sem erros. Que caso de teste você quer usar para conferir se a lógica ficou como você esperava?";
