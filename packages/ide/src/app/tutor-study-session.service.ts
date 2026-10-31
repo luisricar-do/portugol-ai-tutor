@@ -149,6 +149,12 @@ export interface ResumedProgress {
    * Tarefa que estava em curso e voltou a correr, com o cronómetro desde o início original.
    */
   runningTask?: number;
+  /**
+   * Início original (relógio do aluno) e minutos extras dela: o painel do condutor não vê um
+   * `task_start` novo na retomada e precisa deles para o cronómetro.
+   */
+  runningStartedAt?: number;
+  runningExtraMs?: number;
 }
 
 /**
@@ -326,7 +332,12 @@ export class TutorStudySessionService {
     if (running !== undefined && !this.isRunning() && !completed.includes(running.taskIndex)) {
       this.applyRunning(running);
       this.persist();
-      return { completed, runningTask: running.taskIndex };
+      return {
+        completed,
+        runningTask: running.taskIndex,
+        runningStartedAt: running.startedAt,
+        runningExtraMs: running.extraMs,
+      };
     }
     return { completed };
   }

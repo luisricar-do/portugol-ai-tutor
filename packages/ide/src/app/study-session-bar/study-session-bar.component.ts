@@ -269,9 +269,21 @@ export class StudySessionBarComponent {
       this.telemetry.setParticipant(pseudonym, condition);
       this.workspace.adoptParticipant(pseudonym);
       const resumed = this.studySession.resumeParticipant();
+      // Sem `task_start` na retomada (a tarefa não recomeça), o painel monta a tarefa em curso daqui.
+      const running = resumed?.runningTask === undefined ? undefined : this.studySession.activeTask();
       this.telemetry.logAssignment(
         this.studySession.taskOrder().map(task => task.index),
-        resumed && { resumed: true, completed: [...resumed.completed], runningTask: resumed.runningTask },
+        resumed && {
+          resumed: true,
+          completed: [...resumed.completed],
+          runningTask: resumed.runningTask,
+          runningStartedAt:
+            resumed.runningStartedAt === undefined ? undefined : new Date(resumed.runningStartedAt).toISOString(),
+          runningLabel: running?.label,
+          runningTimeboxMs: running?.timeboxMs,
+          runningPractice: running?.practice,
+          runningExtraMs: resumed.runningExtraMs || undefined,
+        },
       );
       if (resumed?.runningTask !== undefined) {
         this.reopenTaskTab(resumed.runningTask);

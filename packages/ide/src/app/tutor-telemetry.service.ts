@@ -279,7 +279,16 @@ export class TutorTelemetryService {
    */
   logAssignment(
     taskOrder: readonly number[],
-    resumed?: { resumed: true; completed: number[]; runningTask?: number },
+    resumed?: {
+      resumed: true;
+      completed: number[];
+      runningTask?: number;
+      runningStartedAt?: string;
+      runningLabel?: string;
+      runningTimeboxMs?: number;
+      runningPractice?: boolean;
+      runningExtraMs?: number;
+    },
   ): void {
     this.log({ type: "study_assigned", taskOrder: [...taskOrder], ...resumed });
     void this.queue?.flush();
