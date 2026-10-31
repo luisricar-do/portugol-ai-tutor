@@ -28,7 +28,7 @@ export interface StudyCheckResult {
    */
   compileError: boolean;
   /**
-   * Primeiro caso que falhou: a barra mostra só a entrada dele, sem a saída esperada.
+   * Primeiro caso que falhou. A barra não o mostra ao estudante: mostra só a contagem de casos.
    */
   failedCase?: StudyTestCase;
 }

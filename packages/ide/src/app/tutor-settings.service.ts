@@ -1,5 +1,6 @@
 import { Service, inject, signal } from "@angular/core";
 
+import { TutorHudLayoutService } from "./tutor-hud-layout.service";
 import { TutorTelemetryService } from "./tutor-telemetry.service";
 
 const STORAGE_KEY_NAME = "pws:tutor:studentName";
@@ -12,6 +13,7 @@ const WELCOME_PREFIX = "pws:tutor:welcomeShown:";
 @Service()
 export class TutorSettingsService {
   private readonly telemetry = inject(TutorTelemetryService);
+  private readonly hudLayout = inject(TutorHudLayoutService);
 
   private readonly nameSignal = signal<string | null>(null);
 
@@ -75,14 +77,16 @@ export class TutorSettingsService {
   }
 
   /**
-   * Volta ao estado de quem nunca abriu o tutor neste navegador: sem nome, nível de dica 1 e
-   * boas-vindas por mostrar. No fim de uma sessão de pesquisa, para o participante seguinte
-   * começar com a mesma configuração que os outros. Não regista `hint_level_changed`: não foi
-   * o estudante que mudou.
+   * Volta ao estado de quem nunca abriu o tutor neste navegador: sem nome, nível de dica 1,
+   * boas-vindas por mostrar e o painel na posição e no tamanho padrão. No fim de uma sessão de
+   * pesquisa, e quando outra matrícula se identifica, para o participante seguinte começar com a
+   * mesma configuração que os outros. Não regista `hint_level_changed`: não foi o estudante que
+   * mudou.
    */
   forgetParticipant(): void {
     this.nameSignal.set(null);
     this.hintLevelSignal.set(1);
+    this.hudLayout.resetHudLayout();
     try {
       const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
       for (const key of keys) {
