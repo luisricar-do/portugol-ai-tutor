@@ -7,7 +7,10 @@ export type PortugolEvent =
   | { type: "stdIn" }
   | { type: "error"; error: Error }
   | { type: "parseError"; errors: IPortugolCodeDiagnostic[] }
-  | { type: "finish"; stopped: boolean; time: number }
+  /**
+  `outputLimit`: o executor interrompeu o programa porque a saída passou do teto.
+  */
+  | { type: "finish"; stopped: boolean; time: number; outputLimit?: boolean }
   | { type: "message"; message: PortugolMessage };
 
 export type PortugolMessage = {

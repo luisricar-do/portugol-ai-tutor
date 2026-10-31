@@ -57,6 +57,13 @@ export class TutorHudLayoutService {
 
   private readonly hudOffsetSignal = signal({ dx: 0, dy: 0 });
 
+  /**
+   * Posição escolhida pelo estudante (arrastando), a única que vai para o `localStorage`. O desvio
+   * de `nudgeHudAwayFromLine` parte sempre dela e não é gravado: senão cada abertura começa de
+   * onde a anterior foi empurrada, e o painel "anda" por cima do código.
+   */
+  private userOffset: TutorHudPixelOffset = { dx: 0, dy: 0 };
+
   private readonly hudSizeSignal = signal<TutorHudPixelSize | null>(null);
 
   private userDraggedAt = 0;
@@ -140,6 +147,7 @@ export class TutorHudLayoutService {
         return;
       }
       const next = TutorHudLayoutService.clampOffset(p.dx, p.dy);
+      this.userOffset = next;
       this.hudOffsetSignal.set(next);
       if (next.dx !== p.dx || next.dy !== p.dy) {
         try {
@@ -191,6 +199,7 @@ export class TutorHudLayoutService {
   }
 
   private clearStoredOffset(): void {
+    this.userOffset = { dx: 0, dy: 0 };
     this.hudOffsetSignal.set({ dx: 0, dy: 0 });
     try {
       localStorage.removeItem(OFFSET_STORAGE_KEY);
@@ -223,6 +232,7 @@ export class TutorHudLayoutService {
 
   setHudOffset(dx: number, dy: number): void {
     const next = TutorHudLayoutService.clampOffset(dx, dy);
+    this.userOffset = next;
     this.hudOffsetSignal.set(next);
     try {
       localStorage.setItem(OFFSET_STORAGE_KEY, JSON.stringify(next));
@@ -255,7 +265,9 @@ export class TutorHudLayoutService {
   }
 
   /**
-   *  * Desloca o HUD para não cobrir a faixa vertical da linha no editor (viewport).
+   * Desloca o HUD para não cobrir a faixa vertical da linha no editor (viewport). O desvio é
+   * calculado a partir da posição do estudante (`userOffset`) e só vale enquanto a página está
+   * aberta; sem sobreposição, o painel volta para essa posição.
    */
   nudgeHudAwayFromLine(lineTop: number, lineHeight: number): void {
     if (typeof window === "undefined" || this.wasUserDraggedRecently()) {
@@ -265,26 +277,23 @@ export class TutorHudLayoutService {
     if (!panel) {
       return;
     }
+    const base = this.userOffset;
+    // Onde o painel estaria na posição do estudante, sem o desvio de agora.
+    const panelTop = panel.top - (this.hudOffsetSignal().dy - base.dy);
     const lineBottom = lineTop + lineHeight;
-    const panelTop = panel.top;
-    const panelBottom = panel.top + panel.height;
+    const panelBottom = panelTop + panel.height;
     const margin = 12;
     const lineBandTop = lineTop - margin;
     const lineBandBottom = lineBottom + margin;
     const overlaps = panelTop < lineBandBottom && panelBottom > lineBandTop;
     if (!overlaps) {
+      this.hudOffsetSignal.set(base);
       return;
     }
-    const o = this.hudOffsetSignal();
     const moveUp = panelBottom - lineBandTop + margin;
     const moveDown = lineBandBottom - panelTop + margin;
-    let dy = o.dy;
-    if (lineTop > window.innerHeight * 0.45) {
-      dy -= moveUp;
-    } else {
-      dy += moveDown;
-    }
-    this.setHudOffset(o.dx, dy);
+    const dy = lineTop > window.innerHeight * 0.45 ? base.dy - moveUp : base.dy + moveDown;
+    this.hudOffsetSignal.set(TutorHudLayoutService.clampOffset(base.dx, dy));
   }
 
   setHudSize(width: number, height: number): void {

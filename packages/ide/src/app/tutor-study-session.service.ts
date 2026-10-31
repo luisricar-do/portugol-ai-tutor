@@ -26,6 +26,22 @@ const LABEL_KEY = "pws:tutor:study:label";
  * Cenários já encerrados nesta sessão, para a barra propor o seguinte da ordem sorteada.
  */
 const COMPLETED_KEY = "pws:tutor:study:completed";
+/**
+ * Progresso de cada participante neste navegador (`localStorage`), chaveado pelo pseudônimo —
+ * nunca pela matrícula. O `sessionStorage` morre com a aba: sem isto, quem fecha a aba sem
+ * «Encerrar sessão» (ou perde a aba numa queda) e volta com a mesma matrícula recomeçaria do
+ * treino e refaria exercícios. «Encerrar sessão» não o apaga, de propósito: quem encerrou e se
+ * identifica de novo já fez aqueles exercícios e não os repete.
+ */
+const PROGRESS_PREFIX = "pws:tutor:study:progress:";
+/**
+ * Progresso mais velho que isto é de outra coleta: ignorado e apagado.
+ */
+const PROGRESS_MAX_AGE_MS = 7 * 24 * 60 * 60_000;
+/**
+ * Último participante identificado neste navegador, para saber quando a pessoa mudou.
+ */
+const LAST_PARTICIPANT_KEY = "pws:tutor:study:lastParticipant";
 const TICK_INTERVAL_MS = 1000;
 
 /**
@@ -116,6 +132,29 @@ interface PersistedState {
    * Tempo dado pelo condutor além do *timebox* do protocolo.
    */
   extraMs: number;
+}
+
+interface ParticipantProgress {
+  completed: number[];
+  running?: PersistedState;
+  updatedAt: number;
+}
+
+/**
+ * O que a identificação encontrou de uma sessão anterior da mesma matrícula neste navegador.
+ */
+export interface ResumedProgress {
+  completed: readonly number[];
+  /**
+   * Tarefa que estava em curso e voltou a correr, com o cronómetro desde o início original.
+   */
+  runningTask?: number;
+  /**
+   * Início original (relógio do aluno) e minutos extras dela: o painel do condutor não vê um
+   * `task_start` novo na retomada e precisa deles para o cronómetro.
+   */
+  runningStartedAt?: number;
+  runningExtraMs?: number;
 }
 
 /**
@@ -275,8 +314,52 @@ export class TutorStudySessionService {
   }
 
   /**
+   * Retoma o progresso que a mesma matrícula deixou neste navegador (ver `PROGRESS_PREFIX`):
+   * as tarefas encerradas não voltam, e a que estava em curso continua com o `startedAt`
+   * original — se o tempo dela já acabou, o próximo tique a encerra por `timeout`. Chamar depois
+   * de `setParticipant`. Sem progresso guardado, devolve `undefined`.
+   */
+  resumeParticipant(): ResumedProgress | undefined {
+    const saved = this.readProgress();
+    if (saved === undefined) {
+      return undefined;
+    }
+    const completed = union(this.completedSignal(), saved.completed);
+    this.completedSignal.set(completed);
+    this.writeText(COMPLETED_KEY, JSON.stringify(completed));
+
+    const running = saved.running;
+    if (running !== undefined && !this.isRunning() && !completed.includes(running.taskIndex)) {
+      this.applyRunning(running);
+      this.persist();
+      return {
+        completed,
+        runningTask: running.taskIndex,
+        runningStartedAt: running.startedAt,
+        runningExtraMs: running.extraMs,
+      };
+    }
+    return { completed };
+  }
+
+  /**
+   * Marca `participantId` como a pessoa atual deste navegador. Devolve `true` quando a anterior
+   * era outra: é a deixa para apagar o que ela deixou nas preferências do tutor.
+   */
+  claimBrowser(participantId: string): boolean {
+    let previous: string | null = null;
+    try {
+      previous = localStorage.getItem(LAST_PARTICIPANT_KEY);
+      localStorage.setItem(LAST_PARTICIPANT_KEY, participantId);
+    } catch {
+      // modo privado
+    }
+    return previous !== participantId;
+  }
+
+  /**
    * Apaga o estado da sessão desta aba (participante seguinte no mesmo computador). Quem chama
-   * recarrega a página.
+   * recarrega a página. O progresso por participante fica (ver `PROGRESS_PREFIX`).
    */
   clearSession(): void {
     this.stopTick();
@@ -337,6 +420,7 @@ export class TutorStudySessionService {
     this.clearPersisted();
     this.completedSignal.update(done => (done.includes(task.index) ? done : [...done, task.index]));
     this.writeText(COMPLETED_KEY, JSON.stringify(this.completedSignal()));
+    this.writeProgress(undefined);
 
     this.lifecycleSubject.next({ kind: "ended", task, startedAt, elapsedMs, outcome, studentTurns, endedBy, extraMs });
   }
@@ -436,39 +520,81 @@ export class TutorStudySessionService {
     if (!raw) {
       return;
     }
+    if (!this.applyRunning(raw)) {
+      this.clearPersisted();
+    }
+  }
+
+  private applyRunning(raw: PersistedState): boolean {
     const task = findTask(raw.taskIndex);
     if (task === undefined) {
-      this.clearPersisted();
-      return;
+      return false;
     }
     this.taskIndexSignal.set(task.index);
     this.startedAtSignal.set(raw.startedAt);
     this.studentTurnsSignal.set(raw.studentTurns);
     this.helpRequestedSignal.set(raw.helpRequested);
     this.extraMsSignal.set(raw.extraMs);
+    this.timeoutEmitted = false;
     this.nowSignal.set(Date.now());
     this.startTick();
+    return true;
   }
 
   private readRaw(): PersistedState | undefined {
     try {
-      const raw = sessionStorage.getItem(STATE_KEY);
-      if (!raw) {
-        return undefined;
-      }
-      const parsed = JSON.parse(raw) as Partial<PersistedState>;
-      if (typeof parsed.taskIndex !== "number" || typeof parsed.startedAt !== "number") {
+      return parseRunning(JSON.parse(sessionStorage.getItem(STATE_KEY) ?? "null"));
+    } catch {
+      return undefined;
+    }
+  }
+
+  private progressKey(): string | undefined {
+    const participantId = this.participantIdSignal();
+    return participantId === undefined ? undefined : PROGRESS_PREFIX + participantId;
+  }
+
+  private readProgress(): ParticipantProgress | undefined {
+    const key = this.progressKey();
+    if (key === undefined) {
+      return undefined;
+    }
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) ?? "null") as Partial<ParticipantProgress> | null;
+      if (!parsed || typeof parsed.updatedAt !== "number" || Date.now() - parsed.updatedAt > PROGRESS_MAX_AGE_MS) {
+        localStorage.removeItem(key);
         return undefined;
       }
       return {
-        taskIndex: parsed.taskIndex,
-        startedAt: parsed.startedAt,
-        studentTurns: typeof parsed.studentTurns === "number" ? parsed.studentTurns : 0,
-        helpRequested: parsed.helpRequested === true,
-        extraMs: typeof parsed.extraMs === "number" ? parsed.extraMs : 0,
+        completed: Array.isArray(parsed.completed)
+          ? parsed.completed.filter((value): value is number => typeof value === "number")
+          : [],
+        running: parseRunning(parsed.running),
+        updatedAt: parsed.updatedAt,
       };
     } catch {
       return undefined;
+    }
+  }
+
+  /**
+   * Grava o progresso do participante atual; `running` ausente apaga a tarefa em curso. As
+   * encerradas só se somam: outra aba da mesma matrícula não desfaz o que esta já registrou.
+   */
+  private writeProgress(running: PersistedState | undefined): void {
+    const key = this.progressKey();
+    if (key === undefined) {
+      return;
+    }
+    const progress: ParticipantProgress = {
+      completed: union(this.readProgress()?.completed ?? [], this.completedSignal()),
+      running,
+      updatedAt: Date.now(),
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify(progress));
+    } catch {
+      // quota esgotada ou modo privado
     }
   }
 
@@ -478,20 +604,19 @@ export class TutorStudySessionService {
     if (taskIndex === undefined || startedAt === undefined) {
       return;
     }
+    const state: PersistedState = {
+      taskIndex,
+      startedAt,
+      studentTurns: this.studentTurnsSignal(),
+      helpRequested: this.helpRequestedSignal(),
+      extraMs: this.extraMsSignal(),
+    };
     try {
-      sessionStorage.setItem(
-        STATE_KEY,
-        JSON.stringify({
-          taskIndex,
-          startedAt,
-          studentTurns: this.studentTurnsSignal(),
-          helpRequested: this.helpRequestedSignal(),
-          extraMs: this.extraMsSignal(),
-        } satisfies PersistedState),
-      );
+      sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
     } catch {
       // quota esgotada ou modo privado
     }
+    this.writeProgress(state);
   }
 
   private readFlag(key: string): boolean {
@@ -534,4 +659,32 @@ export class TutorStudySessionService {
       // ignora
     }
   }
+}
+
+function parseRunning(value: unknown): PersistedState | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const parsed = value as Partial<PersistedState>;
+  if (typeof parsed.taskIndex !== "number" || typeof parsed.startedAt !== "number") {
+    return undefined;
+  }
+  return {
+    taskIndex: parsed.taskIndex,
+    startedAt: parsed.startedAt,
+    studentTurns: typeof parsed.studentTurns === "number" ? parsed.studentTurns : 0,
+    helpRequested: parsed.helpRequested === true,
+    extraMs: typeof parsed.extraMs === "number" ? parsed.extraMs : 0,
+  };
+}
+
+/**
+ * Tarefas encerradas de duas fontes, sem repetir e na ordem em que apareceram.
+ */
+function union(first: readonly number[], second: readonly number[]): number[] {
+  const all = new Set(first);
+  for (const index of second) {
+    all.add(index);
+  }
+  return [...all];
 }

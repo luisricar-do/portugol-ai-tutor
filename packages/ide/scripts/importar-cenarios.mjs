@@ -6,10 +6,9 @@
  * mão abriria espaço para divergência silenciosa; por isso o ficheiro gerado leva o id do item e
  * o SHA-256 do código, que seguem no evento `task_start`.
  *
- * O enunciado não entra no código. Ele aparece na barra da sessão: o contrato da API diz que em
- * uso real a IDE não envia enunciado ao tutor (Apêndice do contrato), e um comentário no
- * programa o faria chegar pelo `code`, deslocando as linhas em relação ao `s0` e alimentando a
- * leitura textual do movimento. O texto é o do apêndice de enunciados, com acentos; o `problem`
+ * O enunciado não entra no código. Ele aparece na barra da sessão e chega ao tutor em campo
+ * próprio (`problemStatement`), como na bancada; um comentário no programa o faria chegar pelo
+ * `code`, deslocando as linhas em relação ao `s0` e alimentando a leitura textual do movimento. O texto é o do apêndice de enunciados, com acentos; o `problem`
  * do banco é a mesma redação sem eles.
  *
  * Os `unit_tests` do item vêm junto: o **Concluí** só encerra a tarefa quando o programa passa
@@ -117,7 +116,7 @@ export interface StudyTaskMaterial {
    */
   readonly bankItem: string;
   /**
-   * Enunciado do apêndice, mostrado na barra; nunca enviado ao tutor.
+   * Enunciado do apêndice, mostrado na barra e enviado ao tutor como problemStatement.
    */
   readonly statement: string;
   /**

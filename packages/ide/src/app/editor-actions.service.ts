@@ -35,9 +35,12 @@ export class EditorActionsService {
   private decorationIds: string[] = [];
 
   /**
-   *  *  * Comentários inline do tutor por linha (substitui o anterior na mesma linha).
+   * Ids das decorações de comentário inline do tutor. A linha de cada uma sai do Monaco
+   * (`getDecorationRange`), que a acompanha quando o aluno insere ou apaga linhas acima.
    */
-  private inlineCommentByLine = new Map<number, string>();
+  private inlineCommentIds = new Set<string>();
+
+  private contentChangeListener: monaco.IDisposable | null = null;
 
   /**
    *  *  * Glifos ❓ de erro de compilação (independentes das decorações pedagógicas do tutor).
@@ -60,7 +63,50 @@ export class EditorActionsService {
       this.clearHighlightsInternal();
       this.clearCompilerIssueGlyphsInternal();
     }
+    if (editor !== this.editor) {
+      this.contentChangeListener?.dispose();
+      this.contentChangeListener =
+        editor?.onDidChangeModelContent(event => {
+          this.onCodeEdited(event);
+        }) ?? null;
+    }
     this.editor = editor;
+  }
+
+  /**
+   * O aluno mexeu numa linha com comentário da ADA: o comentário sai. Ele fala do código que
+   * estava ali; depois da correção ficava "dentro" do código como se ainda valesse (teste real
+   * de 31/10/2026, T5). Destaques de linha ficam: apontam onde olhar, não afirmam nada do texto.
+   */
+  private onCodeEdited(event: monaco.editor.IModelContentChangedEvent): void {
+    const ed = this.editor;
+    const model = ed?.getModel();
+    if (!ed || !model || this.inlineCommentIds.size === 0) {
+      return;
+    }
+    const stale: string[] = [];
+    for (const id of this.inlineCommentIds) {
+      const range = model.getDecorationRange(id);
+      const touched =
+        event.isFlush ||
+        range === null ||
+        event.changes.some(change => {
+          const first = change.range.startLineNumber;
+          const last = first + change.text.split("\n").length - 1;
+          return range.startLineNumber >= first && range.startLineNumber <= last;
+        });
+      if (touched) {
+        stale.push(id);
+      }
+    }
+    if (stale.length === 0) {
+      return;
+    }
+    ed.deltaDecorations(stale, []);
+    for (const id of stale) {
+      this.inlineCommentIds.delete(id);
+    }
+    this.decorationIds = this.decorationIds.filter(id => !stale.includes(id));
   }
 
   /**
@@ -320,7 +366,7 @@ export class EditorActionsService {
     const ed = this.editor;
     const ids = [...this.decorationIds];
     this.decorationIds = [];
-    this.inlineCommentByLine.clear();
+    this.inlineCommentIds.clear();
     if (!ed || ids.length === 0) {
       return;
     }
@@ -606,11 +652,14 @@ export class EditorActionsService {
       return;
     }
 
-    const previousId = this.inlineCommentByLine.get(ln);
-    if (previousId) {
-      ed.deltaDecorations([previousId], []);
-      this.decorationIds = this.decorationIds.filter(id => id !== previousId);
-      this.inlineCommentByLine.delete(ln);
+    // Um comentário por linha: o novo substitui o que já estiver nela.
+    const previous = [...this.inlineCommentIds].filter(id => model.getDecorationRange(id)?.startLineNumber === ln);
+    if (previous.length > 0) {
+      ed.deltaDecorations(previous, []);
+      this.decorationIds = this.decorationIds.filter(id => !previous.includes(id));
+      for (const id of previous) {
+        this.inlineCommentIds.delete(id);
+      }
     }
 
     const ids = ed.deltaDecorations(
@@ -631,7 +680,7 @@ export class EditorActionsService {
     const id = ids[0];
     if (id) {
       this.decorationIds.push(id);
-      this.inlineCommentByLine.set(ln, id);
+      this.inlineCommentIds.add(id);
     }
   }
 

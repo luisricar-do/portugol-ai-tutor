@@ -17,6 +17,7 @@ import { environment } from "../../environments/environment";
 import { StudyCheckService } from "../study-check.service";
 import { taskMaterial } from "../study-material";
 import { StudyRemoteControlService } from "../study-remote-control.service";
+import { TutorSettingsService } from "../tutor-settings.service";
 import { TutorTelemetryService } from "../tutor-telemetry.service";
 import { TutorStudySessionService } from "../tutor-study-session.service";
 import type { StudyTask, TaskEndedBy, TaskOutcome } from "../tutor-study-session.service";
@@ -37,6 +38,8 @@ const TASKS_PER_PARTICIPANT = 3;
  * Aba aberta por **Iniciar**, para fechá-la no fim da tarefa mesmo depois de recarregar.
  */
 const TASK_TAB_KEY = "pws:tutor:study:taskTab";
+
+const MATRICULA_FORMAT_HINT = "Confira a matrícula: só números e letras, de 4 a 20 caracteres.";
 
 /**
  * O que o diálogo da tarefa mostra: o próximo exercício (entre tarefas), o enunciado de novo
@@ -69,6 +72,7 @@ export class StudySessionBarComponent {
   private readonly workspace = inject(WorkspaceService);
   private readonly checker = inject(StudyCheckService);
   private readonly remoteControl = inject(StudyRemoteControlService);
+  private readonly tutorSettings = inject(TutorSettingsService);
   private readonly lifetime = inject(DestroyRef);
 
   readonly tasksPerParticipant = TASKS_PER_PARTICIPANT;
@@ -235,22 +239,55 @@ export class StudySessionBarComponent {
     });
   }
 
+  /**
+   * Identificação pelo formulário. Pessoa diferente da anterior neste navegador: as preferências
+   * do tutor (nome, nível de dica, boas-vindas, posição do painel) voltam ao padrão, mesmo que a
+   * anterior tenha saído sem «Encerrar sessão». Mesma matrícula de antes: retoma o progresso e o
+   * código que ela deixou, em vez de recomeçar do treino.
+   */
   async assignParticipant(): Promise<void> {
     if (this.assigning()) {
+      return;
+    }
+    if (!this.draftMatricula().trim()) {
+      this.assignError.set(MATRICULA_FORMAT_HINT);
       return;
     }
     this.assigning.set(true);
     try {
       const pseudonym = await pseudonymFromMatricula(this.draftMatricula());
       if (pseudonym === undefined) {
-        this.assignError.set("Confira a matrícula: só números e letras, de 4 a 20 caracteres.");
+        this.assignError.set(MATRICULA_FORMAT_HINT);
         return;
       }
       const condition = this.condition();
+      if (this.studySession.claimBrowser(pseudonym)) {
+        this.tutorSettings.forgetParticipant();
+      }
       this.studySession.setParticipantLabel(maskMatricula(this.draftMatricula()));
       this.studySession.setParticipant(pseudonym, condition);
       this.telemetry.setParticipant(pseudonym, condition);
-      this.telemetry.logAssignment(this.studySession.taskOrder().map(task => task.index));
+      this.workspace.adoptParticipant(pseudonym);
+      const resumed = this.studySession.resumeParticipant();
+      // Sem `task_start` na retomada (a tarefa não recomeça), o painel monta a tarefa em curso daqui.
+      const running = resumed?.runningTask === undefined ? undefined : this.studySession.activeTask();
+      this.telemetry.logAssignment(
+        this.studySession.taskOrder().map(task => task.index),
+        resumed && {
+          resumed: true,
+          completed: [...resumed.completed],
+          runningTask: resumed.runningTask,
+          runningStartedAt:
+            resumed.runningStartedAt === undefined ? undefined : new Date(resumed.runningStartedAt).toISOString(),
+          runningLabel: running?.label,
+          runningTimeboxMs: running?.timeboxMs,
+          runningPractice: running?.practice,
+          runningExtraMs: resumed.runningExtraMs || undefined,
+        },
+      );
+      if (resumed?.runningTask !== undefined) {
+        this.reopenTaskTab(resumed.runningTask);
+      }
       this.draftMatricula.set("");
       this.assignError.set(undefined);
       this.closeGate();
@@ -336,6 +373,24 @@ export class StudySessionBarComponent {
   }
 
   /**
+   * Tarefa retomada noutra aba do navegador: a aba dela vem com a área de trabalho do participante,
+   * achada pelo título; se a área não voltou (a janela anterior ainda não tinha sido liberada),
+   * abre o programa defeituoso de novo, como no **Iniciar**.
+   */
+  private reopenTaskTab(index: number): void {
+    const task = this.activeTask();
+    const material = taskMaterial(index);
+    if (material === undefined || task?.index !== index) {
+      return;
+    }
+    const existing = this.workspace.tabs().find(tab => tab.type === "editor" && tab.title === task.label);
+    const tabId = existing?.id ?? this.workspace.addTab(task.label, material.code);
+    this.workspace.setActiveTab(tabId);
+    this.workspace.requestFocus(tabId);
+    this.writeTaskTab(tabId);
+  }
+
+  /**
    * **Concluí**: roda os casos de teste no navegador. Só passa à seguinte quando todos passam;
    * senão diz a entrada do primeiro caso que falhou e o estudante continua.
    */
@@ -362,9 +417,11 @@ export class StudySessionBarComponent {
         this.checkFeedback.set(
           "Ainda não: o programa tem erro de compilação. Veja a lista de Problemas abaixo do código.",
         );
-      } else if (result.failedCase) {
+      } else {
+        // Só a contagem: a entrada do caso que falhou já entregava metade da depuração sem
+        // passar pelo tutor (teste real de 31/10).
         this.checkFeedback.set(
-          `Ainda não: com a entrada ${this.formatInput(result.failedCase.input)} o programa não dá o resultado esperado. Continue corrigindo.`,
+          `Ainda não: o programa acerta ${result.casesOk} de ${result.casesTotal} casos de teste. Continue corrigindo.`,
         );
       }
     } catch (error) {

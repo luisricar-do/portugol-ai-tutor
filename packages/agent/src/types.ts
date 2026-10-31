@@ -75,6 +75,12 @@ export interface TutorHelpRequest {
    *  * Erros do compilador no turno anterior, par de `previousCode`.
    */
   previousErrors?: string[];
+  /**
+   * Enunciado da tarefa da coleta (treino incluído). O serviço o põe na conversa como contexto,
+   * não como fala do aluno; sem ele a ADA inferia a tarefa do código (teste real de 31/10/2026,
+   * T5: inverteu "3 contra 4 números"). Fora da coleta não vai.
+   */
+  problemStatement?: string;
 }
 
 export interface TutorDiagnosis {

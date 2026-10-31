@@ -22,6 +22,11 @@ export interface StoredWorkspaceMeta {
   updatedAt: number;
   activeTabId: string | null;
   tabs: StoredTab[];
+  /**
+   * Pseudônimo do participante dono da área, na sessão de pesquisa (ver
+   * `WorkspaceService.adoptParticipant`). Ausente fora dela e em áreas antigas.
+   */
+  participant?: string;
 }
 
 /**

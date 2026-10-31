@@ -8,8 +8,6 @@ import { TUTOR_COMPILE_RUN_PROMPT } from "./tutor-messages";
 import { TutorOverlayService } from "./tutor-overlay.service";
 import { TutorTelemetryService } from "./tutor-telemetry.service";
 
-const COOLDOWN_MS = 60_000;
-
 /**
  *  *  * Reação a erros de compilação após o aluno executar o programa (não a cada keystroke).
  */
@@ -21,9 +19,6 @@ export class TutorCompileTriggerService {
   private readonly chatSession = inject(TutorChatSessionService);
   private readonly telemetry = inject(TutorTelemetryService);
 
-  private lastErrorHash = "";
-  private lastTriggeredAt = 0;
-
   onRunWithCompileErrors(errors: IPortugolCodeDiagnostic[], isActiveTab: boolean): void {
     if (!isActiveTab || errors.length === 0) {
       return;
@@ -34,14 +29,11 @@ export class TutorCompileTriggerService {
       // eslint-disable-next-line unicorn/no-array-sort -- toSorted exige lib ES2023; o map já devolve cópia.
       .sort((a, b) => a.localeCompare(b))
       .join("|");
-    const now = Date.now();
-    if (hash === this.lastErrorHash && now - this.lastTriggeredAt < COOLDOWN_MS) {
+    if (!this.chatSession.claimProactiveTrigger("compile", hash)) {
       return;
     }
-    this.lastErrorHash = hash;
-    this.lastTriggeredAt = now;
 
-    if (!this.chatSession.canAcceptProactiveCompilePrompt()) {
+    if (!this.chatSession.canAcceptProactivePrompt()) {
       this.telemetry.log({ type: "compile_trigger_skipped_active_chat" });
       return;
     }

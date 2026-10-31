@@ -1,4 +1,5 @@
 import { computed, DestroyRef, effect, inject, NgZone, Service, signal, untracked } from "@angular/core";
+import { environment } from "../environments/environment";
 import { settings } from "../settings";
 import { SettingsService } from "./settings.service";
 import { WorkspaceStorageService } from "./workspace-storage.service";
@@ -47,6 +48,21 @@ export const MAX_AGE_DAYS = 30;
 const MAX_AGE = MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 
 /**
+ * Sessão de pesquisa: a build de coleta, ou a IDE aberta com `?study=1` / `?pid=`.
+ */
+function isStudyMode() {
+  if (environment.studyGate) {
+    return true;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("study") === "1" || params.has("pid");
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Dono do estado do IDE: as abas abertas, qual está em foco e o que cada uma
  * contém. Os componentes leem e escrevem só por aqui — nenhum deles guarda
  * código que o resto da aplicação não enxergue.
@@ -80,6 +96,18 @@ export class WorkspaceService {
    * Ligado por `forgetAll`: daí até a página recarregar, esta janela não grava nada.
    */
   private forgotten = false;
+
+  /**
+   * Na coleta, várias pessoas usam o mesmo navegador uma depois da outra. Uma janela nova não
+   * adota a área de quem saiu sem «Encerrar sessão» nem lista áreas anteriores para recuperar:
+   * o código só volta quando a mesma matrícula se identifica de novo (`adoptParticipant`).
+   */
+  private readonly studyMode = isStudyMode();
+
+  /**
+   * Dono desta área na sessão de pesquisa (pseudônimo), gravado com ela.
+   */
+  private participant: string | undefined;
 
   readonly tabs = signal<Tab[]>([]);
   readonly activeTabId = signal<string | null>(null);
@@ -262,10 +290,56 @@ export class WorkspaceService {
    */
   forgetAll() {
     this.forgotten = true;
+    this.participant = undefined;
     clearTimeout(this.persistTimer);
     this.storage.deleteWorkspaces(this.storage.listWorkspaceIds());
     this.storage.clearSessionWorkspaceId();
     this.recoverable.set([]);
+  }
+
+  /**
+   * Identificação na sessão de pesquisa: a área desta janela passa a ser de `participant`. Se
+   * ela ainda não tem código, retoma a área mais recente que o mesmo participante deixou ao
+   * fechar a janela sem encerrar; a de outra pessoa nunca. Devolve `true` quando retomou.
+   */
+  adoptParticipant(participant: string) {
+    const previousOwner = this.participant;
+    this.participant = participant;
+
+    const hasCode = untracked(this.tabs).some(tab => tab.type === "editor" && isMeaningfulCode(tab.contents));
+
+    if (previousOwner !== undefined && previousOwner !== participant && hasCode) {
+      // Código de outra pessoa nesta janela: começa limpo numa área nova.
+      this.tabs.set([]);
+      this.activeTabId.set(null);
+      this.fork();
+      return false;
+    }
+
+    if (hasCode || !this.studyMode) {
+      this.schedulePersist();
+      return false;
+    }
+
+    const previous = this.collectOrphans().find(
+      workspace => this.storage.readMeta(workspace.id)?.participant === participant,
+    );
+
+    if (!previous) {
+      this.schedulePersist();
+      return false;
+    }
+
+    const emptyWorkspaceId = this.workspaceId;
+    this.persistedContents.clear();
+
+    if (!this.adopt(previous.id)) {
+      this.schedulePersist();
+      return false;
+    }
+
+    this.storage.deleteWorkspace(emptyWorkspaceId);
+    return true;
   }
 
   discard(workspaceId: string) {
@@ -285,7 +359,13 @@ export class WorkspaceService {
     // Recarregar a página mantém o `sessionStorage`, então esta janela recupera
     // exatamente a área que já era dela.
     if (sessionWorkspaceId && this.adopt(sessionWorkspaceId)) {
-      this.recoverable.set(orphans.filter(workspace => workspace.id !== sessionWorkspaceId));
+      this.recoverable.set(this.studyMode ? [] : orphans.filter(workspace => workspace.id !== sessionWorkspaceId));
+      return;
+    }
+
+    if (this.studyMode) {
+      this.recoverable.set([]);
+      this.claim();
       return;
     }
 
@@ -372,6 +452,7 @@ export class WorkspaceService {
     });
 
     this.workspaceId = workspaceId;
+    this.participant = meta.participant;
     this.tabs.set(tabs);
     this.activeTabId.set(tabs.some(tab => tab.id === meta.activeTabId) ? meta.activeTabId : null);
 
@@ -507,6 +588,7 @@ export class WorkspaceService {
 
   private serializeMeta(tabs: Tab[], activeTabId: string | null) {
     return JSON.stringify({
+      participant: this.participant,
       activeTabId,
       tabs: tabs.map(({ id, title, type }) => ({ id, title, type })),
     });
@@ -559,6 +641,7 @@ export class WorkspaceService {
         updatedAt: Date.now(),
         activeTabId,
         tabs: tabs.map(({ id, title, type }) => ({ id, title, type })),
+        participant: this.participant,
       };
 
       this.storage.writeMeta(payload);

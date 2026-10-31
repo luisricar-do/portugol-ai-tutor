@@ -287,6 +287,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   };
 
   stdOutEditor?: monaco.editor.IStandaloneCodeEditor;
+  private stdOutScrollPending = false;
 
   private readonly split = viewChild.required("split", { read: ElementRef<HTMLElement> });
 
@@ -689,7 +690,8 @@ export class TabEditorComponent implements OnInit, OnDestroy {
             // pelo que a pessoa digita)
             const outcome = event.stopped ? "parado" : this.runFailed ? "erro" : "ok";
 
-            this.logRunEnd("finished");
+            // O teto de saída do executor parou um programa que não terminava (laço infinito).
+            this.logRunEnd(event.outputLimit ? "output_limit" : "finished");
 
             // Depois de um erro de execução o runner também termina com `finish`: a tentativa
             // já foi registrada como falha no caso "error".
@@ -716,7 +718,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
             this.runFailed = true;
             this.gaService.event("execution_error", "Execução", this.errorLabel(event.error.message));
             this.logRunEnd("runtime_error");
-            this.tutorInterceptor.onExecutionFailed(this.isActive());
+            this.tutorInterceptor.onExecutionFailed(this.isActive(), event.error.message);
             this.tutorChatSession.recordExecutionFinished(true, this.isActive());
             break;
           }
@@ -1379,7 +1381,9 @@ export class TabEditorComponent implements OnInit, OnDestroy {
   }
 
   stdOutEditorCursorEnd() {
-    if (!this.stdOutEditor) {
+    // Um `escreva` em laço chama isto milhares de vezes por segundo: uma rolagem pendente basta,
+    // e ela lê o tamanho da saída quando roda, não quando foi pedida.
+    if (!this.stdOutEditor || this.stdOutScrollPending) {
       return;
     }
 
@@ -1387,8 +1391,16 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     const model = editor.getModel();
 
     if (model) {
+      this.stdOutScrollPending = true;
+
       // TODO: Find a better way to do this
       setTimeout(() => {
+        this.stdOutScrollPending = false;
+
+        if (model.isDisposed()) {
+          return;
+        }
+
         editor.setPosition({
           lineNumber: model.getLineCount(),
           column: model.getLineMaxColumn(model.getLineCount()),
@@ -1599,7 +1611,7 @@ export class TabEditorComponent implements OnInit, OnDestroy {
     });
   }
 
-  private logRunEnd(outcome: "finished" | "runtime_error" | "compile_error" | "stopped"): void {
+  private logRunEnd(outcome: "finished" | "runtime_error" | "compile_error" | "stopped" | "output_limit"): void {
     if (!this.isActive() || this.runStartedAt === undefined) {
       return;
     }

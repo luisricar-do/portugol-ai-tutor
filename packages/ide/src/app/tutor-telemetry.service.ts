@@ -274,10 +274,23 @@ export class TutorTelemetryService {
 
   /**
    * Registo da atribuição feita no formulário, com a ordem sorteada: a análise não precisa de
-   * a recalcular para saber o que o estudante viu.
+   * a recalcular para saber o que o estudante viu. `resumed` diz que a mesma matrícula voltou
+   * neste navegador (aba nova) e o que já tinha encerrado: a sessão nova continua a anterior.
    */
-  logAssignment(taskOrder: readonly number[]): void {
-    this.log({ type: "study_assigned", taskOrder: [...taskOrder] });
+  logAssignment(
+    taskOrder: readonly number[],
+    resumed?: {
+      resumed: true;
+      completed: number[];
+      runningTask?: number;
+      runningStartedAt?: string;
+      runningLabel?: string;
+      runningTimeboxMs?: number;
+      runningPractice?: boolean;
+      runningExtraMs?: number;
+    },
+  ): void {
+    this.log({ type: "study_assigned", taskOrder: [...taskOrder], ...resumed });
     void this.queue?.flush();
   }
 

@@ -4,6 +4,49 @@ import { Subject, Subscription } from "rxjs";
 import { IPortugolRunner, PortugolEvent, PortugolMessage } from "./runners/IPortugolRunner.js";
 import type { PortugolTranspiledCode } from "./transpile.js";
 
+/**
+ * Teto da saída de uma execução. Um laço infinito com `escreva` manda milhares de pedaços por
+ * segundo, e sem teto a string e o editor da saída crescem até a aba do navegador travar — o
+ * enunciado da tabuada da coleta pede justamente que o aluno execute um programa assim. 2000
+ * linhas cobrem com folga os programas de aula (a tabuada inteira tem 10) e ainda deixam ver o
+ * padrão que se repete; os caracteres pegam a linha que nunca quebra (`escreva(i)` sem `\n`).
+ */
+export const MAX_OUTPUT_LINES = 2000;
+export const MAX_OUTPUT_CHARS = 100_000;
+
+/**
+Conta a saída de uma execução contra o teto: `consume` devolve `false` quando ele estoura.
+*/
+export class OutputBudget {
+  lines = 0;
+  chars = 0;
+
+  constructor(
+    readonly maxLines = MAX_OUTPUT_LINES,
+    readonly maxChars = MAX_OUTPUT_CHARS,
+  ) {}
+
+  consume(chunk: string): boolean {
+    this.chars += chunk.length;
+
+    for (let i = chunk.indexOf("\n"); i !== -1; i = chunk.indexOf("\n", i + 1)) {
+      this.lines++;
+    }
+
+    return this.lines <= this.maxLines && this.chars <= this.maxChars;
+  }
+
+  /**
+  Aviso no console: diz que é o programa que não termina, sem apontar a causa.
+  */
+  message(): string {
+    const excess =
+      this.lines > this.maxLines ? `mais de ${this.maxLines} linhas` : `mais de ${this.maxChars} caracteres`;
+
+    return `[Execução interrompida: o programa já escreveu ${excess} e parece não terminar.]`;
+  }
+}
+
 export class PortugolExecutor {
   private _runner?: IPortugolRunner;
 
@@ -56,6 +99,8 @@ export class PortugolExecutor {
   private _running$?: Subscription;
 
   events = new Subject<PortugolEvent>();
+  #outputBudget = new OutputBudget();
+  #outputCut = false;
   #printTimes(_times: { check: number; transpile: number; execution?: number }) {}
 
   runTranspiled({ js, diagnostics, parseErrors, times }: PortugolTranspiledCode) {
@@ -104,8 +149,20 @@ export class PortugolExecutor {
       }
 
       this.byteCode = this._runner.byteCode;
+      this.#outputBudget = new OutputBudget();
+      this.#outputCut = false;
 
       this._runner.stdOut$.subscribe(data => {
+        // O worker pode ter enfileirado mais saída antes de ser encerrado: depois do teto, nada entra.
+        if (this.#outputCut) {
+          return;
+        }
+
+        if (!this.#outputBudget.consume(data)) {
+          this.#cutOutput();
+          return;
+        }
+
         this.stdOut += data;
         this.stdOut$.next(data);
       });
@@ -151,7 +208,8 @@ export class PortugolExecutor {
             }
           }
 
-          this.events.next(event);
+          // Quem ouve (a telemetria da IDE) distingue o teto do botão Parar.
+          this.events.next(event.type === "finish" && this.#outputCut ? { ...event, outputLimit: true } : event);
         },
 
         error(error) {
@@ -172,6 +230,16 @@ export class PortugolExecutor {
 
   stop() {
     this.reset(false);
+  }
+
+  /**
+  Para o programa pelo mesmo caminho do botão Parar, com o aviso do teto antes do de fim.
+  */
+  #cutOutput() {
+    this.#outputCut = true;
+    this.stdOut += `${this.stdOut.endsWith("\n") ? "" : "\n"}\n${this.#outputBudget.message()}\n`;
+    this.stdOut$.next(this.stdOut);
+    this.stop();
   }
 
   private reset(clearStdOut = true) {
