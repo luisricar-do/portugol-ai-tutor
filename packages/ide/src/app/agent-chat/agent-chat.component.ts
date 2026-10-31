@@ -1044,7 +1044,9 @@ export class AgentChatComponent implements OnInit, AfterViewInit {
     // e evitar múltiplos envios enquanto `errorsForRequest` está pendente.
     this.ngZone.run(() => {
       this.tutorOverlay.undim();
-      this.history.push({ role: "user", content: trimmed });
+      this.history.push(
+        origin === "proactive" ? { role: "user", content: trimmed, origin } : { role: "user", content: trimmed },
+      );
       this.syncChatSession();
       this.error = null;
       this.pendingDocTopics.clear();

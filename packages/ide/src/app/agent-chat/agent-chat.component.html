@@ -60,7 +60,7 @@
               <span
                 class="agent-chat__msg-label"
                 [class.agent-chat__msg-label--sr]="immersiveMsgLabelsVisuallyHidden()"
-                >{{ m.role === "user" ? "Você" : "ADA" }}</span
+                >{{ m.role === "user" ? (m.origin === "proactive" ? "Aviso da IDE" : "Você") : "ADA" }}</span
               >
               <div
                 class="agent-chat__bubble"
