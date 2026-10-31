@@ -6,6 +6,8 @@ import { interval } from "rxjs";
 import { DownloadProgressToastComponent } from "./download-progress-toast/download-progress-toast.component";
 import { NewVersionAvailableComponent } from "./new-version-available/new-version-available.component";
 import { DownloadProgress, DownloadToastData, OfflineStatus, UpdateStatus } from "./pwa.types";
+import { environment } from "../environments/environment";
+import { TutorStudySessionService } from "./tutor-study-session.service";
 import { WorkspaceService } from "./workspace.service";
 
 /**
@@ -151,6 +153,13 @@ export class PwaService {
 
           this.readyHash = hash;
           this.updateStatus.set("ready");
+
+          if (this.canApplyUpdateSilently()) {
+            // Build de coleta, ninguém identificado nesta aba: aplica já, sem pedir clique, para
+            // nenhum computador da turma começar a sessão na versão em cache.
+            this.reloadToUpdate("coleta");
+            break;
+          }
           this.versionReadyToast?.close();
           this.gaService.event("pwa_update", "PWA", "mostrado");
 
@@ -256,14 +265,30 @@ export class PwaService {
    * buscada aqui, e não injetada, para o serviço (criado na inicialização) não carregá-la antes.
    */
   /**
-   * Pelo botão Atualizar do aviso de versão nova (`aviso`) ou do Sobre (`sobre`).
+   * Na build de coleta, antes de alguém se identificar nesta aba, não há código nem sessão a
+   * perder com a recarga. O serviço de sessão é buscado aqui, como a área de trabalho, para não
+   * ser criado junto com este na inicialização.
    */
-  reloadToUpdate(origin: "aviso" | "sobre") {
+  private canApplyUpdateSilently(): boolean {
+    if (!environment.studyGate) {
+      return false;
+    }
+    const study = this.injector.get(TutorStudySessionService);
+    // O rótulo (matrícula mascarada) volta do sessionStorage depois de um F5; o pseudônimo não.
+    return study.participantLabel() === undefined && !study.isRunning();
+  }
+
+  /**
+   * Pelo botão Atualizar do aviso de versão nova (`aviso`), do Sobre (`sobre`) ou sozinho na
+   * build de coleta antes da identificação (`coleta`).
+   */
+  reloadToUpdate(origin: "aviso" | "sobre" | "coleta") {
     this.gaService.event("pwa_update", "PWA", `atualizar_${origin}`);
 
     const workspace = this.injector.get(WorkspaceService);
 
     if (
+      origin !== "coleta" &&
       !workspace.persistenceAvailable &&
       !confirm(
         "Seu navegador não está salvando o código. Baixe seus arquivos antes de atualizar, ou eles serão perdidos.\n\nAtualizar agora?",

@@ -22,6 +22,12 @@ export interface TutorHistoryItem {
    * de o inferir da fala da tutora (que pode ter ficado aquém do plano).
    */
   concretenessLevel?: number;
+  /**
+   * `"proactive"` no turno `user` que a própria IDE abre (gatilho de erro de compilação ou de
+   * execução): vai como `user` para o tutor responder, mas não é fala do estudante, e o serviço
+   * o deixa fora do movimento e da estagnação. Ausente nos turnos que o estudante escreveu.
+   */
+  origin?: "proactive";
 }
 
 export interface TutorHelpRequest {

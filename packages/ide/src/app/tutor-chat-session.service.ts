@@ -56,7 +56,8 @@ export class TutorChatSessionService {
   syncFromHistory(history: readonly TutorHistoryItem[]): void {
     let userCount = 0;
     for (const item of history) {
-      if (item.role === "user") {
+      // A mensagem automática da IDE vai como `user`, mas não é o estudante a falar.
+      if (item.role === "user" && item.origin !== "proactive") {
         userCount++;
       }
     }
