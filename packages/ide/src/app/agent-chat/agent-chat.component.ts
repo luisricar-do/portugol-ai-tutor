@@ -30,7 +30,6 @@ import { MarkdownComponent } from "ngx-markdown";
 import { environment } from "../../environments/environment";
 import { EditorActionsService } from "../editor-actions.service";
 import { HelpNavigationService } from "../help-navigation.service";
-import { taskMaterial } from "../study-material";
 import { DOC_LINK_SCHEME, docSlugFromHref, resolveDocTopic } from "../tutor-doc-topics";
 import { TutorAutoTriggerService } from "../tutor-auto-trigger.service";
 import { TutorChatSessionService } from "../tutor-chat-session.service";
@@ -924,8 +923,8 @@ export class AgentChatComponent implements OnInit, AfterViewInit {
   Enunciado da tarefa da coleta em curso; `undefined` na IDE livre.
   */
   private problemStatementForRequest(): string | undefined {
-    const task = this.studySession.activeTask();
-    const statement = task ? taskMaterial(task.index)?.statement.trim() : undefined;
+    // No modo em que a tarefa começou: sem pré-código, o enunciado é o de escrever do zero.
+    const statement = this.studySession.activeMaterial()?.statement.trim();
     return statement || undefined;
   }
 

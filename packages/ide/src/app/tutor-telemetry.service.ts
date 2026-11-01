@@ -288,6 +288,7 @@ export class TutorTelemetryService {
       runningTimeboxMs?: number;
       runningPractice?: boolean;
       runningExtraMs?: number;
+      runningStarterCode?: boolean;
     },
   ): void {
     this.log({ type: "study_assigned", taskOrder: [...taskOrder], ...resumed });
@@ -393,15 +394,19 @@ export class TutorTelemetryService {
       .subscribe(event => {
         if (event.kind === "started") {
           // Item do banco e hash do código aberto: ligam a trajetória ao estado `s0` da bancada.
-          // No treino não há item: `practice` basta para o tirar da análise.
+          // No treino não há item: `practice` basta para o tirar da análise. `starterCode` diz se
+          // a aba abriu com o código defeituoso; sem ele (`false`) o hash é o do esqueleto vazio,
+          // e o item só identifica o enunciado e os casos de teste, não o ponto de partida.
+          const material = taskMaterial(event.task.index, event.starterCode);
           this.log({
             type: "task_start",
             task: event.task.index,
             taskLabel: event.task.label,
             timeboxMs: event.task.timeboxMs,
             practice: event.task.practice,
-            bankItem: taskMaterial(event.task.index)?.bankItem,
-            codeSha256: taskMaterial(event.task.index)?.codeSha256,
+            starterCode: event.starterCode,
+            bankItem: material?.bankItem,
+            codeSha256: material?.codeSha256,
           });
           return;
         }

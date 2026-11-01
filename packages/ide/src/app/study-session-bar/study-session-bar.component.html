@@ -44,6 +44,10 @@
         <span class="study-bar__chip">{{ participantChip() }}</span>
       }
 
+      @if (awaitingRelease()) {
+        <span class="study-bar__task" role="status">Aguarde o pesquisador liberar o início dos exercícios</span>
+      }
+
       @if (isRunning()) {
         <span class="study-bar__task">{{ heading() }}</span>
 
@@ -96,6 +100,35 @@
           </footer>
         }
 
+        @case ("waiting") {
+          <header class="dialog-header">
+            <h2 id="study-task-title">Treino concluído</h2>
+          </header>
+          <div class="dialog-body study-task__body">
+            @if (outcomeBanner(); as banner) {
+              <p
+                class="study-task__banner"
+                [class.study-task__banner--ok]="banner.tone === 'ok'"
+                [class.study-task__banner--warn]="banner.tone === 'warn'"
+                [class.study-task__banner--info]="banner.tone === 'info'"
+              >
+                {{ banner.text }}
+              </p>
+            }
+            <p class="study-task__statement" role="status">
+              Aguarde o pesquisador liberar o início dos exercícios. Esta tela muda sozinha quando ele liberar.
+            </p>
+            <p class="study-task__hint">
+              Você vai fazer {{ tasksPerParticipant }} exercícios, cada um com o seu tempo. O tempo só começa quando
+              você clicar em <strong>Iniciar</strong>.
+            </p>
+          </div>
+          <footer class="dialog-footer study-task__footer">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="endSession()">Encerrar sessão</button>
+            <button type="button" class="btn btn-primary study-task__start" disabled>Aguardando…</button>
+          </footer>
+        }
+
         @default {
           @if (dialogMaterial(); as material) {
             <header class="dialog-header">
@@ -134,7 +167,14 @@
                     Você tem <strong>{{ dialogMinutes() }} minutos</strong>. O tempo só começa quando você clicar em
                     <strong>Iniciar</strong>.
                   </li>
-                  <li>Corrija o programa. Se travar, converse com a Ada (botão do cérebro, ao lado do código).</li>
+                  @if (material.starterCode) {
+                    <li>Corrija o programa. Se travar, converse com a Ada (botão do cérebro, ao lado do código).</li>
+                  } @else {
+                    <li>
+                      Escreva o programa do zero: a aba abre só com o início do programa. Se travar, converse com a Ada
+                      (botão do cérebro, ao lado do código).
+                    </li>
+                  }
                   <li>
                     Quando achar que está certo, clique em <strong>Concluí</strong>: a IDE testa o programa com alguns
                     casos.
@@ -149,8 +189,14 @@
                 <button type="button" class="btn btn-ghost btn-sm" (click)="endSession()">
                   {{ isTestMode() ? "Sair do teste" : "Encerrar sessão" }}
                 </button>
-                <button type="button" class="btn btn-primary study-task__start" autofocus (click)="startTask()">
-                  Iniciar
+                <button
+                  type="button"
+                  class="btn btn-primary study-task__start"
+                  autofocus
+                  [disabled]="starting()"
+                  (click)="startTask()"
+                >
+                  {{ starting() ? "Iniciando…" : "Iniciar" }}
                 </button>
               </footer>
             } @else {

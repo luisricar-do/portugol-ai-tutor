@@ -11,7 +11,7 @@ import {
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
-import { maskMatricula, pseudonymFromMatricula } from "@luisricar-do/agent";
+import { awaitsStudyRelease, maskMatricula, pseudonymFromMatricula } from "@luisricar-do/agent";
 
 import { environment } from "../../environments/environment";
 import { StudyCheckService } from "../study-check.service";
@@ -42,10 +42,11 @@ const TASK_TAB_KEY = "pws:tutor:study:taskTab";
 const MATRICULA_FORMAT_HINT = "Confira a matrícula: só números e letras, de 4 a 20 caracteres.";
 
 /**
- * O que o diálogo da tarefa mostra: o próximo exercício (entre tarefas), o enunciado de novo
- * (durante a tarefa, a pedido) ou o fim da sessão.
+ * O que o diálogo da tarefa mostra: o próximo exercício (entre tarefas), a espera pelo condutor
+ * (depois do treino, até o «Liberar início»), o enunciado de novo (durante a tarefa, a pedido)
+ * ou o fim da sessão.
  */
-type TaskDialogMode = "next" | "statement" | "done";
+type TaskDialogMode = "next" | "waiting" | "statement" | "done";
 
 /**
  * Barra de condução da sessão de pesquisa: identifica o participante, apresenta cada exercício
@@ -97,6 +98,10 @@ export class StudySessionBarComponent {
 
   readonly checking = signal(false);
   /**
+   * **Iniciar** clicado, à espera da leitura do controle (pré-código) antes de abrir a aba.
+   */
+  readonly starting = signal(false);
+  /**
    * Por que o **Concluí** não encerrou: só a entrada do caso que falhou, sem a saída esperada.
    */
   readonly checkFeedback = signal<string | undefined>(undefined);
@@ -123,9 +128,32 @@ export class StudySessionBarComponent {
    */
   readonly dialogTask = computed(() => this.activeTask() ?? this.studySession.nextTask());
 
+  /**
+   * Trava pós-treino: terminou o treino, não começou cenário e o condutor ainda não liberou.
+   * Retomada com cenário feito ou em curso, e o modo teste, nunca esperam.
+   */
+  readonly awaitingRelease = computed(() => {
+    if (this.sessionDone()) {
+      return false;
+    }
+    return awaitsStudyRelease({
+      testMode: this.isTestMode(),
+      running: this.isRunning(),
+      completed: this.studySession.completedTasks(),
+      released: this.remoteControl.startReleased(),
+    });
+  });
+
+  /**
+   * Durante a tarefa, o material no modo em que ela começou; entre tarefas, a pré-visualização
+   * do próximo com o último `preCodigo` lido (o **Iniciar** relê antes de abrir a aba).
+   */
   readonly dialogMaterial = computed(() => {
+    if (this.isRunning()) {
+      return this.studySession.activeMaterial();
+    }
     const task = this.dialogTask();
-    return task === undefined ? undefined : taskMaterial(task.index);
+    return task === undefined ? undefined : taskMaterial(task.index, this.remoteControl.showStarterCode());
   });
 
   readonly dialogMode = computed<TaskDialogMode | undefined>(() => {
@@ -135,13 +163,13 @@ export class StudySessionBarComponent {
     if (this.isRunning()) {
       return this.statementOpen() ? "statement" : undefined;
     }
-    return this.sessionDone() ? "done" : "next";
+    if (this.sessionDone()) {
+      return "done";
+    }
+    return this.awaitingRelease() ? "waiting" : "next";
   });
 
-  readonly activeMaterial = computed(() => {
-    const task = this.activeTask();
-    return task === undefined ? undefined : taskMaterial(task.index);
-  });
+  readonly activeMaterial = this.studySession.activeMaterial;
 
   /**
    * "Treino" ou "Exercício 2 de 3": o estudante sabe onde está sem ver a ordem inteira.
@@ -214,6 +242,13 @@ export class StudySessionBarComponent {
       }
     });
 
+    // Entrou na espera (fim do treino, retomada): pergunta já, sem esperar a volta do polling.
+    effect(() => {
+      if (this.awaitingRelease()) {
+        void this.remoteControl.refreshControl();
+      }
+    });
+
     // Entre tarefas o diálogo fica aberto e modal: nada se edita fora do cronómetro.
     effect(() => {
       const dialog = this.taskDialog()?.nativeElement;
@@ -283,6 +318,7 @@ export class StudySessionBarComponent {
           runningTimeboxMs: running?.timeboxMs,
           runningPractice: running?.practice,
           runningExtraMs: resumed.runningExtraMs || undefined,
+          runningStarterCode: running === undefined ? undefined : resumed.runningStarterCode,
         },
       );
       if (resumed?.runningTask !== undefined) {
@@ -351,19 +387,34 @@ export class StudySessionBarComponent {
   }
 
   /**
-   * Inicia o cronómetro e abre o programa defeituoso numa aba própria, idêntico ao estado
-   * inicial da bancada. Cada tarefa tem a sua aba, e com ela a sua conversa com o tutor.
+   * Inicia o cronómetro e abre o programa numa aba própria: o defeituoso, idêntico ao estado
+   * inicial da bancada, ou o esqueleto vazio, se o condutor desligou o pré-código. O modo é lido
+   * do serviço neste clique e fica com a tarefa até ela acabar. Cada tarefa tem a sua aba, e com
+   * ela a sua conversa com o tutor.
    */
-  startTask(): void {
+  async startTask(): Promise<void> {
     const next = this.studySession.nextTask();
-    if (next === undefined || this.isRunning()) {
+    if (next === undefined || this.isRunning() || this.starting() || this.awaitingRelease()) {
       return;
+    }
+    let starterCode = true;
+    if (!next.practice) {
+      this.starting.set(true);
+      try {
+        ({ starterCode } = await this.remoteControl.controlForStart());
+      } finally {
+        this.starting.set(false);
+      }
+      // Durante a leitura o condutor pode ter travado de novo (ou outra coisa ter começado).
+      if (this.isRunning() || this.awaitingRelease() || this.studySession.nextTask()?.index !== next.index) {
+        return;
+      }
     }
     this.lastOutcome.set(undefined);
     this.checkFeedback.set(undefined);
-    this.studySession.startTask(next.index);
+    this.studySession.startTask(next.index, { starterCode });
     const task = this.activeTask();
-    const material = task === undefined ? undefined : taskMaterial(task.index);
+    const material = this.studySession.activeMaterial();
     if (task === undefined || material === undefined) {
       return;
     }
@@ -375,11 +426,11 @@ export class StudySessionBarComponent {
   /**
    * Tarefa retomada noutra aba do navegador: a aba dela vem com a área de trabalho do participante,
    * achada pelo título; se a área não voltou (a janela anterior ainda não tinha sido liberada),
-   * abre o programa defeituoso de novo, como no **Iniciar**.
+   * abre de novo o programa com que ela começou (defeituoso ou vazio), como no **Iniciar**.
    */
   private reopenTaskTab(index: number): void {
     const task = this.activeTask();
-    const material = taskMaterial(index);
+    const material = this.studySession.activeMaterial();
     if (material === undefined || task?.index !== index) {
       return;
     }

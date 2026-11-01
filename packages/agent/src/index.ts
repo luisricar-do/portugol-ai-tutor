@@ -16,6 +16,8 @@ export {
   studyTaskOrder,
 } from "./study.js";
 export type { StudyCaseRun } from "./study.js";
+export { awaitsStudyRelease, parseStudyControl } from "./study-control.js";
+export type { StudyControl, StudyReleaseState } from "./study-control.js";
 export { classifyErrorMessage, summarizeErrorClasses } from "./telemetry-error-class.js";
 export type { TelemetryErrorClass } from "./telemetry-error-class.js";
 export type {

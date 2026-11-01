@@ -3,6 +3,7 @@ import { studyTaskOrder } from "@luisricar-do/agent";
 import { Subject } from "rxjs";
 
 import { environment } from "../environments/environment";
+import { taskMaterial } from "./study-material";
 
 /**
  * Estado da sessão de pesquisa (dissertação): participante, condição e tarefa
@@ -121,6 +122,20 @@ export interface TaskLifecycleEvent {
    * Tempo extra dado pelo condutor nesta tarefa (só no encerramento).
    */
   extraMs?: number;
+  /**
+   * Se a aba abriu com o código defeituoso (`false`: esqueleto vazio). Sempre `true` no treino.
+   */
+  starterCode: boolean;
+}
+
+/**
+ * Opções do **Iniciar**, decididas no instante do clique (ver `StudyRemoteControlService`).
+ */
+export interface StartTaskOptions {
+  /**
+   * Pré-código do cenário; ignorado no treino, que entrega sempre o código. Padrão: `true`.
+   */
+  starterCode?: boolean;
 }
 
 interface PersistedState {
@@ -132,6 +147,11 @@ interface PersistedState {
    * Tempo dado pelo condutor além do *timebox* do protocolo.
    */
   extraMs: number;
+  /**
+   * Modo em que a tarefa começou: recarregar a aba (ou mudar o painel) no meio do cenário não
+   * troca o enunciado nem o que conta como código inicial.
+   */
+  starterCode: boolean;
 }
 
 interface ParticipantProgress {
@@ -155,6 +175,7 @@ export interface ResumedProgress {
    */
   runningStartedAt?: number;
   runningExtraMs?: number;
+  runningStarterCode?: boolean;
 }
 
 /**
@@ -183,6 +204,7 @@ export class TutorStudySessionService {
   private readonly studentTurnsSignal = signal(0);
   private readonly helpRequestedSignal = signal(false);
   private readonly extraMsSignal = signal(0);
+  private readonly starterCodeSignal = signal(true);
   private readonly nowSignal = signal(Date.now());
 
   private tickTimer: ReturnType<typeof setInterval> | undefined;
@@ -256,6 +278,20 @@ export class TutorStudySessionService {
   });
 
   readonly isRunning = computed(() => this.activeTask() !== undefined && this.startedAtSignal() !== undefined);
+
+  /**
+   * Se a tarefa corrente abriu com o pré-código; sem tarefa, `true`.
+   */
+  readonly activeStarterCode = this.starterCodeSignal.asReadonly();
+
+  /**
+   * Enunciado, código e casos da tarefa corrente, no modo em que ela começou: é o que a barra
+   * mostra e o que vai ao tutor como `problemStatement`.
+   */
+  readonly activeMaterial = computed(() => {
+    const task = this.activeTask();
+    return task === undefined ? undefined : taskMaterial(task.index, this.starterCodeSignal());
+  });
 
   /**
    * Na sessão de pesquisa a IDE esconde o que não serve à tarefa (abrir arquivo, exemplos, nova
@@ -337,6 +373,7 @@ export class TutorStudySessionService {
         runningTask: running.taskIndex,
         runningStartedAt: running.startedAt,
         runningExtraMs: running.extraMs,
+        runningStarterCode: running.starterCode,
       };
     }
     return { completed };
@@ -368,24 +405,26 @@ export class TutorStudySessionService {
     }
   }
 
-  startTask(index: number): void {
+  startTask(index: number, options: StartTaskOptions = {}): void {
     const task = findTask(index);
     if (task === undefined || this.isRunning()) {
       return;
     }
 
+    const starterCode = task.practice === true || options.starterCode !== false;
     const startedAt = Date.now();
     this.taskIndexSignal.set(task.index);
     this.startedAtSignal.set(startedAt);
     this.studentTurnsSignal.set(0);
     this.helpRequestedSignal.set(false);
     this.extraMsSignal.set(0);
+    this.starterCodeSignal.set(starterCode);
     this.timeoutEmitted = false;
     this.nowSignal.set(startedAt);
     this.persist();
     this.startTick();
 
-    this.lifecycleSubject.next({ kind: "started", task, startedAt, elapsedMs: 0 });
+    this.lifecycleSubject.next({ kind: "started", task, startedAt, elapsedMs: 0, starterCode });
   }
 
   /**
@@ -413,6 +452,7 @@ export class TutorStudySessionService {
     const elapsedMs = Math.max(0, Date.now() - startedAt);
     const studentTurns = this.studentTurnsSignal();
     const extraMs = this.extraMsSignal();
+    const starterCode = this.starterCodeSignal();
 
     this.stopTick();
     this.taskIndexSignal.set(undefined);
@@ -422,7 +462,19 @@ export class TutorStudySessionService {
     this.writeText(COMPLETED_KEY, JSON.stringify(this.completedSignal()));
     this.writeProgress(undefined);
 
-    this.lifecycleSubject.next({ kind: "ended", task, startedAt, elapsedMs, outcome, studentTurns, endedBy, extraMs });
+    this.starterCodeSignal.set(true);
+
+    this.lifecycleSubject.next({
+      kind: "ended",
+      task,
+      startedAt,
+      elapsedMs,
+      outcome,
+      studentTurns,
+      endedBy,
+      extraMs,
+      starterCode,
+    });
   }
 
   /**
@@ -535,6 +587,7 @@ export class TutorStudySessionService {
     this.studentTurnsSignal.set(raw.studentTurns);
     this.helpRequestedSignal.set(raw.helpRequested);
     this.extraMsSignal.set(raw.extraMs);
+    this.starterCodeSignal.set(task.practice === true || raw.starterCode);
     this.timeoutEmitted = false;
     this.nowSignal.set(Date.now());
     this.startTick();
@@ -610,6 +663,7 @@ export class TutorStudySessionService {
       studentTurns: this.studentTurnsSignal(),
       helpRequested: this.helpRequestedSignal(),
       extraMs: this.extraMsSignal(),
+      starterCode: this.starterCodeSignal(),
     };
     try {
       sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
@@ -675,6 +729,8 @@ function parseRunning(value: unknown): PersistedState | undefined {
     studentTurns: typeof parsed.studentTurns === "number" ? parsed.studentTurns : 0,
     helpRequested: parsed.helpRequested === true,
     extraMs: typeof parsed.extraMs === "number" ? parsed.extraMs : 0,
+    // Estado gravado antes do controle do pré-código: todas as tarefas abriam com o código.
+    starterCode: parsed.starterCode !== false,
   };
 }
 
