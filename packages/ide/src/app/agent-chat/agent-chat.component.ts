@@ -39,6 +39,7 @@ import {
   TUTOR_FIRST_TOKEN_TIMEOUT_MS,
   TUTOR_COMPILE_FIXED_MESSAGE,
   TUTOR_LOGIC_SUCCESS_ENCOURAGEMENT_MESSAGE,
+  TUTOR_WELCOME_FROM_SCRATCH_MESSAGE,
   TUTOR_WELCOME_MESSAGE,
 } from "../tutor-messages";
 import { TutorOverlayService } from "../tutor-overlay.service";
@@ -429,7 +430,9 @@ export class AgentChatComponent implements OnInit, AfterViewInit {
           return;
         }
         this.tutorSettings.markWelcomeShown(tabKey);
-        this.pushLocalAssistantMessage(TUTOR_WELCOME_MESSAGE);
+        // Cenário que abriu do zero: «depurar» não faz sentido diante de uma aba vazia.
+        const fromScratch = this.studySession.isRunning() && !this.studySession.activeStarterCode();
+        this.pushLocalAssistantMessage(fromScratch ? TUTOR_WELCOME_FROM_SCRATCH_MESSAGE : TUTOR_WELCOME_MESSAGE);
       },
       { injector: this.injector },
     );

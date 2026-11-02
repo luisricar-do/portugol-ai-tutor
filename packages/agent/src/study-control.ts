@@ -5,7 +5,8 @@
  */
 
 /**
- * O que a rota devolve. Os padrões do serviço são pré-código ligado e início travado.
+ * O que a rota devolve. Os padrões do serviço são pré-código desligado e início travado; sem
+ * resposta, a IDE também assume sem código.
  */
 export interface StudyControl {
   /**

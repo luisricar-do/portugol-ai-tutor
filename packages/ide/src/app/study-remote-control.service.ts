@@ -1,4 +1,5 @@
-import { DestroyRef, Service, inject, signal } from "@angular/core";
+import { DestroyRef, Service, computed, inject, signal } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { parseStudyControl } from "@luisricar-do/agent";
 
 import { environment } from "../environments/environment";
@@ -61,7 +62,15 @@ export class StudyRemoteControlService {
    * Build sem `AGENT_API_BASE_URL` não tem painel que libere: lá a trava não existe.
    */
   private readonly startReleasedSignal = signal<boolean | undefined>(apiBaseUrl() ? undefined : true);
-  private readonly showStarterCodeSignal = signal(true);
+  /**
+   * Último `preCodigo` lido; `undefined` enquanto o serviço não respondeu nenhuma vez.
+   */
+  private readonly starterCodeReadSignal = signal<boolean | undefined>(undefined);
+  /**
+   * `false` enquanto há uma leitura em curso depois de o valor ter ficado velho (aba nova, fim de
+   * tarefa): a barra não mostra o enunciado seguinte num modo que pode já ter mudado.
+   */
+  private readonly controlSettledSignal = signal(false);
 
   /**
    * Última resposta do serviço sobre a liberação; `undefined` até a primeira chegar.
@@ -69,10 +78,19 @@ export class StudyRemoteControlService {
   readonly startReleased = this.startReleasedSignal.asReadonly();
 
   /**
-   * Último `preCodigo` lido (padrão do serviço: ligado). Para pré-visualizar o próximo cenário;
-   * o **Iniciar** usa `controlForStart`.
+   * Último `preCodigo` lido. Sem resposta nenhuma do serviço, **sem** código: para a pesquisa, o
+   * erro seguro é o estudante escrever do zero, não ver o programa que o condutor escondeu (teste
+   * de 02/11: com a chave desligada e o serviço mudo, o cenário abria com o código). Para
+   * pré-visualizar o próximo cenário; o **Iniciar** usa `controlForStart`.
    */
-  readonly showStarterCode = this.showStarterCodeSignal.asReadonly();
+  readonly showStarterCode = computed(() => this.starterCodeReadSignal() ?? false);
+
+  /**
+   * Se o modo do próximo cenário já está confirmado. Durante a tarefa o painel pode ter mudado o
+   * pré-código sem a aba saber (o polling do controle para enquanto a tarefa corre); no fim dela
+   * a barra mostrava ~1 s o enunciado no modo antigo e só depois o novo (teste de 02/11).
+   */
+  readonly controlSettled = this.controlSettledSignal.asReadonly();
 
   start(): void {
     if (typeof window === "undefined" || this.timer !== undefined) {
@@ -86,6 +104,13 @@ export class StudyRemoteControlService {
     }, POLL_INTERVAL_MS);
     // Uma aba que recarrega (ou entra depois do «Liberar início») não espera a primeira volta.
     void this.refreshControl();
+    // Fim de tarefa: o que se leu antes dela pode estar velho; a pré-visualização espera a releitura.
+    this.studySession.lifecycle$.pipe(takeUntilDestroyed(this.lifetime)).subscribe(event => {
+      if (event.kind === "ended") {
+        this.controlSettledSignal.set(false);
+        void this.refreshControl();
+      }
+    });
     this.lifetime.onDestroy(() => {
       clearInterval(this.timer);
       this.timer = undefined;
@@ -105,7 +130,7 @@ export class StudyRemoteControlService {
 
   /**
    * Relê o controle e devolve o `preCodigo` a usar no cenário que vai começar. Sem resposta a
-   * tempo, fica o último valor conhecido (de início, o padrão: com código).
+   * tempo, fica o último valor conhecido (sem nenhum, sem código).
    */
   async controlForStart(): Promise<{ starterCode: boolean }> {
     // Corrida com um teto curto: se o polling já tinha um pedido lento no ar, não se espera por ele.
@@ -115,20 +140,24 @@ export class StudyRemoteControlService {
         setTimeout(resolve, START_CONTROL_TIMEOUT_MS);
       }),
     ]);
-    return { starterCode: this.showStarterCodeSignal() };
+    return { starterCode: this.showStarterCode() };
   }
 
   /**
    * Lê `GET /coleta/controle`. Só com a barra em uso (participante ou modo teste): a IDE pública
-   * não faz pedido nenhum. Pedidos simultâneos partilham o mesmo `fetch`.
+   * não faz pedido nenhum. Pedidos simultâneos partilham o mesmo `fetch`. Ao terminar, com ou
+   * sem resposta, o modo fica dado como confirmado: sem resposta vale o último lido (ou sem
+   * código), em vez de deixar a barra presa num «Carregando».
    */
   refreshControl(): Promise<void> {
     const baseUrl = apiBaseUrl();
     if (!baseUrl || !(this.studySession.isStudySession() || this.studySession.isTestMode())) {
+      this.controlSettledSignal.set(true);
       return Promise.resolve();
     }
     this.controlRequest ??= this.fetchControl(baseUrl).finally(() => {
       this.controlRequest = undefined;
+      this.controlSettledSignal.set(true);
     });
     return this.controlRequest;
   }
@@ -145,7 +174,7 @@ export class StudyRemoteControlService {
         return;
       }
       this.startReleasedSignal.set(control.inicioLiberado);
-      this.showStarterCodeSignal.set(control.preCodigo);
+      this.starterCodeReadSignal.set(control.preCodigo);
     } catch {
       // Rede instável: fica o último valor; a próxima volta tenta de novo.
     }

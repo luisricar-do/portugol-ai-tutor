@@ -5,6 +5,12 @@
 export const TUTOR_WELCOME_MESSAGE =
   "Olá! Estou aqui para te ajudar a depurar. Quando encontrar um erro, me conta o que você acha que está acontecendo e vamos pensar juntos.";
 
+/**
+ * Boas-vindas do cenário sem pré-código: a aba abre vazia e não há o que depurar ainda.
+ */
+export const TUTOR_WELCOME_FROM_SCRATCH_MESSAGE =
+  "Olá! Estou aqui para te ajudar a escrever o programa. Quando travar ou aparecer um erro, me conta o que você está pensando e vamos pensar juntos.";
+
 export const TUTOR_COMPILE_RUN_PROMPT =
   "Você tentou executar e apareceu um erro. O que você observou no código antes de executar?";
 
