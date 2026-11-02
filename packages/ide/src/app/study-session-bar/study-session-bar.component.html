@@ -206,6 +206,13 @@
                 </button>
               </footer>
             }
+          } @else if (dialogMode() === "next") {
+            <header class="dialog-header">
+              <h2 id="study-task-title">{{ heading() }}</h2>
+            </header>
+            <div class="dialog-body study-task__body">
+              <p class="study-task__statement" role="status">Carregando o próximo exercício…</p>
+            </div>
           }
         }
       }

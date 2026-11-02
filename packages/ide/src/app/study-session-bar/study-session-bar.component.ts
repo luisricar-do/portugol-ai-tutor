@@ -146,11 +146,16 @@ export class StudySessionBarComponent {
 
   /**
    * Durante a tarefa, o material no modo em que ela começou; entre tarefas, a pré-visualização
-   * do próximo com o último `preCodigo` lido (o **Iniciar** relê antes de abrir a aba).
+   * do próximo com o último `preCodigo` lido (o **Iniciar** relê antes de abrir a aba). Enquanto
+   * a releitura do fim da tarefa não volta, nada: o diálogo mostra «Carregando», não o enunciado
+   * num modo que o condutor pode ter acabado de trocar.
    */
   readonly dialogMaterial = computed(() => {
     if (this.isRunning()) {
       return this.studySession.activeMaterial();
+    }
+    if (!this.remoteControl.controlSettled()) {
+      return;
     }
     const task = this.dialogTask();
     return task === undefined ? undefined : taskMaterial(task.index, this.remoteControl.showStarterCode());
@@ -472,7 +477,9 @@ export class StudySessionBarComponent {
         // Só a contagem: a entrada do caso que falhou já entregava metade da depuração sem
         // passar pelo tutor (teste real de 31/10).
         this.checkFeedback.set(
-          `Ainda não: o programa acerta ${result.casesOk} de ${result.casesTotal} casos de teste. Continue corrigindo.`,
+          `Ainda não: o programa acerta ${result.casesOk} de ${result.casesTotal} casos de teste. ${
+            material.starterCode ? "Continue corrigindo." : "Continue escrevendo o programa."
+          }`,
         );
       }
     } catch (error) {
