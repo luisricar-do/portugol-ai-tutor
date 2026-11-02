@@ -26,13 +26,14 @@ git merge upstream/main
 
 ### Versões usadas na dissertação
 
-| Uso na dissertação                                     | Commit                                     | O que trouxe                                                                        |
-| ------------------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------- |
-| IDE da avaliação em bancada (corrida cap5), 14/09/2026 | `189e53c2e8b5182b7b6befbfedb4d4e1f9a07778` | Estado do código viaja em cada turno do estudante no histórico                      |
-| Criação da build de estudo, 15/09/2026                 | `f25d14a975d1437d447da418a58832a2de385939` | Build de coleta sem terceiros: três flags e uma auditoria que falha se algum voltar |
-| Produção na coleta com estudantes, 14/10/2026          | `af31dd910c21419f8a0c984e78eba8b38453e305` | Treino igual para todos abre a sessão, antes dos cenários sorteados                 |
+| Uso na dissertação                                        | Commit                                     | O que trouxe                                                                                 |
+| --------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| IDE da avaliação em bancada (corrida cap5), 14/09/2026    | `189e53c2e8b5182b7b6befbfedb4d4e1f9a07778` | Estado do código viaja em cada turno do estudante no histórico                               |
+| Criação da build de estudo, 15/09/2026                    | `f25d14a975d1437d447da418a58832a2de385939` | Build de coleta sem terceiros: três flags e uma auditoria que falha se algum voltar          |
+| Build anterior à coleta, 14/10/2026 (sem uso em execução) | `af31dd910c21419f8a0c984e78eba8b38453e305` | Treino igual para todos abre a sessão, antes dos cenários sorteados                          |
+| Produção na coleta com estudantes, 03/11/2026             | `8f1e4675b8a437b7141bf51482bd1b7666b7ebee` | Sessão guiada, painel do condutor, pré-código pelo painel (padrão: sem código), teto de 30 s |
 
-O `af31dd91` foi implantado pelo workflow «Build and Deploy (Production)» com sucesso em 2026-10-14T14:05Z (GitHub Pages).
+O `8f1e467` foi implantado pelo workflow «Build and Deploy (Production)» com sucesso em 2026-11-02 (GitHub Pages) e é a build da coleta citada na dissertação; a tag `coleta` aponta para ele. O `af31dd91`, implantado em 2026-10-14, não foi usado em nenhuma execução (tag `pre-coleta-2026-10-14`).
 
 Repositórios relacionados:
 
@@ -124,7 +125,8 @@ Após isto, você poderá acessar a IDE em: [http://localhost:4200](http://local
    - **`npm start`** usa `environment.ts`, com `agentApiBaseUrl` fixo em `http://localhost:7071/api`; não passa pela variável.
 3. O backend deve permitir **CORS** para a origem da IDE (ver `Host.CORS` em `local.settings.json` no maieutica ou o portal Azure em produção).
 4. Para compilar só o cliente HTTP do tutor: `npm run build:agent`. O `npm run build` da raiz já inclui todos os pacotes necessários para a IDE.
-5. **Interface do tutor:** use **⌘⇧A** (macOS) ou **Ctrl+Shift+A** (Windows/Linux) para abrir/fechar o painel; **Esc** também fecha. O histórico mantém-se enquanto a página estiver aberta (o painel fica montado em segundo plano).
+5. **Indisponibilidade:** se o primeiro _token_ não chega em 30 s (`TUTOR_FIRST_TOKEN_TIMEOUT_MS`, em `tutor-messages.ts`), o chat avisa que o tutor está indisponível e o evento fica na telemetria.
+6. **Interface do tutor:** use **⌘⇧A** (macOS) ou **Ctrl+Shift+A** (Windows/Linux) para abrir/fechar o painel; **Esc** também fecha. O histórico mantém-se enquanto a página estiver aberta (o painel fica montado em segundo plano).
 
 ### Execução headless (banco de itens da avaliação)
 
@@ -198,22 +200,34 @@ Fora da build de coleta (`npm start`, build pública), a barra só aparece com `
 
 #### Barra de sessão e timebox
 
-A barra no topo tem o seletor de tarefa, o botão **Iniciar**, o cronómetro do _timebox_ e os
-botões **Concluí** / **Interromper**. A primeira tarefa é o **treino** («Treino — Troco da compra»,
-10 min), igual para todos: serve à ambientação, para que dúvidas e problemas de máquina apareçam
-antes da coleta. Fica fora do banco e os seus defeitos não coincidem com os dos cenários; não
-entra no «N de 3 feitas», os eventos levam `practice: true` e os turnos com a Ada vão ao serviço
-com `sessionId` `treino-<sessionId>`, ou seja, para `interactions/treino-…/`. Depois do treino, os
-seis cenários aparecem na **ordem sorteada para o participante** (`studyTaskOrder`, com semente no pseudônimo: a mesma ordem em cada recarga e
-refeita na análise). Ao fim de cada tarefa o seletor passa à seguinte, e a barra conta «N de 3
-feitas».
+Cada tarefa abre num diálogo com o enunciado, um exemplo de entrada e saída, o _timebox_ e o
+botão **Iniciar**; o cronómetro só começa no clique. Durante a tarefa, a barra no topo mostra a
+tarefa, o tempo restante, o enunciado e os botões **Ver enunciado** e **Concluí**. A primeira
+tarefa é o **treino** («Treino — Troco da compra», 10 min), igual para todos: serve à ambientação,
+para que dúvidas e problemas de máquina apareçam antes da coleta. Fica fora do banco e os seus
+defeitos não coincidem com os dos cenários; não entra no «Exercício N de 3», os eventos levam
+`practice: true` e os turnos com a Ada vão ao serviço com `sessionId` `treino-<sessionId>`, ou
+seja, para `interactions/treino-…/`. Depois do treino, a IDE espera o condutor liberar o início
+dos cenários no painel; os seis cenários aparecem na **ordem sorteada para o participante**
+(`studyTaskOrder`, com semente no pseudônimo: a mesma ordem em cada recarga e refeita na análise).
 
-**Iniciar** abre o programa defeituoso numa aba própria, com o enunciado na barra enquanto o
-tempo corre; no fim da tarefa a aba fecha. O código é o `bug_code` do item do banco da bancada,
-igual ao estado `s0`, e o `task_start` leva `bankItem` e `codeSha256` para o confirmar. O
-enunciado fica fora do código de propósito: em uso real a IDE não envia enunciado ao tutor
-(contrato da API), e um comentário no programa o faria chegar pelo `code`. Depois de mudar o
-banco, regenerar com `node packages/ide/scripts/importar-cenarios.mjs`.
+**Iniciar** abre o programa numa aba própria; no fim da tarefa a aba fecha. O que abre depende do
+**pré-código**, escolhido no painel do condutor e relido a cada **Iniciar**: com pré-código, o
+`bug_code` do item do banco da bancada (igual ao estado `s0`) e o enunciado do sintoma; sem
+pré-código (padrão), o programa vazio e o enunciado reescrito para escrever do zero
+(`FROM_SCRATCH_STATEMENTS` em `study-material.ts`). O treino abre sempre com o código. O
+`task_start` leva `starterCode`, `bankItem` e `codeSha256` (sem pré-código, o hash é o do
+esqueleto, não o do `bug_code`). O enunciado fica fora do código e, desde o teste em sala de
+31/10/2026, vai ao serviço como `problemStatement`. Depois de mudar o banco, regenerar com
+`node packages/ide/scripts/importar-cenarios.mjs`.
+
+**Concluí** roda no navegador os casos de teste da tarefa e só a encerra como `solved` quando
+todos passam; senão, a barra diz quantos casos o programa acerta (ou que não compila), sem
+mostrar a entrada do caso que falhou. O nível de dica fica travado em 1, sem controle na
+interface. O condutor pode, pelo painel do serviço (`/api/painel`, ver o README do maieutica),
+somar minutos ao _timebox_, aceitar a tarefa como resolvida, pulá-la ou encerrar a sessão; a
+IDE aplica o comando em até ~10 s e regista `conductor_command_applied`, e a tarefa encerrada
+assim leva `endedBy: "conductor"`.
 
 Timeboxes conforme o apêndice de enunciados: **10 min** em T1–T2 e **15 min** em T3–T6 (não há
 pré-teste nem tarefa de transferência). Esgotado o tempo, a tarefa é encerrada automaticamente com
@@ -224,22 +238,24 @@ reavaliado quando a aba volta ao primeiro plano.
 
 #### Eventos registados
 
-| Evento                         | Quando                                                                          | Campos próprios                                                                         |
-| ------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `session_start` / `app_reload` | Arranque da coleta (o segundo quando o `sessionId` já tinha eventos)            | —                                                                                       |
-| `study_assigned`               | **Começar** no formulário de matrícula                                          | `taskOrder`                                                                             |
-| `session_end`                  | **Encerrar sessão**                                                             | —                                                                                       |
-| `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`, `practice`, `bankItem`, `codeSha256`                          |
-| `task_end`                     | **Concluí**, **Interromper** ou fim do timebox                                  | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns`, `practice`   |
-| `code_edit`                    | Alteração no editor (antes do debounce, para preservar a ordem face aos turnos) | `codeLength`, `codeLines`                                                               |
-| `compile`                      | Verificação estática concluída                                                  | `errorCount`, `errorClass`, `errorClassCounts`, `errorLines`, `trigger`                 |
-| `run`                          | Início e fim da execução                                                        | `phase`, `outcome` (`finished`/`runtime_error`/`compile_error`/`stopped`), `durationMs` |
-| `first_help_request`           | Primeiro pedido de orientação **do estudante** em cada tarefa                   | —                                                                                       |
-| `chat_turn_user`               | Mensagem enviada ao tutor                                                       | `origin` (`student`/`proactive`), `messageLength`, `hintLevel`                          |
-| `chat_turn_assistant`          | Resposta concluída                                                              | `latencyMs`, `replyLength`, `suggestedConversationEnd`                                  |
-| `hint_level_changed`           | Ajuste do nível de dica                                                         | `fromLevel`, `toLevel`                                                                  |
-| `sse_error` / `api_error`      | Falha no stream ou na chamada                                                   | `status`, `latencyMs`                                                                   |
-| `telemetry_dropped`            | Perda por fila cheia ou rejeição `400`                                          | `droppedEvents`                                                                         |
+| Evento                         | Quando                                                                          | Campos próprios                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `session_start` / `app_reload` | Arranque da coleta (o segundo quando o `sessionId` já tinha eventos)            | —                                                                                                           |
+| `study_assigned`               | **Começar** no formulário de matrícula                                          | `taskOrder`                                                                                                 |
+| `session_end`                  | **Encerrar sessão**                                                             | —                                                                                                           |
+| `task_start`                   | Botão **Iniciar**                                                               | `taskLabel`, `timeboxMs`, `practice`, `starterCode`, `bankItem`, `codeSha256`                               |
+| `task_check`                   | **Concluí** (cada conferência)                                                  | `passed`, `casesOk`, `casesTotal`, `compileError`                                                           |
+| `conductor_command_applied`    | Comando do painel aplicado na IDE                                               | `commandId`, `kind`, `minutes`                                                                              |
+| `task_end`                     | **Concluí**, comando do condutor ou fim do timebox                              | `outcome` (`solved`/`aborted`/`timeout`), `taskElapsedMs`, `studentTurns`, `practice`, `endedBy`, `extraMs` |
+| `code_edit`                    | Alteração no editor (antes do debounce, para preservar a ordem face aos turnos) | `codeLength`, `codeLines`                                                                                   |
+| `compile`                      | Verificação estática concluída                                                  | `errorCount`, `errorClass`, `errorClassCounts`, `errorLines`, `trigger`                                     |
+| `run`                          | Início e fim da execução                                                        | `phase`, `outcome` (`finished`/`runtime_error`/`compile_error`/`stopped`), `durationMs`                     |
+| `first_help_request`           | Primeiro pedido de orientação **do estudante** em cada tarefa                   | —                                                                                                           |
+| `chat_turn_user`               | Mensagem enviada ao tutor                                                       | `origin` (`student`/`proactive`), `messageLength`, `hintLevel`                                              |
+| `chat_turn_assistant`          | Resposta concluída                                                              | `latencyMs`, `replyLength`, `suggestedConversationEnd`                                                      |
+| `hint_level_changed`           | Ajuste do nível de dica                                                         | `fromLevel`, `toLevel`                                                                                      |
+| `sse_error` / `api_error`      | Falha no stream ou na chamada                                                   | `status`, `latencyMs`                                                                                       |
+| `telemetry_dropped`            | Perda por fila cheia ou rejeição `400`                                          | `droppedEvents`                                                                                             |
 
 Todo evento leva `seq`, `ts`, `task`, `taskElapsedMs`, `tabKey`, `hudOpen`, `dialogTurnCount`
 e `userMessageCount`, além da identidade do envelope. **O código-fonte não é enviado** — só
