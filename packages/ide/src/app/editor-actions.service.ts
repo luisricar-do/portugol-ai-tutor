@@ -35,6 +35,19 @@ export class EditorActionsService {
   private decorationIds: string[] = [];
 
   /**
+   * Destaques de linha do tutor: id da decoração → classe. A linha sai do Monaco
+   * (`getDecorationRange`), que a acompanha quando o aluno insere ou apaga linhas acima.
+   */
+  private lineHighlightIds = new Map<string, string>();
+
+  /**
+   * Destaques pedidos numa linha que já estava destacada com a mesma classe. Não viram camada
+   * nova (as camadas translúcidas somavam e a linha ficava amarelo forte: coleta de 03/11/2026),
+   * mas entram em `activeTutorDecorationCount`, para que o tutor receba a mesma contagem de antes.
+   */
+  private skippedLineHighlights = 0;
+
+  /**
    * Ids das decorações de comentário inline do tutor. A linha de cada uma sai do Monaco
    * (`getDecorationRange`), que a acompanha quando o aluno insere ou apaga linhas acima.
    */
@@ -132,7 +145,7 @@ export class EditorActionsService {
    * Snacks e `run_code_with_watch` não entram nesta contagem.
    */
   get activeTutorDecorationCount(): number {
-    return this.decorationIds.length;
+    return this.decorationIds.length + this.skippedLineHighlights;
   }
 
   /**
@@ -367,6 +380,8 @@ export class EditorActionsService {
     const ids = [...this.decorationIds];
     this.decorationIds = [];
     this.inlineCommentIds.clear();
+    this.lineHighlightIds.clear();
+    this.skippedLineHighlights = 0;
     if (!ed || ids.length === 0) {
       return;
     }
@@ -567,6 +582,14 @@ export class EditorActionsService {
     const baseClass = color === "warning" ? "tutor-line--warning" : "tutor-line--info";
     const className = pulse ? `${baseClass} tutor-line--pulsing` : baseClass;
 
+    if (this.hasLineHighlight(model, ln, className)) {
+      this.skippedLineHighlights += 1;
+      this.hudLayout.setTutorPrimaryErrorLine(ln);
+      this.nudgeHudForEditorLine(ed, ln);
+      this.refreshCompilerMarkersFn?.();
+      return;
+    }
+
     const ids = ed.deltaDecorations(
       [],
       [
@@ -580,9 +603,32 @@ export class EditorActionsService {
       ],
     );
     this.decorationIds.push(...ids);
+    for (const id of ids) {
+      this.lineHighlightIds.set(id, className);
+    }
     this.hudLayout.setTutorPrimaryErrorLine(ln);
     this.nudgeHudForEditorLine(ed, ln);
     this.refreshCompilerMarkersFn?.();
+  }
+
+  /**
+   * A linha já tem um destaque do tutor com esta classe (a decoração continua no modelo).
+   */
+  private hasLineHighlight(model: monaco.editor.ITextModel, line: number, className: string): boolean {
+    for (const [id, existing] of this.lineHighlightIds) {
+      if (existing !== className) {
+        continue;
+      }
+      const range = model.getDecorationRange(id);
+      if (range === null) {
+        this.lineHighlightIds.delete(id);
+        continue;
+      }
+      if (range.startLineNumber === line) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private nudgeHudForEditorLine(ed: monaco.editor.IStandaloneCodeEditor, line: number): void {
